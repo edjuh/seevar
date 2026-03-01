@@ -5,48 +5,50 @@
     <title>Federation ACARS</title>
     <style>
         body { background-color: #121212; color: #e0e0e0; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; height: 100vh; }
-        .banner { background: #000; color: #00ff00; padding: 10px 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; font-size: 1em; }
+        .banner { background: #000; color: #00ff00; padding: 10px 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; font-size: 1.1em; letter-spacing: 2px; }
         .deck { display: flex; height: calc(100vh - 45px); padding: 15px; gap: 15px; }
         .panel { background: #1c1c1c; border: 1px solid #333; border-radius: 2px; padding: 15px; display: flex; flex-direction: column; }
         .vitals { flex: 1; min-width: 250px; } .center { flex: 2.5; border: 1px solid #444; } .science { flex: 1; }
-        .led-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 0.8em; align-items: center; }
+        .led-row { display: flex; justify-content: space-between; margin: 10px 0; font-size: 0.85em; align-items: center; }
         .led { width: 12px; height: 12px; border: 1px solid #444; }
         .led-green { background: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
         .led-orange { background: #f39c12; box-shadow: 0 0 10px #f39c12; }
         .led-red { background: #e74c3c; box-shadow: 0 0 10px #e74c3c; }
-        .led-grey { background: #555; }
         h3 { font-size: 0.7em; color: #555; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid #222; margin: 0 0 10px 0; padding-bottom: 5px; }
-        .ticker-box { height: 70px; overflow: hidden; background: #000; border: 1px solid #222; margin-top: auto; padding: 5px; position: relative; }
+        .ticker-box { height: 75px; overflow: hidden; background: #000; border: 1px solid #222; margin-top: auto; padding: 5px; position: relative; }
         .ticker { animation: scroll-up 20s linear infinite; }
         .target-line { font-size: 0.8em; color: #888; padding: 2px 0; }
         @keyframes scroll-up { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
     </style>
 </head>
 <body>
-    <div class="banner"><div>BASE: {{ env.maidenhead }}</div><div>JD: {{ env.jd }}</div></div>
+    <div class="banner">
+        <div>GRID: {{ env.maidenhead }}</div>
+        <div style="color: #aaa;">JD: {{ env.jd }}</div>
+    </div>
     <div class="deck">
         <div class="panel vitals">
             <h3>SYSTEM STATUS</h3>
             <div class="led-row"><span>BRIDGE</span><div class="led {{ env.bridge }}"></div></div>
             <div class="led-row"><span>GPS LOCK</span><div class="led {{ env.gps_led }}"></div></div>
-            <div class="led-row"><span>PPS SYNC</span><div class="led {{ env.pps_led }}"></div></div>
-            <div class="led-row"><span>SKY/WX</span><div class="led {{ env.weather_led }}"></div></div>
-            <div class="led-row"><span>FOG/VIS</span><div class="led {{ env.fog_led }}"></div></div>
-            <div class="led-row"><span>SCIENCE</span><div class="led {{ env.science_led }}"></div></div>
-            <h3 style="margin-top:15px;">UPCOMING</h3>
+            <div class="led-row"><span>PPS OFFSET</span><span style="color:#00ff00;">{{ env.pps_offset }}</span></div>
+            <div class="led-row"><span>ENVIRONMENT</span><div class="led {{ env.weather_led }}"></div></div>
+            <h3 style="margin-top:20px;">UPCOMING</h3>
             <div class="ticker-box"><div class="ticker">
                 {% for t in plan %}<div class="target-line">{{ t.name }} ({{ t.airmass }})</div>{% endfor %}
                 {% for t in plan %}<div class="target-line">{{ t.name }} ({{ t.airmass }})</div>{% endfor %}
             </div></div>
-            <div class="led-row" style="margin-top:10px;"><span style="font-weight:bold; color:#00ff00;">{{ env.targets }}</span><div class="led {{ env.targets_led }}"></div></div>
+            <div class="led-row" style="margin-top:15px; border-top:1px solid #222; padding-top:10px;">
+                <span style="font-weight:bold; color:#00ff00;">{{ env.targets }}</span><div class="led {{ env.targets_led }}"></div>
+            </div>
         </div>
         <div class="panel center" style="justify-content:center; text-align:center; background: radial-gradient(circle, #222 0%, #000 100%);">
             <h1 style="font-size:3.5em; margin:0; letter-spacing:10px; color:#444;">🅿️ PARKED</h1>
         </div>
         <div class="panel science">
             <h3>SCIENCE LOG</h3>
-            <div style="overflow-y:auto;">
-                {% for e in qc %}<div style="font-size:0.8em; display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #222;">
+            <div style="overflow-y:auto; flex-grow:1;">
+                {% for e in qc %}<div style="font-size:0.8em; display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #222;">
                 <span>{{ e.target }}</span><span style="color:#2ecc71;">SNR {{ e.snr }}</span></div>{% endfor %}
             </div>
         </div>
