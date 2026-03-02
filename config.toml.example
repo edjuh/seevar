@@ -1,0 +1,49 @@
+# =============================================================================
+# Filename: config.toml.example
+# Version: 1.4.17 (Infrastructure Baseline)
+# Objective: Template for user-defined hardware, storage, weather, and science parameters.
+# =============================================================================
+
+[hardware]
+# Mount type is dynamically queried from the Seestar ALP bridge.
+# Hard limit for exposure time in seconds (10s is strict for Seestar ALTAZ without EQ wedge).
+default_exposure = 10
+
+[storage]
+# Where the Seestar natively drops its files (if applicable to your bridge).
+source_dir = "~/seestar_downloads"
+
+# The Primary USB RAID1 Array (Home Profile).
+# Expects two USB drives mounted by the OS.
+usb_drive_1 = "/mnt/usb1/astro_archive"
+usb_drive_2 = "/mnt/usb2/astro_archive"
+
+# Optional NAS Configuration (Uncomment and adjust if pushing to a Network Drive)
+# nas_archive = "/mnt/astronas/organized_fits"
+
+# The Local Fallback archive (Field Profile / AP Mode).
+# Safely anchored to the user's home directory.
+lifeboat_dir = "~/seestar_organizer/data/local_buffer"
+
+[weather]
+# Options: "open-meteo" (No API key required) or "openweathermap"
+provider = "open-meteo"
+api_key = ""
+max_cloud_cover_pct = 50.0
+
+[alpaca]
+# Optional override: If true, bypasses fleet_mapper.py network checks for dry runs.
+simulate = false
+
+[aavso]
+# Your official AAVSO Observer Code for photometric report generation.
+observer_code = "YOUR_CODE_HERE"
+
+[location]
+# ⚠️ LIVE GPS OVERRIDE ACTIVE ⚠️
+# The S30-PRO Federation strictly prioritizes live 3D GPS locks written to /dev/shm/discovery.json.
+# These coordinates are the absolute fallback if the GPS hardware is entirely disconnected.
+# Default Fallback: Royal Observatory, Greenwich.
+lat = 51.4779
+lon = -0.0015
+elevation = 46.0

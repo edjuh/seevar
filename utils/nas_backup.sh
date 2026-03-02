@@ -2,7 +2,7 @@
 # 🛰️ S30-PRO Federation: Daily Code Backup
 # Versioned Path: /mnt/astronas/1.1/backup
 
-BACKUP_DEST="/mnt/astronas/1.1/backup"
+BACKUP_DEST="/mnt/astronas/1.4/backup"
 SOURCE_DIR="/home/ed/seestar_organizer"
 
 mkdir -p "$BACKUP_DEST"

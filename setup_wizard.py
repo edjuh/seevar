@@ -1,81 +1,125 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Filename: setup_wizard.py
-Version: 1.2.0 (Pee Pastinakel)
-Objective: Interactive CLI for configuring GPS coordinates, weather APIs, Alpaca bridge parameters, and AAVSO credentials.
-"""
+# -----------------------------------------------------------------------------
+# Filename: setup_wizard.py
+# Version: 1.4.17 (Infrastructure Baseline)
+# Objective: Interactive CLI for configuring storage, weather APIs, and science credentials.
+# -----------------------------------------------------------------------------
 
 import os
-import tomllib
+import sys
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
-def ask(question, default=None):
+def ask(question, default=""):
     prompt = f"{question} [{default}]: " if default else f"{question}: "
     answer = input(prompt).strip()
     return answer if answer else default
 
 def main():
     clear_screen()
-    print("="*60)
-    print(" 🔭 S30-PRO AUTONOMY : SETUP WIZARD")
-    print("="*60)
-    print("Welcome! This wizard will configure your Seestar array.")
+    print("="*65)
+    print(" 🔭 S30-PRO FEDERATION : SETUP WIZARD")
+    print("="*65)
+    print("Welcome to the Seestar Federation. The pipeline is already")
+    print("pre-loaded with the current Master Catalog and sequence data.")
+    print("\nYou only need to provide an AAVSO Observer Code and API keys")
+    print("if you intend to run automated catalog updates or submit")
+    print("official photometric data to the Alert Corps.")
     print("Press ENTER to accept the default values in brackets.\n")
 
-    config = {"hardware": {}, "storage": {}, "alpaca": {}, "aavso": {}, "location": {}}
+    # Storage Block
+    print("[ STORAGE & ARCHIVE ]")
+    source_dir = ask("Seestar Downloads directory", "~/seestar_downloads")
+    usb1 = ask("Primary USB Archive (Drive 1)", "/mnt/usb1/astro_archive")
+    usb2 = ask("Secondary USB Archive (Drive 2)", "/mnt/usb2/astro_archive")
+    lifeboat = ask("Local Fallback directory (AP Mode)", "~/seestar_organizer/data/local_buffer")
 
-    print("\n[ HARDWARE CONFIGURATION ]")
-    mount_type = ask("Mount Type (ALTAZ / EQ)", "ALTAZ").upper()
-    config["hardware"]["mount_type"] = mount_type
-    
-    if mount_type == "ALTAZ":
-        config["hardware"]["default_exposure"] = 10
-        print("  -> Exposure limit safely locked to 10 seconds.")
-    else:
-        exp = ask("Max Exposure Time in seconds", "30")
-        config["hardware"]["default_exposure"] = int(exp)
+    # Weather Block
+    print("\n[ WEATHER & SAFETY GATE ]")
+    print("The Preflight Gatekeeper requires a weather provider to prevent rain/cloud damage.")
+    weather_provider = ask("Weather Provider (open-meteo / openweathermap)", "open-meteo").lower()
+    weather_key = ""
+    if weather_provider == "openweathermap":
+        weather_key = ask("OpenWeatherMap API Key", "")
 
-    print("\n[ STORAGE & ARCHIVE ]")
-    config["storage"]["source_dir"] = ask("Downloads directory (from Seestar)", "/home/stellarmate/seestar_downloads")
-    config["storage"]["primary_dir"] = ask("NAS or USB Archive directory", "/mnt/astro_nas/organized_fits")
-    config["storage"]["lifeboat_dir"] = ask("Local fallback directory", "/home/stellarmate/seestar_organizer/local_buffer")
-
-    print("\n[ NETWORK & MIDDLEWARE ]")
-    config["alpaca"]["host"] = ask("Alpaca API IP Address", "127.0.0.1")
-    config["alpaca"]["port"] = int(ask("Alpaca API Port", "5555"))
-    sim_ans = ask("Simulate Hardware for testing? (y/n)", "n").lower()
-    config["alpaca"]["simulate"] = True if sim_ans == 'y' else False
-
-    print("\n[ SCIENCE & AAVSO ]")
-    config["aavso"]["observer_code"] = ask("AAVSO Observer Code (Leave blank if none)", "")
-
-    print("\n[ LOCATION FALLBACK ]")
-    config["location"]["lat"] = float(ask("Latitude (Decimal)", "52.3874"))
-    config["location"]["lon"] = float(ask("Longitude (Decimal)", "4.6462"))
-    config["location"]["elevation"] = float(ask("Elevation in meters", "2.0"))
+    # Science Block
+    print("\n[ SCIENCE & PHOTOMETRY ]")
+    print("If you do not have an AAVSO code, are with the BAA (British Astronomical")
+    print("Association), or are just testing the system, leave this blank.")
+    aavso_code = ask("Observer Code", "")
 
     print("\nGenerating config.toml...")
-    
-    toml_content = ""
-    for section, keys in config.items():
-        toml_content += f"[{section}]\n"
-        for k, v in keys.items():
-            if isinstance(v, str):
-                toml_content += f'{k} = "{v}"\n'
-            elif isinstance(v, bool):
-                toml_content += f'{k} = {"true" if v else "false"}\n'
-            else:
-                toml_content += f'{k} = {v}\n'
-        toml_content += "\n"
 
-    with open("config.toml", "w") as f:
+    # Build the strict TOML configuration
+    toml_content = f"""# =============================================================================
+# Filename: config.toml
+# Version: 1.4.17 (Infrastructure Baseline)
+# Objective: Active configuration for hardware, storage, weather, and science parameters.
+# =============================================================================
+
+[hardware]
+# Mount type is dynamically queried from the Seestar ALP bridge.
+default_exposure = 10
+
+[storage]
+source_dir = "{source_dir}"
+usb_drive_1 = "{usb1}"
+usb_drive_2 = "{usb2}"
+lifeboat_dir = "{lifeboat}"
+
+[weather]
+provider = "{weather_provider}"
+api_key = "{weather_key}"
+max_cloud_cover_pct = 50.0
+
+[alpaca]
+simulate = false
+
+[aavso]
+# Required for automated sequence updates and official submissions.
+observer_code = "{aavso_code}"
+
+[location]
+# ⚠️ LIVE GPS OVERRIDE ACTIVE ⚠️
+# Preflight strictly prioritizes live 3D GPS locks written to /dev/shm/discovery.json.
+# Default Fallback: Royal Observatory, Greenwich.
+lat = 51.4779
+lon = -0.0015
+elevation = 46.0
+"""
+
+    # Dynamically resolve project root to save the config
+    PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
+    config_path = os.path.join(PROJECT_DIR, "config.toml")
+    
+    with open(config_path, "w") as f:
         f.write(toml_content)
 
-    print("✅ SUCCESS! config.toml has been written.")
-    print("="*60)
+    print(f"✅ SUCCESS! Configuration written to: {config_path}")
+    print("="*65)
+
+# Add this logic to your setup_wizard.py
+import subprocess
+
+def check_storage_infrastructure():
+    print("\n[STORAGE AUDIT] Verifying RAID1 Mount...")
+    
+    # Check if mounted
+    mount_check = subprocess.run(['mountpoint', '-q', '/mnt/raid'])
+    if mount_check.returncode != 0:
+        print("❌ CRITICAL: /mnt/raid is not mounted! The Data Factory will fail.")
+        # Attempt to mount if in fstab
+        os.system("sudo mount /mnt/raid && echo '✅ Recovered: RAID Mounted.'")
+    else:
+        print("✅ RAID1 is mounted and ready.")
+
+    # Check symlink
+    data_path = Path("~/seestar_organizer/data").expanduser()
+    if not data_path.is_symlink():
+        print("⚠️  Warning: ~/seestar_organizer/data is a local folder, not a RAID link.")
+        # Logic to move data and create link would go here
 
 if __name__ == "__main__":
     main()

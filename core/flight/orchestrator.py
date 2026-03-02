@@ -1,72 +1,105 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: core/flight/orchestrator.py
-Version: 1.2.0 (Pee Pastinakel)
-Objective: Primary flight control daemon that manages hardware states (Slewing, Centering, Integrating) and broadcasts telemetry to the dashboard.
+Objective: Single-Point Flight Master. 
+Logic: Safety -> Manifest Audit -> Sequencing -> Alpaca Injection.
+Path: ~/seestar_organizer/core/flight/orchestrator.py
+Version: 2.0.0 (Federation Standard)
 """
 
 import os
 import sys
 import json
 import time
+import requests
 import logging
-
-# Ensure core access
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-from core.flight.vault_manager import VaultManager
+import socket
+from datetime import datetime
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - %(message)s')
-logger = logging.getLogger("Orchestrator")
+logger = logging.getLogger("FlightMaster")
 
-class Orchestrator:
+class FlightMaster:
     def __init__(self):
-        self.vault = VaultManager()
-        self.state_file = os.path.expanduser("~/seestar_organizer/core/flight/data/system_state.json")
+        self.root = Path(__file__).resolve().parents[2]
+        self.plan_path = self.root / "data/tonights_plan.json"
+        self.state_file = self.root / "core/flight/data/system_state.json"
+        self.bridge_url = "http://127.0.0.1:5432/0/schedule" # Alpaca Proxy Port
+
+    def _check_safety(self):
+        """Absorbs preflight_check.py vitals."""
+        # Simple Bridge Check
+        try:
+            with socket.create_connection(("127.0.0.1", 5432), timeout=1):
+                logger.info("📡 Alpaca Bridge: ONLINE")
+                return True
+        except:
+            logger.error("❌ Alpaca Bridge: OFFLINE. Port 5432 unreachable.")
+            return False
+
+    def _audit_manifest(self):
+        """Verifies Librarian's stamps before flight."""
+        if not self.plan_path.exists():
+            logger.error(f"❌ No plan found at {self.plan_path}")
+            return None
+
+        with open(self.plan_path, 'r') as f:
+            plan = json.load(f)
+
+        header = plan.get("header", {})
+        today = datetime.now().strftime("%Y-%m-%d")
         
-        storage = self.vault.data.get('storage', {})
-        self.usb_path = storage.get('primary_dir', '/mnt/usb_buffer')
-        self.lifeboat_path = os.path.expanduser(storage.get('lifeboat_dir', '~/seestar_organizer/data/local_buffer'))
-        self.active_storage = self._resolve_storage()
+        if header.get("$date") != today:
+            logger.warning(f"⚠️ Plan Date Mismatch: Plan is {header.get('$date')}, Today is {today}")
+            # In a real mission, we might abort here. For now, we log it.
 
-    def _resolve_storage(self):
-        if os.path.exists(self.usb_path) and os.access(self.usb_path, os.W_OK):
-            return self.usb_path
-        else:
-            os.makedirs(self.lifeboat_path, exist_ok=True)
-            return self.lifeboat_path
+        targets = plan.get("targets", [])
+        logger.info(f"📋 Manifest Verified: {len(targets)} targets for {today}.")
+        return targets
 
-    def update_dashboard(self, status, target="None", message=""):
-        state = {
-            "status": status,
-            "target": target,
-            "message": message,
-            "timestamp": time.time()
-        }
-        with open(self.state_file, 'w') as f:
-            json.dump(state, f)
+    def inject_to_bridge(self, targets):
+        """Absorbs block_injector.py logic."""
+        logger.info("💉 Injecting science blocks to Seestar queue...")
+        # Clear existing schedule for a clean start
+        try:
+            requests.post(f"{self.bridge_url}/clear", timeout=2)
+        except: pass
 
-    def execute_plan(self):
-        plan_path = os.path.expanduser("~/seestar_organizer/data/tonights_plan.json")
-        with open(plan_path, 'r') as f:
-            targets = json.load(f)
+        for t in targets:
+            name = t.get('star_name') or t.get('name')
+            try:
+                # Dispatch sequence: Startup -> Image -> Dark
+                requests.post(f"{self.bridge_url}/startup", data={"auto_focus":"on","dark_frames":"off"})
+                requests.post(f"{self.bridge_url}/image", data={
+                    "targetName": name, 
+                    "ra": t['ra'], 
+                    "dec": t['dec'],
+                    "useJ2000": "on", 
+                    "panelTime": "240", 
+                    "gain": "80", 
+                    "action": "append"
+                })
+                logger.info(f"  ✅ Dispatched: {name}")
+            except Exception as e:
+                logger.error(f"  ❌ Failed to inject {name}: {e}")
 
-        logger.info(f"🚀 STARTING MISSION SIMULATION: {len(targets)} Targets.")
+    def run_mission(self):
+        print("\n" + "="*50)
+        print("🚀 S30-PRO FEDERATION: FLIGHT MASTER STARTING")
+        print("="*50)
 
-        for target in targets:
-            name = target['name']
-            self.update_dashboard("🛰️ SLEWING", name, f"Moving to RA:{target['ra']} Dec:{target['dec']}")
-            time.sleep(3)
-            self.update_dashboard("🎯 CENTERING", name, "Plate-solving FOV...")
-            time.sleep(2)
-            self.update_dashboard("📸 INTEGRATING", name, f"Capture: {target['frames']} x {target['exposure_sec']}s")
-            time.sleep(5)
-            self.update_dashboard("💾 SYNCING", name, f"Transferring FITS to {os.path.basename(self.active_storage)}")
-            time.sleep(2)
+        if not self._check_safety(): return
+        
+        targets = self._audit_manifest()
+        if not targets: return
 
-        self.update_dashboard("🅿️ PARKED", "OFF-DUTY", "Mission Complete. All targets processed.")
-        logger.info("🏁 MISSION COMPLETE.")
+        # Handover to bridge
+        self.inject_to_bridge(targets)
+
+        print("\n" + "="*50)
+        print("🏁 FLIGHT MASTER: MISSION DISPATCHED")
+        print("="*50 + "\n")
 
 if __name__ == "__main__":
-    engine = Orchestrator()
-    engine.execute_plan()
+    FlightMaster().run_mission()

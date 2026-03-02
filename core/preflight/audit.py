@@ -1,32 +1,46 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: core/preflight/audit.py
-Version: 1.2.0 (Pee Pastinakel)
-Objective: Tags done objects until new observation is required based on cadence.
+#Objective: Enforces scientific cadence. Cross-references targets with ledger.json.
 """
-
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-project_root = Path(__file__).parent.parent.parent
-
 def run_audit():
-    plan_path = project_root / "data/tonights_plan.json"
-    ledger_path = project_root / "data/ledger.json"
-    
-    if not plan_path.exists():
+    project_root = Path(__file__).parent.parent.parent
+    master_path = project_root / "data/targets.json"
+    ledger_path = project_root / "data/ledger.json" # Historical record
+
+    if not master_path.exists():
+        print("[AUDIT] Master Catalog not found. Run Librarian first.")
         return
 
-    # Load the current plan and the historical ledger
-    with open(plan_path, 'r') as f:
-        plan = json.load(f)
+    # Create dummy ledger if missing to avoid failure
+    if not ledger_path.exists():
+        with open(ledger_path, 'w') as f:
+            json.dump([], f)
+
+    with open(master_path, 'r') as f:
+        master = json.load(f)
+    with open(ledger_path, 'r') as f:
+        ledger = json.load(f)
+
+    # CADENCE: Skip if observed in last 72 hours
+    threshold = datetime.now() - timedelta(hours=72)
     
-    # Logic for Phase 4:
-    # Cross-references targets with local_history to enforce scientific cadence.
-    
-    print(f"✅ Preflight D: Audit complete. Plan is fresh.")
+    # Track which targets have recent hits in the ledger
+    recent_stars = {entry['name'] for entry in ledger 
+                    if datetime.strptime(entry.get('date', '2000-01-01'), '%Y-%m-%d') > threshold}
+
+    for target in master:
+        name = target.get('name')
+        target['cadence_skip'] = name in recent_stars
+
+    with open(master_path, 'w') as f:
+        json.dump(master, f, indent=4)
+
+    print(f"✅ Audit: Cadence filters applied to {len(master)} targets.")
 
 if __name__ == "__main__":
     run_audit()

@@ -1,0 +1,46 @@
+cat << 'EOF' > ~/seestar_organizer/WORKFLOW.md
+# 🛰️ S30-PRO Federation: Master Workflow
+> **Version:** 1.5.0 (Garmt-Factory Standard)
+> **Objective:** Deterministic pipeline from AAVSO Haul to Photon Acquisition.
+
+## 🏁 PHASE 1: THE FUNNEL (Pre-Flight Data Factory)
+
+1. **THE HARVEST**
+   - **Script:** `core/preflight/harvester.py`
+   - **Action:** Submits Seestar FOV to AAVSO.
+   - **Output:** `data/campaign_targets.json`
+
+2. **THE CLEANUP & ENRICHMENT**
+   - **Script:** `core/preflight/librarian.py`
+   - **Action:** Sanitizes malformed AAVSO entries; fetches/attaches comparison star data.
+   - **Output:** `data/targets.json` (The Master Catalog)
+
+3. **THE GRIP VALIDATION**
+   - **Script:** `core/preflight/asassn_validator.py`
+   - **Action:** Cross-references targets against available comparison charts.
+   - **Output:** `data/observable_targets.json` (The "Ready for Science" list)
+
+4. **THE REFINEMENT (Daily @ 17:00)**
+   - **Script:** `core/preflight/nightly_planner.py`
+   - **Action:** Filters by live GPS, >30° Altitude, and Astronomical Dark window.
+   - **Output:** `data/tonights_plan.json` (The Final Slew List)
+
+## 🛡️ PHASE 2: THE HANDOVER (The Gatekeeper)
+
+5. **PHYSICAL AUDIT**
+   - **Script:** `core/flight/preflight_check.py`
+   - **Check:** Storage Sentinel + Temporal Alignment (PPS) + Spatial Lock (GPS).
+
+6. **METEOROLOGICAL AUDIT**
+   - **Script:** `core/preflight/weather_audit.py`
+   - **Check:** Live Cloud Cover % vs. Safety Limit.
+
+7. **MISSION CONTROL**
+   - **Script:** `core/flight/orchestrator.py`
+   - **Action:** Executes the ET Protocol (PUT) using `tonights_plan.json`.
+
+## 📊 PHASE 3: THE VITALS (Parallel Process)
+- **Service:** `federation_vitals.service`
+- **Script:** `dashboard/dashboard.py`
+- **Action:** Read-only tailing of logs and `/dev/shm/` states for UI display.
+EOF

@@ -1,47 +1,39 @@
-cat << 'EOF' > ~/seestar_organizer/AI_CONTEXT.md
-# AI Project Context - Seestar Photometry Engine (Rommeldam Edition)
+# AI Project Context - S30-PRO Federation (Rommeldam Edition)
 
-> **Objective:** Provides definitive architectural rules, environment snapshots, and logic constraints for AI-assisted development of the Seestar Federation.
-> **Version:** 1.2.0 (Garmt)
+> **Objective:** The absolute architectural law, environment standards, and logic constraints for AI-assisted development of the Seestar Federation.
+> **Version:** 1.4.17 (Infrastructure Baseline)
 
-## 🏰 Architectural Logic & Current Status
-- **v1.2 Garmt (Current):** Unified PEP 257 standardization across all core scripts.
-- **v0.5 Hiep Hieper (The Orchestrator):** Manages the "Golden Bridge" between AAVSO JSON vaults and the Alpaca client.
-- **v0.9 Terpen Tijn:** "Het is prut!" Implements the "Aperture Grip"—handling western priority, sub-pixel centroiding logic, and enforcing a >30° altitude floor for science-grade photons.
-- **Environment:** Raspberry Pi 5 (Headless, Debian Bookworm).
-- **Hardware:** S30-Pro IMX585 (GRBG color matrix, 4.6° Telephoto FOV).
+## 🛑 1. The Prime Directives (Rules of Engagement)
+1. **No "Vibe-Coding":** All logic must map directly to the defined schemas and protocols in `~/seestar_organizer/logic/`. No guessing API endpoints or hardware states.
+2. **Infrastructure as Code (IaC):** Python 3.13.5 environment is strictly locked via `bootstrap.sh` and `requirements.txt`.
+3. **The "Garmt" Header Standard:** Every script must contain a PEP 257 docstring stating: Filename, Version, and a single-sentence Objective.
+4. **Guiding Principle:** "Do not live in the moment. Plan for the astronomical night."
 
-## 🏰 The "Garmt" Header Standard
-Every `.py` file MUST start with a unified PEP 257 docstring containing:
-1. **Filename:** Explicit path tracking.
-2. **Version:** Current project epoch (1.2.0 Garmt).
-3. **Objective:** A single-sentence declaration of responsibility.
+## 🏗️ 2. The Master Workflow (The Funnel)
+The application stack is a strict, linear 3-Phase State Machine.
+* **Phase 1: Pre-Flight (The Funnel)**
+  * **Harvest & Refine:** `targets.json` (Master) is filtered by `nightly_planner.py` to generate `tonights_plan.json`.
+  * **AAVSO Throttling:** API calls for sequences must respect a strict **188.4s (Pi-Minute) delay** to prevent IP bans.
+* **Phase 2: The Handover (The Gatekeeper)**
+  * **System Audit:** 5-minute loop validating weather, disk vitals, and plan integrity. Passes control (GREEN) or scrubs mission (RED).
+* **Phase 3: Flight (The Acquisition Loop)**
+  * **Execution:** Orchestrator reads `tonights_plan.json`.
+  * **Action:** Commands slew, plate solve, track, and expose. FITS stream is routed to the Active Storage Path.
 
-## 🛠️ Technical Snapshot
-1. **Analyst:** Plate-solver (Astrometry.net) configured for narrow-field Seestar optics.
-2. **Mapper:** Python WCS-to-Pixel bridge for instrumental flux extraction.
-3. **Registry:** `data/sequences/` contains 390+ AAVSO targets.
+## 📡 3. Hardware & Network Logic
+* **Discovery & AP Fallback:**
+  * **Home Profile:** `192.168.178.0/24` subnet detected -> Mount NAS (`/mnt/astronas/`).
+  * **Field Profile:** Fallback to `lifeboat_dir` -> `nmcli` hosts "Seestar_Sentry_AP" -> Dashboard served at `10.42.0.1`.
+* **Alpaca Bridge (The ET Protocol):**
+  * **Target IP:** Fixed alignment at `192.168.178.55` (Port 5555).
+  * **Communication:** Strict `PUT` method for Actions. `ClientID` and `ClientTransactionID` are mandatory.
+  * **Sequence:** `CONNECT` -> `SET LAT` -> `SET LON` -> `VERIFY LST`.
+* **Temporal & Positional Awareness:**
+  * **Time:** GPS PPS (`/dev/pps0`) via `chrony`. Pre-flight FAILS if offset > 0.5s.
+  * **Location:** Live GPS data writes strictly to RAM (`/dev/shm/discovery.json`) to prevent SD wear. Physical writes to `config.toml` only happen upon manual "Confirm Site".
+* **Storage Sentinel:**
+  * Continuous audit of `lifeboat_dir`. If disk usage **> 85%**, FITS acquisition is halted; only metadata generation is permitted.
 
-## 🛰️ Seestar Federation Alpaca Handshake
-- **Endpoint:** `http://127.0.0.1:5432/0/schedule`
-- **Device Index:** `/0/`
-- **Method:** `POST` with unique `schedule_item_id` (UUID4).
-
-| Source Field (AAVSO JSON) | Target Field (Alpaca) | Logic |
-| :--- | :--- | :--- |
-| `auid` or `comments` | `target_name` | Primary: `auid`; Fallback: `comments`. |
-| `ra` ("HH:MM:SS") | `ra` | Must use `unit=(u.hourangle, u.deg)`. |
-| `dec` ("DD:MM:SS") | `dec` | Preserved colon-string for parser. |
-| N/A | `is_j2000` | Always `True`. |
-| N/A | `panel_time_sec` | Standardized to `60`s for variable stars. |
-
-## 🧪 Critical Handshake Logic
-- **List-Wrapped:** AAVSO files are `raw_json`.
-- **Simulation:** `SIMULATION_MODE=True` bypasses weather/sun but maintains real-time Alt/Az calculation.
-- **Westward Priority:** Objects in Azimuth 180-350 with low altitude take priority to ensure capture before setting.
-
-## 🏮 The "Aperture Grip" (Terpen Tijn Logic)
-- **Westward Priority:** To avoid losing targets to the horizon, the Selector prioritizes objects with Azimuth 180°-350°.
-- **Priority Score:** $(100 - Altitude)$ for Western targets; $(Altitude / 2)$ for Eastern/Zenith targets.
-- **Handshake Name:** Always use `target['display_name']` to avoid `None` errors in the Alpaca bridge.
-
+## 🗂️ 4. Data Dictionary Rules
+* **Science First:** No target is integrated without a matching sequence in `data/sequences/comp_stars/`.
+* **Path Awareness:** All logic must resolve paths dynamically via `config.toml` (NAS vs. Lifeboat).
