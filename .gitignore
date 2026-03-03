@@ -1,5 +1,6 @@
 # Credentials
 config.toml
+config.toml.ed
 *.key
 
 # Environments & Tests
