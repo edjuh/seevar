@@ -5,17 +5,6 @@
 
 **Automated Variable Star Observation Pipeline**
 
-## 🎯 Scientific Mission Profile & Hardware Constraints
-
-The **S30-PRO Federation** is an autonomous photometric pipeline engineered specifically for the constraints of a 30mm f/5.3 aperture and an IMX585 colour sensor (GRBG Bayer matrix). Operating at a wide pixel scale of ~3.74 arcsec/pixel, this system avoids crowded fields and high-precision micro-variability, focusing instead on high-amplitude, scientifically valuable targets.
-
-**Target Acquisition Strategy:**
-* **Primary Focus:** Long-Period Variables (Miras, Semi-Regulars) and Symbiotic binaries. The wide FOV ensures comparison stars are consistently captured, while the large magnitude swings (2–8 mag) forgive the wide pixel scale.
-* **Triggered Observations:** Cataclysmic Variables (CVs) in outburst (e.g., SS Cyg, U Gem).
-
-**Photometric Output:**
-Due to the lack of standard Johnson-Cousins filters, all photometric data is processed via V-equivalent extractions. Submissions to the AAVSO are strictly reported as **"TG"** (Green channel as V-proxy) or **"CV"** (Clear with V-zeropoint) to ensure absolute scientific integrity and avoid colour-dependent errors.
-
 ## 🏰 Architecture: The 5-Block State Machine
 This project has transitioned from a scattered daemon approach to a strict **5-Block Linear State Machine**. All logic follows a unidirectional flow to ensure hardware synchronicity and prevent desynchronization errors (such as the "Grey Williamina / Red GPS" UI disconnects).
 

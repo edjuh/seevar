@@ -17,26 +17,33 @@
         .container { display: flex; gap: 20px; justify-content: space-between; }
         .panel { flex: 1; background-color: var(--panel-bg); border: 1px solid #333; padding: 20px; min-height: 400px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
         .panel h2 { color: var(--text-muted); font-size: 0.85em; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 10px; margin-top: 0; margin-bottom: 25px; }
+        
+        /* Flight Window specific styling */
+        .flight-window-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px dashed #333; font-size: 0.9em; font-weight: bold; }
+        .fw-val { color: #88ccff; letter-spacing: 1px; }
+
         .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 0.85em; font-weight: bold; }
         .label { color: var(--text-muted); width: 45%; }
         .val { color: var(--text-bright); text-align: left; flex: 1; }
         .val-fetching { background-color: #224466; color: #88ccff; padding: 2px 5px; }
         
-        /* HARDWARE LEDS (Upgraded to Square & Larger) */
+        /* HARDWARE LEDS */
         .led { 
-            width: 18px; 
-            height: 18px; 
-            border-radius: 4px; /* Square with slightly softened edges */
+            width: 20px; /* Slightly wider to fit the numbers */
+            height: 20px; 
+            border-radius: 4px; 
             margin-left: 10px; 
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px; /* For the emoticons */
+            font-size: 13px; 
+            font-weight: 900;
+            color: #000; /* Black text inside LED for contrast */
         }
         .green { background-color: var(--led-green); box-shadow: 0 0 8px var(--led-green); }
         .orange { background-color: var(--led-orange); box-shadow: 0 0 8px var(--led-orange); }
-        .blue-grey { background-color: var(--led-bluegrey); box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); border: 1px solid #333; }
-        .weather-icon { background: none; box-shadow: none; font-size: 18px; }
+        .blue-grey { background-color: var(--led-bluegrey); box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); border: 1px solid #333; color: transparent; }
+        .weather-icon { background: none; box-shadow: none; font-size: 18px; color: transparent; }
         
         /* Orchestrator Center Panel */
         .center-content { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80%; text-align: center; }
@@ -46,7 +53,6 @@
             box-shadow: 0 10px 20px rgba(0,0,0,0.5); transition: all 0.5s ease;
         }
         
-        /* Dynamic Hardware State Animations */
         .state-parked { background: linear-gradient(135deg, #1e90ff, #005cbf) !important; animation: none; }
         .state-slewing { background: linear-gradient(135deg, #ff9900, #b36b00) !important; animation: spin 2s linear infinite; }
         .state-tracking { background: linear-gradient(135deg, #39ff14, #006600) !important; animation: pulse-green 3s infinite; }
@@ -71,13 +77,21 @@
     <div class="container">
         <div class="panel">
             <h2>SYSTEM VITALS</h2>
+            
+            <div class="flight-window-row">
+                <span class="label">FLIGHT WINDOW (ASTRO)</span> 
+                <span id="flight-window" class="fw-val">19:55 - 05:10</span> 
+            </div>
+
             <div class="row"><span class="label">BRIDGE (5432)</span> <span class="val"></span> <div class="led green"></div></div>
             <div class="row"><span class="label">SEESTAR (LINK)</span> <span class="val">WAITING...</span> <div class="led orange"></div></div>
             <div class="row"><span class="label">GPS (LOCK)</span> <span class="val"></span> <div class="led green"></div></div>
             <div class="row"><span class="label">PPS SYNC</span> <span class="val">WAITING (-0.094ms)</span> <div class="led orange"></div></div>
             <div class="row"><span class="label">WEATHER (PRED)</span> <span class="val">CLEAR</span> <div class="led weather-icon">⭐</div></div>
             <div class="row"><span class="label">STORAGE (HOME)</span> <span class="val">FEDERATION</span> <div class="led green"></div></div>
-            <div class="row"><span class="label">TARGET LIST</span> <span id="t-ticker" class="val val-fetching">FETCHING...</span> <div class="led orange"></div></div>
+            
+            <div class="row"><span class="label">TARGET LIST</span> <span id="t-ticker" class="val val-fetching">FETCHING...</span> <div id="target-count-led" class="led orange"></div></div>
+            
             <div class="row"><span class="label">FOG (VIS)</span> <span class="val">DISCONNECTED</span> <div class="led blue-grey"></div></div>
         </div>
 
@@ -103,9 +117,21 @@
 
         function updateTicker() {
             const display = document.getElementById('t-ticker');
+            const countLed = document.getElementById('target-count-led');
+
             if (!targetData || targetData.length === 0) {
-                display.innerText = "EMPTY"; display.className = "val"; return;
+                display.innerText = "EMPTY"; 
+                display.className = "val"; 
+                countLed.className = "led orange";
+                countLed.innerText = "0";
+                return;
             }
+            
+            // Inject the total count directly into the LED
+            countLed.className = "led green";
+            // Pad to 2 digits (e.g., "05")
+            countLed.innerText = targetData.length.toString().padStart(2, '0');
+
             const target = targetData[tickerIndex];
             display.innerText = target.name;
             display.className = (target.priority === "CRITICAL") ? "val critical" : "val";
@@ -127,7 +153,6 @@
                         const icon = document.getElementById('orch-icon');
                         const mainText = document.getElementById('orch-main');
                         
-                        // Emoji injection for Flight phases
                         if(state === 'PARKED') {
                             icon.innerText = '🅿️'; icon.className = 'icon-p state-parked'; mainText.style.color = '#1e90ff';
                         } else if(state === 'SLEWING') {
