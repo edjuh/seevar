@@ -20,3 +20,8 @@ data/*.json
 data/sequences/*.json
 /mnt/usb_buffer/
 /mnt/astronas/
+# REDA Private Data
+core/postflight/knvws_reporter.py
+core/flight/data/config.toml
+*.xlsx
+.env
