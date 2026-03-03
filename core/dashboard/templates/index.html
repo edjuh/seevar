@@ -5,37 +5,97 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S30-PRO Federation Dashboard</title>
     <style>
-        body { background-color: #050505; color: #0f0; font-family: monospace; padding: 20px; }
-        .block { border: 1px solid #333; padding: 15px; margin-bottom: 20px; background: #0a0a0a; box-shadow: 0 0 10px rgba(0,255,0,0.1); }
-        h2 { color: #fff; border-bottom: 1px solid #333; padding-bottom: 5px; margin-top: 0; }
-        .row { display: flex; justify-content: space-between; margin: 10px 0; font-size: 1.1em; }
-        .val { color: #fff; font-weight: bold; }
-        .val-ticker { color: #0ff; font-weight: bold; font-size: 1.2em; transition: all 0.3s ease; }
-        .led { padding: 2px 8px; border-radius: 3px; font-weight: bold; font-size: 0.9em; }
-        .green { background: #003300; color: #0f0; border: 1px solid #0f0; }
-        
-        /* Neon Purple Shadow for Critical Priority */
-        .critical { 
-            color: #E0B0FF !important; 
-            text-shadow: 0 0 8px #BF00FF, 0 0 12px #BF00FF; 
-            font-weight: 900;
+        :root {
+            --bg-dark: #111111; --panel-bg: #1a1a1a;
+            --text-muted: #888888; --text-bright: #ffffff;
+            --led-green: #39ff14; --led-orange: #ff9900; 
+            --led-grey: #555555; --led-bluegrey: #4a5a6a;
+            --neon-purple: #E0B0FF; --purple-glow: #BF00FF;
         }
+        body { background-color: var(--bg-dark); color: var(--text-bright); font-family: 'Courier New', Courier, monospace; margin: 0; padding: 10px 20px; }
+        .top-bar { display: flex; justify-content: space-between; color: var(--led-green); font-weight: bold; font-size: 0.9em; margin-bottom: 20px; padding: 5px 0; border-bottom: 1px solid #333; }
+        .container { display: flex; gap: 20px; justify-content: space-between; }
+        .panel { flex: 1; background-color: var(--panel-bg); border: 1px solid #333; padding: 20px; min-height: 400px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+        .panel h2 { color: var(--text-muted); font-size: 0.85em; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 10px; margin-top: 0; margin-bottom: 25px; }
+        .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 0.85em; font-weight: bold; }
+        .label { color: var(--text-muted); width: 45%; }
+        .val { color: var(--text-bright); text-align: left; flex: 1; }
+        .val-fetching { background-color: #224466; color: #88ccff; padding: 2px 5px; }
+        
+        /* HARDWARE LEDS (Upgraded to Square & Larger) */
+        .led { 
+            width: 18px; 
+            height: 18px; 
+            border-radius: 4px; /* Square with slightly softened edges */
+            margin-left: 10px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px; /* For the emoticons */
+        }
+        .green { background-color: var(--led-green); box-shadow: 0 0 8px var(--led-green); }
+        .orange { background-color: var(--led-orange); box-shadow: 0 0 8px var(--led-orange); }
+        .blue-grey { background-color: var(--led-bluegrey); box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); border: 1px solid #333; }
+        .weather-icon { background: none; box-shadow: none; font-size: 18px; }
+        
+        /* Orchestrator Center Panel */
+        .center-content { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80%; text-align: center; }
+        .icon-p { 
+            background: linear-gradient(135deg, #1e90ff, #005cbf); color: white; font-size: 3.5em; font-weight: bold; font-family: sans-serif; 
+            width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 20px; margin-bottom: 20px; 
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5); transition: all 0.5s ease;
+        }
+        
+        /* Dynamic Hardware State Animations */
+        .state-parked { background: linear-gradient(135deg, #1e90ff, #005cbf) !important; animation: none; }
+        .state-slewing { background: linear-gradient(135deg, #ff9900, #b36b00) !important; animation: spin 2s linear infinite; }
+        .state-tracking { background: linear-gradient(135deg, #39ff14, #006600) !important; animation: pulse-green 3s infinite; }
+        .state-exposing { background: linear-gradient(135deg, #ff3333, #800000) !important; animation: pulse-red 1.5s infinite; }
+        
+        .status-main { color: var(--text-bright); font-size: 2em; letter-spacing: 5px; font-weight: 900; margin-bottom: 10px; transition: color 0.5s ease;}
+        .status-sub { color: var(--text-bright); font-size: 0.9em; font-weight: bold; margin-bottom: 30px; letter-spacing: 1px; }
+        .status-msg { color: var(--text-muted); font-size: 0.8em; font-style: italic; }
+
+        @keyframes pulse-green { 0% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } 50% { box-shadow: 0 0 30px rgba(57,255,20,0.8); } 100% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } }
+        @keyframes pulse-red { 0% { transform: scale(1); box-shadow: 0 0 15px rgba(255,51,51,0.5); } 50% { transform: scale(1.05); box-shadow: 0 0 40px rgba(255,51,51,1); } 100% { transform: scale(1); box-shadow: 0 0 15px rgba(255,51,51,0.5); } }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .critical { color: var(--neon-purple) !important; text-shadow: 0 0 8px var(--purple-glow), 0 0 12px var(--purple-glow); background: none !important; }
     </style>
 </head>
 <body>
-    <h1>🔭 S30-PRO FEDERATION LINK</h1>
+    <div class="top-bar">
+        <span id="telemetry-mh">JO22hj</span>
+        <span>JDATE: <span id="live-jdate">CALCULATING...</span></span>
+    </div>
 
-    <section class="block">
-        <h2>FLIGHT VITALS</h2>
-        <div class="row">LOCATION (MAIDENHEAD) <span id="telemetry-mh" class="val">SYNCING...</span></div>
-        <div class="row">ACTIVE TARGET <span id="t-ticker" class="val-ticker">LOADING...</span></div>
-    </section>
+    <div class="container">
+        <div class="panel">
+            <h2>SYSTEM VITALS</h2>
+            <div class="row"><span class="label">BRIDGE (5432)</span> <span class="val"></span> <div class="led green"></div></div>
+            <div class="row"><span class="label">SEESTAR (LINK)</span> <span class="val">WAITING...</span> <div class="led orange"></div></div>
+            <div class="row"><span class="label">GPS (LOCK)</span> <span class="val"></span> <div class="led green"></div></div>
+            <div class="row"><span class="label">PPS SYNC</span> <span class="val">WAITING (-0.094ms)</span> <div class="led orange"></div></div>
+            <div class="row"><span class="label">WEATHER (PRED)</span> <span class="val">CLEAR</span> <div class="led weather-icon">⭐</div></div>
+            <div class="row"><span class="label">STORAGE (HOME)</span> <span class="val">FEDERATION</span> <div class="led green"></div></div>
+            <div class="row"><span class="label">TARGET LIST</span> <span id="t-ticker" class="val val-fetching">FETCHING...</span> <div class="led orange"></div></div>
+            <div class="row"><span class="label">FOG (VIS)</span> <span class="val">DISCONNECTED</span> <div class="led blue-grey"></div></div>
+        </div>
 
-    <section class="block">
-        <h2>POSTFLIGHT AUDIT</h2>
-        <div class="row">LAST KNVWS REPORT <span id="r-stamp" class="val">NEVER</span><div class="led green">OK</div></div>
-        <div class="row">FEDERATION SYNC <span class="val">ACTIVE</span><div class="led green">OK</div></div>
-    </section>
+        <div class="panel">
+            <div class="center-content">
+                <div id="orch-icon" class="icon-p state-parked">🅿️</div>
+                <div id="orch-main" class="status-main" style="color: #1e90ff;">PARKED</div>
+                <div id="orch-sub" class="status-sub">OFF-DUTY</div>
+                <div id="orch-msg" class="status-msg">Waiting for hardware...</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>POSTFLIGHT AUDIT</h2>
+            <div class="row"><span class="label">LAST AUDIT</span> <span class="val">N/A</span></div>
+            <div class="row"><span class="label">KNVWS REPORT</span> <span class="val" id="r-stamp">AWAITING LIGHT</span></div>
+        </div>
+    </div>
 
     <script>
         const targetData = {{ target_data | tojson | safe }};
@@ -44,19 +104,11 @@
         function updateTicker() {
             const display = document.getElementById('t-ticker');
             if (!targetData || targetData.length === 0) {
-                display.innerText = "NO TARGETS";
-                return;
+                display.innerText = "EMPTY"; display.className = "val"; return;
             }
-            
             const target = targetData[tickerIndex];
             display.innerText = target.name;
-            
-            if (target.priority === "CRITICAL") {
-                display.className = "val-ticker critical";
-            } else {
-                display.className = "val-ticker";
-            }
-            
+            display.className = (target.priority === "CRITICAL") ? "val critical" : "val";
             tickerIndex = (tickerIndex + 1) % targetData.length;
         }
 
@@ -64,15 +116,42 @@
             fetch('/telemetry')
                 .then(res => res.json())
                 .then(data => {
-                    document.getElementById('telemetry-mh').innerText = data.maidenhead;
+                    if(data.maidenhead) document.getElementById('telemetry-mh').innerText = data.maidenhead;
+                    
+                    if(data.orchestrator) {
+                        const state = data.orchestrator.state;
+                        document.getElementById('orch-main').innerText = state;
+                        document.getElementById('orch-sub').innerText = data.orchestrator.sub;
+                        document.getElementById('orch-msg').innerText = data.orchestrator.msg;
+                        
+                        const icon = document.getElementById('orch-icon');
+                        const mainText = document.getElementById('orch-main');
+                        
+                        // Emoji injection for Flight phases
+                        if(state === 'PARKED') {
+                            icon.innerText = '🅿️'; icon.className = 'icon-p state-parked'; mainText.style.color = '#1e90ff';
+                        } else if(state === 'SLEWING') {
+                            icon.innerText = '🔭'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
+                        } else if(state === 'TRACKING') {
+                            icon.innerText = '🎯'; icon.className = 'icon-p state-tracking'; mainText.style.color = '#39ff14';
+                        } else if(state === 'EXPOSING') {
+                            icon.innerText = '📸'; icon.className = 'icon-p state-exposing'; mainText.style.color = '#ff3333';
+                        }
+                    }
                 })
                 .catch(err => console.error("Telemetry error:", err));
         }
 
+        function updateJDate() {
+            const now = new Date();
+            const jd = (now.getTime() / 86400000) + 2440587.5;
+            document.getElementById('live-jdate').innerText = jd.toFixed(4);
+        }
+
         setInterval(updateTicker, 3000);
-        setInterval(fetchTelemetry, 5000);
-        updateTicker();
-        fetchTelemetry();
+        setInterval(fetchTelemetry, 2000);
+        setInterval(updateJDate, 1000);
+        updateTicker(); fetchTelemetry(); updateJDate();
     </script>
 </body>
 </html>
