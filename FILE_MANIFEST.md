@@ -1,5 +1,5 @@
 # 📑 Seestar Organizer: Purified Manifest
-**Audit Timestamp:** 2026-03-03 08:51:56
+**Audit Timestamp:** 2026-03-03 17:21:52
 
 ## 🗄️ RAID1 DATA REPOSITORY
 | Filename | Objective | Status/Count |
@@ -8,7 +8,7 @@
 | `data/ledger.json` | Master Observational Register and Status Ledger | N/A Targets |
 | `data/observable_targets.json` | The Menu: Astrophysical Reality Filter | 409 Targets |
 | `data/system_state.json` | Data file | N/A Targets |
-| `data/targets.json` | The Research Catalog: Immutable Master Target List | 409 Targets |
+| `data/targets.json` | Error reading JSON metadata. | ERR Targets |
 | `data/tonights_plan.json` | The Flight Contract for 2026-03-03 | 45 Targets |
 
 ## 🛫 PREFLIGHT
@@ -17,15 +17,18 @@
 * `core/preflight/gps.py`: Manages geographic coordinates using config.toml as the source of truth.
 * `core/preflight/harvester.py`: No script objective defined.
 * `core/preflight/horizon.py`: Veto targets based on local obstructions (Trees, Buildings) using Az/Alt mapping.
-* `core/preflight/librarian.py`: Manages the data pipeline from Master Catalog -> Observable Menu -> Flight Contract.
+* `core/preflight/librarian.py`: Reconciles verified FITS data and reports Bayer/Gain status.
+* `core/preflight/seeing_scraper.py`: No script objective defined.
 * `core/preflight/target_evaluator.py`: Audits the nightly plan for freshness and quantity.
-* `core/preflight/weather.py`: Queries local weather APIs based on dynamic GPS data to enforce the maximum cloud cover safety gate.
+* `core/preflight/weather.py`: No script objective defined.
 * `core/planning/nightly_planner.py`: Score 1,240 targets against tonights sky and pick the Top 20.
 
 ## 🚀 FLIGHT
 * `core/flight/env_loader.py`: Centralized configuration and environment variable manager.
 * `core/flight/flight-to-post-handover.py`: Secures data after a mission, stops hardware bridges, and triggers post-flight analysis workflows.
 * `core/flight/hardware_profiles.py`: Define sensor specs for Annie (S50), Williamina (S30-Pro), and Henrietta (S30-Pro Fast).
+* `core/flight/librarian.py`: No script objective defined.
+* `core/flight/librarian_check.py`: No script objective defined.
 * `core/flight/orchestrator.py`: Single-Point Flight Master.
 * `core/flight/vault_manager.py`: Manages secure access to observational metadata and synchronizes GPS coordinates with config.toml.
 
@@ -33,6 +36,8 @@
 * `core/postflight/analyst.py`: Analyzes FITS image quality, FWHM, and basic observational metrics.
 * `core/postflight/analyzer.py`: Validates FITS headers and calculates basic QC metrics.
 * `core/postflight/calibration_engine.py`: Manages Zero-Point (ZP) offsets and flat-field corrections for the IMX585.
+* `core/postflight/fits_auditor.py`: Scrapes full AAVSO-relevant keyword set for scientific submission.
+* `core/postflight/knvws_reporter.py`: No script objective defined.
 * `core/postflight/master_analyst.py`: High-level plate-solving coordinator for narrow-field Seestar frames.
 * `core/postflight/notifier.py`: Outbound alert management via Telegram and system bells.
 * `core/postflight/pastinakel_math.py`: Logic for saturation detection and dynamic aperture scaling.
@@ -63,9 +68,12 @@
 * `utils/platesolve_analyst.py`: Quantitative reporter for plate-solving success rates, performing blind solves to compare header coordinates against reality.
 * `utils/purify_catalog.py`: Wraps the raw 409-target list into a Federation-standard JSON with metadata.
 * `utils/quick_phot.py`: Lightweight instrumental photometry script for rapid magnitude estimation and zero-point offset calculation.
+* `utils/setup_wizard.py`: Automates hardware discovery using the alpacadiscovery1 handshake.
+* `utils/test_coords.py`: Verifies target acquisition readiness for existing decimal coordinates.
 * `utils/wvs_ingester.py`: Downloads and parses the KNVWS Werkgroep Veranderlijke Sterren program list to automate local campaign alignment.
 * `core/utils/chrony_monitor.py`: No script objective defined.
 * `core/utils/disk_monitor.py`: Verifies NAS and local USB/buffer storage availability across all flight phases.
+* `core/utils/env_vampire_hunter.py`: No script objective defined.
 * `core/utils/gps_monitor.py`: Monitor GPSD natively via TCP socket (bypassing broken pip libraries),
 * `core/utils/observer_math.py`: Calculate the 6-character Maidenhead Locator (e.g., JO22hj).
 * `core/flight-to-post-handover.py`: Secures data after a mission, stops hardware bridges, and triggers post-flight analysis.

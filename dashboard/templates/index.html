@@ -1,51 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta http-equiv="refresh" content="5">
-    <title>Federation Fleet Command</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S30-PRO Federation Dashboard</title>
     <style>
-        body { background: #050505; color: #d0d0d0; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; }
-        .banner { background: #000; color: #00ff00; padding: 15px; border-bottom: 1px solid #1a1a1a; font-size: 1.5em; letter-spacing: 10px; font-weight: 900; }
-        .deck { display: grid; grid-template-columns: 320px 1fr 320px; height: calc(100vh - 65px); padding: 20px; gap: 20px; }
-        .panel { background: #0c0c0c; border: 1px solid #1a1a1a; padding: 25px; display: flex; flex-direction: column; }
-        .led-row { display: flex; justify-content: space-between; margin: 12px 0; align-items: center; border-bottom: 1px solid #111; padding-bottom: 5px; font-size: 0.8em; }
-        .led { width: 14px; height: 14px; border-radius: 2px; }
-        .led-green { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
-        .led-orange { background: #ffaa00; box-shadow: 0 0 10px #ffaa00; }
-        .led-grey { background: #222; }
-        .led-red { background: #ff0000; }
-        .active-val { color: #00ff00; font-weight: bold; }
-        .hero { font-size: 6em; font-weight: 900; letter-spacing: -5px; color: #151515; }
-        .tracking { color: #00ff00; text-shadow: 0 0 30px #00ff00; }
+        body { background-color: #050505; color: #0f0; font-family: monospace; padding: 20px; }
+        .block { border: 1px solid #333; padding: 15px; margin-bottom: 20px; background: #0a0a0a; box-shadow: 0 0 10px rgba(0,255,0,0.1); }
+        h2 { color: #fff; border-bottom: 1px solid #333; padding-bottom: 5px; margin-top: 0; }
+        .row { display: flex; justify-content: space-between; margin: 10px 0; font-size: 1.1em; }
+        .val { color: #fff; font-weight: bold; }
+        .val-ticker { color: #0ff; font-weight: bold; font-size: 1.2em; transition: all 0.3s ease; }
+        .led { padding: 2px 8px; border-radius: 3px; font-weight: bold; font-size: 0.9em; }
+        .green { background: #003300; color: #0f0; border: 1px solid #0f0; }
+        
+        /* Neon Purple Shadow for Critical Priority */
+        .critical { 
+            color: #E0B0FF !important; 
+            text-shadow: 0 0 8px #BF00FF, 0 0 12px #BF00FF; 
+            font-weight: 900;
+        }
     </style>
 </head>
 <body>
-    <div class="banner">{{ env.maidenhead }} <span style="font-size: 0.4em; color: #222; float: right;">STATION_HAARLEM_S30</span></div>
-    <div class="deck">
-        <div class="panel">
-            <h3>FLEET_COMMAND</h3>
-            <div class="led-row"><span>WILLIAMINA</span><div class="led {{ env.williamina_led }}"></div></div>
-            <div class="led-row"><span>ANNIE</span><div class="led {{ env.annie_led }}"></div></div>
-            <div class="led-row"><span>HENRIETTA</span><div class="led {{ env.henrietta_led }}"></div></div>
-        </div>
-        <div class="panel" style="justify-content: center; align-items: center; background: radial-gradient(circle, #0f0f0f 0%, #000 100%);">
-            <div class="hero {% if env.target.name != 'STANDBY' %}tracking{% endif %}">{{ env.target.name }}</div>
-            {% if env.target.name != 'STANDBY' %}
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px;">
-                <div><div style="font-size:0.7em; color:#333;">RA</div><div style="font-size:2.5em; color:#00ff00;">{{ env.target.ra }}</div></div>
-                <div><div style="font-size:0.7em; color:#333;">DEC</div><div style="font-size:2.5em; color:#00ff00;">{{ env.target.dec }}</div></div>
-            </div>
-            {% endif %}
-        </div>
-        <div class="panel">
-            <h3>SYSTEM_VITALS</h3>
-            <div class="led-row"><span>GPS_LOCK</span><div class="led {{ env.gps_led }}"></div></div>
-            <div class="led-row"><span>PPS_SYNC</span><span class="active-val">{{ env.pps_offset }}</span></div>
-            <div style="margin-top: auto; border-top: 1px solid #111; padding-top: 20px;">
-                <div style="font-size:0.6em; color:#333;">JULIAN_DATE</div>
-                <div style="font-size:1.2em; color:#1a1a1a; font-weight:bold;">{{ env.jd }}</div>
-            </div>
-        </div>
-    </div>
+    <h1>🔭 S30-PRO FEDERATION LINK</h1>
+
+    <section class="block">
+        <h2>FLIGHT VITALS</h2>
+        <div class="row">LOCATION (MAIDENHEAD) <span id="telemetry-mh" class="val">SYNCING...</span></div>
+        <div class="row">ACTIVE TARGET <span id="t-ticker" class="val-ticker">LOADING...</span></div>
+    </section>
+
+    <section class="block">
+        <h2>POSTFLIGHT AUDIT</h2>
+        <div class="row">LAST KNVWS REPORT <span id="r-stamp" class="val">NEVER</span><div class="led green">OK</div></div>
+        <div class="row">FEDERATION SYNC <span class="val">ACTIVE</span><div class="led green">OK</div></div>
+    </section>
+
+    <script>
+        // Safely catch the JSON injected by Python
+        const targetData = {{ target_data | tojson | safe }};
+        let tickerIndex = 0;
+
+        function updateTicker() {
+            const display = document.getElementById('t-ticker');
+            if (!targetData || targetData.length === 0) {
+                display.innerText = "NO TARGETS";
+                return;
+            }
+            
+            const target = targetData[tickerIndex];
+            display.innerText = target.name;
+            
+            // Apply the Neon Purple Glow if critical
+            if (target.priority === "CRITICAL") {
+                display.className = "val-ticker critical";
+            } else {
+                display.className = "val-ticker";
+            }
+            
+            tickerIndex = (tickerIndex + 1) % targetData.length;
+        }
+
+        function fetchTelemetry() {
+            fetch('/telemetry')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('telemetry-mh').innerText = data.maidenhead;
+                })
+                .catch(err => console.error("Telemetry error:", err));
+        }
+
+        // Start the rotation and polling
+        setInterval(updateTicker, 3000);
+        setInterval(fetchTelemetry, 5000);
+        
+        updateTicker();
+        fetchTelemetry();
+    </script>
 </body>
 </html>
