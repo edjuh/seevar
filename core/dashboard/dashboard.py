@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/dashboard/dashboard.py
-Version: 4.0.0
-Objective: Flawless integration with the original 13KB frontend. Dynamic config loading.
+Version: 4.1.0
+Objective: Flawless integration with caching to prevent UI flickering from Wi-Fi jitter.
 """
 
 import json, os, sys, time
@@ -23,6 +23,9 @@ LEDGER_FILE = DATA_DIR / "ledger.json"
 sys.path.append(str(PROJECT_ROOT))
 app = Flask(__name__, template_folder=str(BASE_DIR / "templates"))
 
+# Anti-Flicker Cache
+HW_CACHE = {"timestamp": 0, "data": {"link_status": "OFFLINE", "battery": "N/A", "storage_mb": "N/A"}}
+
 def load_config(file_path):
     path = Path(os.path.expanduser(file_path))
     if path.exists():
@@ -33,7 +36,6 @@ def load_config(file_path):
     return {}
 
 def get_seestar_ip():
-    """Dynamically parses the telescope IP from configurations."""
     alp_cfg = load_config("~/seestar_alp/device/config.toml")
     ip = alp_cfg.get("device", {}).get("ip")
     if ip: return ip
@@ -45,9 +47,7 @@ def get_seestar_ip():
     return None
 
 def get_location_data():
-    """Dynamically parses maidenhead from config.toml."""
     org_cfg = load_config("~/seestar_organizer/config.toml")
-    
     obs = org_cfg.get("observer", {})
     if "maidenhead" in obs: return obs["maidenhead"]
     
@@ -57,35 +57,43 @@ def get_location_data():
     return "NO-GPS-LOCK"
 
 def fetch_hardware_vitals():
-    """Attempts Alpaca Bridge first, falls back to dynamic direct IP."""
+    global HW_CACHE
+    # Return cached data if less than 5 seconds old
+    if time.time() - HW_CACHE["timestamp"] < 5:
+        return HW_CACHE["data"]
+
     # 1. Alpaca Bridge
     try:
         payload = {"Action": "method_sync", "Parameters": '{"method":"get_device_state"}', "ClientID": "1", "ClientTransactionID": "1"}
-        res = requests.put("http://127.0.0.1:5555/api/v1/telescope/1/action", data=payload, timeout=1.0)
+        res = requests.put("http://127.0.0.1:5555/api/v1/telescope/1/action", data=payload, timeout=2.0)
         if res.status_code == 200:
             val = res.json().get("Value", {}).get("result", {})
             if val:
                 pi = val.get("pi_status", {})
                 stor = val.get("storage", {}).get("storage_volume", [{}])[0]
-                # Returning raw numbers because the JS does parseInt() and adds the % and MB strings
-                return {"link_status": "ACTIVE", "battery": str(pi.get('battery_capacity', 'N/A')), "storage_mb": str(stor.get('free_mb', 'N/A'))}
+                HW_CACHE["data"] = {"link_status": "ACTIVE", "battery": str(pi.get('battery_capacity', 'N/A')), "storage_mb": str(stor.get('free_mb', 'N/A'))}
+                HW_CACHE["timestamp"] = time.time()
+                return HW_CACHE["data"]
     except: pass
 
     # 2. Dynamic Direct IP Fallback
     ip = get_seestar_ip()
     if ip:
         try:
-            res = requests.get(f"http://{ip}/api/v1/system/status", timeout=1.0)
+            res = requests.get(f"http://{ip}/api/v1/system/status", timeout=2.0)
             if res.status_code == 200:
                 data = res.json().get("result", {})
-                return {"link_status": "ACTIVE", "battery": str(data.get('battery', 'N/A')), "storage_mb": str(data.get('free_storage', 'N/A'))}
+                HW_CACHE["data"] = {"link_status": "ACTIVE", "battery": str(data.get('battery', 'N/A')), "storage_mb": str(data.get('free_storage', 'N/A'))}
+                HW_CACHE["timestamp"] = time.time()
+                return HW_CACHE["data"]
         except: pass
 
-    return {"link_status": "OFFLINE", "battery": "N/A", "storage_mb": "N/A"}
+    HW_CACHE["data"] = {"link_status": "OFFLINE", "battery": "N/A", "storage_mb": "N/A"}
+    HW_CACHE["timestamp"] = time.time()
+    return HW_CACHE["data"]
 
 @app.route('/')
 def index():
-    # Pass targets via Jinja2 template as required by index.html
     targets = []
     if PLAN_FILE.exists():
         try:

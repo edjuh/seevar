@@ -1,20 +1,28 @@
 #!/bin/bash
-# 🛰️ S30-PRO Federation: Daily Code Backup
-# Versioned Path: /mnt/astronas/1.1/backup
+# 🛰️ S30-PRO Federation: Point-in-Time Code Snapshot
 
-BACKUP_DEST="/mnt/astronas/backup"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+BASE_DEST="/mnt/astronas/backup"
+SNAPSHOT_DEST="$BASE_DEST/federation_$TIMESTAMP"
 SOURCE_DIR="/home/ed/seestar_organizer"
 
-mkdir -p "$BACKUP_DEST"
+echo "📦 Initiating snapshot: federation_$TIMESTAMP..."
+mkdir -p "$SNAPSHOT_DEST"
 
-# Sync only code, docs, and config
-rsync -av --delete \
+# Sync only code, docs, and config to the timestamped directory
+rsync -av \
   --exclude='venv/' \
   --exclude='.venv/' \
   --exclude='__pycache__/' \
   --exclude='data/' \
   --exclude='logs/*.log' \
   --exclude='.git/' \
-  "$SOURCE_DIR/" "$BACKUP_DEST/"
+  --exclude='s30_storage/' \
+  --exclude='images/' \
+  "$SOURCE_DIR/" "$SNAPSHOT_DEST/"
 
-echo "✅ Federation Backup to $BACKUP_DEST completed."
+# Create/Update a 'latest' symlink pointing to this specific backup
+ln -sfn "$SNAPSHOT_DEST" "$BASE_DEST/latest"
+
+echo "✅ Federation Snapshot secured at: $SNAPSHOT_DEST"
+echo "🔗 'latest' pointer updated."
