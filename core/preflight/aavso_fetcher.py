@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: core/preflight/aavso_fetcher.py
-Version: 12.0.0
-Objective: Step 1 - Haul AAVSO targets and strictly filter by 30-degree horizon physics.
+Filename: /home/ed/seestar_organizer/core/preflight/aavso_fetcher.py
+Version: 12.1.0
+Objective: Step 1 - Haul AAVSO targets and strictly filter by 30-degree horizon physics, with metadata injection.
 """
 
 import json
 import requests
 import sys
 import logging
+from datetime import datetime
 from pathlib import Path
 
 try:
@@ -79,8 +80,19 @@ def haul_and_filter(api_key):
                     "duration": 600
                 })
                 
+        # Inject Sovereign Metadata
+        output_data = {
+            "metadata": {
+                "objective": "Master haul of AAVSO targets filtered by 30-degree horizon physics.",
+                "generated": datetime.now().isoformat(),
+                "schema_version": "2026.1",
+                "target_count": len(targets)
+            },
+            "targets": targets
+        }
+                
         with open(MASTER_HAUL_FILE, "w") as f:
-            json.dump(targets, f, indent=4)
+            json.dump(output_data, f, indent=4)
             
         logger.info(f"✅ Target Base Secured: {len(targets)} scientifically observable targets locked into {MASTER_HAUL_FILE.name}")
 
@@ -92,3 +104,4 @@ if __name__ == "__main__":
     auth_key = get_aavso_key()
     if auth_key:
         haul_and_filter(auth_key)
+

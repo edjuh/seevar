@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/ledger_manager.py
-Version: 2.1.0
-Objective: The High-Authority Mission Brain. Manages target cadence and observation history to determine if a new observation is in order.
+Version: 2.1.1
+Objective: The High-Authority Mission Brain. Manages target cadence and observation history.
 """
 
 import json
@@ -19,7 +19,6 @@ LEDGER_FILE = PROJECT_ROOT / "data" / "ledger.json"
 FEDERATED_CATALOG = PROJECT_ROOT / "catalogs" / "federation_catalog.json"
 TONIGHTS_PLAN = PROJECT_ROOT / "data" / "tonights_plan.json"
 
-# Sovereign Cadence Policy
 STANDARD_CADENCE_DAYS = 3
 
 def load_json(path):
@@ -33,27 +32,28 @@ def save_json(path, data, objective):
         "last_updated": datetime.now().isoformat(),
         "schema_version": "2026.1"
     }
-    # Ensure structure: Metadata + Entries
-    output = {"metadata": header, "entries": data if "entries" not in data else data.get("entries")}
+    output = {"metadata": header, "entries": data}
     with open(path, 'w') as f:
         json.dump(output, f, indent=4)
 
 def execute_ledger_sync():
-    # 1. Intake from Federated Catalog
+    # 1. Intake - Robust handling for list or dict
     catalog_raw = load_json(FEDERATED_CATALOG)
-    targets = catalog_raw.get("data", [])
+    if isinstance(catalog_raw, list):
+        targets = catalog_raw
+    else:
+        targets = catalog_raw.get("data", [])
     
     # 2. Load Ledger
-    ledger_data = load_json(LEDGER_FILE)
-    entries = ledger_data.get("entries", {})
+    ledger_raw = load_json(LEDGER_FILE)
+    entries = ledger_raw.get("entries", {})
     
     now = datetime.now()
     due_names = []
     
-    # 3. Synchronize and Apply Cadence Logic
+    # 3. Sync and Cadence
     for t in targets:
         name = t['name'].replace(" ", "_").upper()
-        
         if name not in entries:
             entries[name] = {
                 "status": "PENDING",
@@ -62,33 +62,38 @@ def execute_ledger_sync():
                 "priority": "NORMAL"
             }
         
-        last_success_str = entries[name].get("last_success")
-        if not last_success_str:
+        last_success = entries[name].get("last_success")
+        if not last_success:
             due_names.append(name)
         else:
-            last_date = datetime.fromisoformat(last_success_str)
+            last_date = datetime.fromisoformat(last_success)
             if now - last_date > timedelta(days=STANDARD_CADENCE_DAYS):
                 due_names.append(name)
 
-    # 4. Final Triage of Tonight's Plan
-    plan_raw = load_json(TONIGHTS_PLAN)
-    visible_targets = plan_raw.get("targets", [])
+    # 4. Apply to Tonight's Plan
+    plan_data = load_json(TONIGHTS_PLAN)
+    # Handle list vs dict for the plan as well
+    visible_targets = plan_data if isinstance(plan_data, list) else plan_data.get("targets", [])
     
-    # Filter visible targets against 'Due' list from Ledger
     due_plan = [t for t in visible_targets if t['name'].replace(" ", "_").upper() in due_names]
     
-    # 5. Persist the Ledger and the Filtered Plan
+    # 5. Save
     save_json(LEDGER_FILE, entries, "Master Observational Register and Status Ledger")
     
-    plan_raw["targets"] = due_plan
-    plan_raw["metadata"]["objective"] = "Tactical flight plan filtered by Ledger Cadence."
-    plan_raw["metadata"]["generated"] = now.isoformat()
-    plan_raw["metadata"]["due_count"] = len(due_plan)
+    # Standardize the plan output to Dict format
+    final_plan = {
+        "metadata": {
+            "objective": "Tactical flight plan filtered by Ledger Cadence.",
+            "generated": now.isoformat(),
+            "due_count": len(due_plan)
+        },
+        "targets": due_plan
+    }
     
     with open(TONIGHTS_PLAN, 'w') as f:
-        json.dump(plan_raw, f, indent=4)
+        json.dump(final_plan, f, indent=4)
 
-    logger.info(f"✅ Ledger Sync Complete: {len(due_plan)} targets marked as 'DUE' for tonight.")
+    logger.info(f"✅ Ledger Sync Complete: {len(due_plan)} targets marked as 'DUE'.")
 
 if __name__ == "__main__":
     execute_ledger_sync()

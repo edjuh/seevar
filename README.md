@@ -1,12 +1,13 @@
-# 🔭 Seestar Federation Command (S30-PRO)
+# 🔭 SeeVar
 
 > **Objective:** Primary documentation and entry gate for the automated S30-PRO variable star observation pipeline.
 > **Version:** 1.5.1 (Diamond & Cadence Integration)
 
-Welcome to the **S30-PRO Federation**, an advanced, headless, and fully automated orchestration system for the Seestar smart telescope ecosystem.
+Welcome to the **SeeVar**, an advanced, headless, and fully automated orchestration system for the Seestar smart telescope ecosystem.
+ Dedicated to the Pickering Clade Clan
 
 ## 🎯 Scientific Mission Profile & Hardware Constraints
-The **S30-PRO Federation** is an autonomous photometric pipeline engineered for the IMX585 colour sensor.
+The **SeeVar** is an autonomous photometric pipeline engineered for the IMX585 colour sensor.
 
 **Target Acquisition Strategy:**
 * **Primary Focus:** Long-Period Variables (Miras, Semi-Regulars) following the **1/20th Period Cadence Rule**.

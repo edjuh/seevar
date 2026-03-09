@@ -1,1901 +1,1908 @@
-[
-    {
-        "name": "CH Cyg",
-        "ra": 291.13779,
-        "dec": 50.24142,
-        "type": "ZAND+SR",
-        "mag_max": 5.6,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0404 Cyg",
-        "ra": 306.01596,
-        "dec": 33.86728,
-        "type": "LMXB/BHXB/XN",
-        "mag_max": 11.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V1016 Cyg",
-        "ra": 299.27087,
-        "dec": 39.82678,
-        "type": "NC+M",
-        "mag_max": 10.05,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V1500 Cyg",
-        "ra": 317.90254,
-        "dec": 48.15067,
-        "type": "NA/AM+E",
-        "mag_max": 1.69,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "AM Her",
-        "ra": 274.05558,
-        "dec": 49.86781,
-        "type": "AM+E",
-        "mag_max": 12.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "HM Sge",
-        "ra": 295.48779,
-        "dec": 16.74433,
-        "type": "NC+M",
-        "mag_max": 11.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0497 Lyr",
-        "ra": 286.95467,
-        "dec": 36.38586,
-        "type": "SR",
-        "mag_max": 11.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "AD Tau",
-        "ra": 83.57067,
-        "dec": 25.60453,
-        "type": "MISC",
-        "mag_max": 12.07,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RU And",
-        "ra": 24.65125,
-        "dec": 38.67042,
-        "type": "SRA",
-        "mag_max": 9.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "ST And",
-        "ra": 354.68808,
-        "dec": 35.77256,
-        "type": "SRA",
-        "mag_max": 7.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Aql",
-        "ra": 286.59271,
-        "dec": 8.23,
-        "type": "M",
-        "mag_max": 5.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RR Aql",
-        "ra": 299.40025,
-        "dec": -1.88647,
-        "type": "M",
-        "mag_max": 7.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RS Aqr",
-        "ra": 317.74221,
-        "dec": -4.02781,
-        "type": "M",
-        "mag_max": 9.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S Aur",
-        "ra": 81.78096,
-        "dec": 34.14981,
-        "type": "SR",
-        "mag_max": 8.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "Z Aur",
-        "ra": 90.43958,
-        "dec": 53.30553,
-        "type": "SRD",
-        "mag_max": 9.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V Boo",
-        "ra": 217.43863,
-        "dec": 38.86128,
-        "type": "SRB",
-        "mag_max": 7.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Cnc",
-        "ra": 124.14096,
-        "dec": 11.72625,
-        "type": "M",
-        "mag_max": 6.07,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T CMi",
-        "ra": 113.50196,
-        "dec": 11.73533,
-        "type": "M",
-        "mag_max": 9.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V CMi",
-        "ra": 106.74521,
-        "dec": 8.87689,
-        "type": "M",
-        "mag_max": 7.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T CVn",
-        "ra": 187.55167,
-        "dec": 31.50333,
-        "type": "SRA",
-        "mag_max": 8.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V CVn",
-        "ra": 199.86571,
-        "dec": 45.52714,
-        "type": "SRA",
-        "mag_max": 6.52,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S Cas",
-        "ra": 19.92488,
-        "dec": 72.61131,
-        "type": "M",
-        "mag_max": 7.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "Z Cas",
-        "ra": 356.13142,
-        "dec": 56.58122,
-        "type": "M",
-        "mag_max": 8.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "SV Cas",
-        "ra": 354.75592,
-        "dec": 52.26247,
-        "type": "SRA",
-        "mag_max": 6.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S Cep",
-        "ra": 323.80346,
-        "dec": 78.6245,
-        "type": "M",
-        "mag_max": 6.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V CrB",
-        "ra": 237.38046,
-        "dec": 39.57164,
-        "type": "M",
-        "mag_max": 6.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RS Cyg",
-        "ra": 303.34858,
-        "dec": 38.72903,
-        "type": "SRA",
-        "mag_max": 6.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RZ Cyg",
-        "ra": 312.97163,
-        "dec": 47.35567,
-        "type": "SRA",
-        "mag_max": 9.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "LX Cyg",
-        "ra": 328.98762,
-        "dec": 48.34792,
-        "type": "M",
-        "mag_max": 9.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "Y Del",
-        "ra": 310.41242,
-        "dec": 11.87731,
-        "type": "M",
-        "mag_max": 8.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T Dra",
-        "ra": 269.09713,
-        "dec": 58.21839,
-        "type": "M",
-        "mag_max": 7.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "W Dra",
-        "ra": 271.39442,
-        "dec": 65.95608,
-        "type": "M",
-        "mag_max": 8.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Gem",
-        "ra": 106.83863,
-        "dec": 22.70353,
-        "type": "M",
-        "mag_max": 6.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RT Hya",
-        "ra": 127.42146,
-        "dec": -6.31878,
-        "type": "SRB",
-        "mag_max": 7.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RS Lac",
-        "ra": 333.21888,
-        "dec": 43.75022,
-        "type": "SRD",
-        "mag_max": 9.6,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RY Leo",
-        "ra": 151.06629,
-        "dec": 13.98269,
-        "type": "SRB",
-        "mag_max": 9.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R LMi",
-        "ra": 146.39283,
-        "dec": 34.51189,
-        "type": "M",
-        "mag_max": 6.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "U LMi",
-        "ra": 148.661,
-        "dec": 36.08997,
-        "type": "SRA",
-        "mag_max": 10.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S Lyr",
-        "ra": 288.29917,
-        "dec": 26.00781,
-        "type": "M",
-        "mag_max": 9.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "U Lyr",
-        "ra": 290.03813,
-        "dec": 37.87669,
-        "type": "M",
-        "mag_max": 8.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RU Lyr",
-        "ra": 288.08854,
-        "dec": 41.30375,
-        "type": "M",
-        "mag_max": 9.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S Ori",
-        "ra": 82.25375,
-        "dec": -4.69244,
-        "type": "M",
-        "mag_max": 7.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RV Peg",
-        "ra": 336.40337,
-        "dec": 30.47261,
-        "type": "M",
-        "mag_max": 8.6,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "W Tau",
-        "ra": 66.98829,
-        "dec": 16.04339,
-        "type": "SRB",
-        "mag_max": 8.6,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "Z Tau",
-        "ra": 88.10358,
-        "dec": 15.7955,
-        "type": "M",
-        "mag_max": 9.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RX UMa",
-        "ra": 138.60558,
-        "dec": 67.26064,
-        "type": "SRB",
-        "mag_max": 9.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T UMi",
-        "ra": 203.67104,
-        "dec": 73.43136,
-        "type": "SR",
-        "mag_max": 7.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RU Vir",
-        "ra": 191.82671,
-        "dec": 4.14483,
-        "type": "M",
-        "mag_max": 8.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "SS Vir",
-        "ra": 186.31,
-        "dec": 0.76972,
-        "type": "SRA",
-        "mag_max": 6.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RU Vul",
-        "ra": 309.71954,
-        "dec": 23.25867,
-        "type": "SRB",
-        "mag_max": 8.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R And",
-        "ra": 6.00812,
-        "dec": 38.57703,
-        "type": "M",
-        "mag_max": 5.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "W And",
-        "ra": 34.38733,
-        "dec": 44.30494,
-        "type": "M",
-        "mag_max": 6.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S Aql",
-        "ra": 302.90613,
-        "dec": 15.62072,
-        "type": "SRA",
-        "mag_max": 8.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V Aql",
-        "ra": 286.10067,
-        "dec": -5.68483,
-        "type": "SRB",
-        "mag_max": 6.67,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Ari",
-        "ra": 34.02962,
-        "dec": 25.05656,
-        "type": "M",
-        "mag_max": 7.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T Ari",
-        "ra": 42.08225,
-        "dec": 17.50939,
-        "type": "SR",
-        "mag_max": 7.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "X Aur",
-        "ra": 93.05575,
-        "dec": 50.22789,
-        "type": "M",
-        "mag_max": 7.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Aur",
-        "ra": 79.32371,
-        "dec": 53.58614,
-        "type": "M",
-        "mag_max": 6.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "UU Aur",
-        "ra": 99.13683,
-        "dec": 38.4455,
-        "type": "SRB",
-        "mag_max": 5.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S Boo",
-        "ra": 215.7205,
-        "dec": 53.81036,
-        "type": "M",
-        "mag_max": 7.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Boo",
-        "ra": 219.29825,
-        "dec": 26.73658,
-        "type": "M",
-        "mag_max": 6.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RX Boo",
-        "ra": 216.04846,
-        "dec": 25.70372,
-        "type": "SRB",
-        "mag_max": 7.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "X Cam",
-        "ra": 71.42579,
-        "dec": 75.10097,
-        "type": "M",
-        "mag_max": 7.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Cam",
-        "ra": 214.46263,
-        "dec": 83.83161,
-        "type": "M",
-        "mag_max": 6.97,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T Cam",
-        "ra": 70.03696,
-        "dec": 66.14683,
-        "type": "M",
-        "mag_max": 7.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "U Cam",
-        "ra": 55.45071,
-        "dec": 62.64844,
-        "type": "SRB",
-        "mag_max": 7.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "W Cas",
-        "ra": 13.72438,
-        "dec": 58.56367,
-        "type": "M",
-        "mag_max": 8.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "WZ Cas",
-        "ra": 0.31608,
-        "dec": 60.35528,
-        "type": "SRB",
-        "mag_max": 6.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Cas",
-        "ra": 359.60363,
-        "dec": 51.38881,
-        "type": "M",
-        "mag_max": 4.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T Cas",
-        "ra": 5.80946,
-        "dec": 55.79256,
-        "type": "M",
-        "mag_max": 6.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V Cas",
-        "ra": 347.91967,
-        "dec": 59.69972,
-        "type": "M",
-        "mag_max": 6.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "miu Cep",
-        "ra": 325.87708,
-        "dec": 58.78,
-        "type": "SRC",
-        "mag_max": 3.43,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "AR Cep",
-        "ra": 342.89108,
-        "dec": 85.04639,
-        "type": "SRB",
-        "mag_max": 7.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "SS Cep",
-        "ra": 57.37508,
-        "dec": 80.32247,
-        "type": "SRB",
-        "mag_max": 6.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T Cep",
-        "ra": 317.38242,
-        "dec": 68.49089,
-        "type": "M",
-        "mag_max": 5.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "omi Cet",
-        "ra": 34.83662,
-        "dec": -2.97764,
-        "type": "M",
-        "mag_max": 2.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R CMi",
-        "ra": 107.17754,
-        "dec": 10.02403,
-        "type": "M",
-        "mag_max": 7.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S CMi",
-        "ra": 113.17946,
-        "dec": 8.31811,
-        "type": "M",
-        "mag_max": 6.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RS Cnc",
-        "ra": 137.66167,
-        "dec": 30.96314,
-        "type": "SRB",
-        "mag_max": 5.33,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "X Cnc",
-        "ra": 133.84533,
-        "dec": 17.23128,
-        "type": "SRB",
-        "mag_max": 5.69,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S CrB",
-        "ra": 230.34983,
-        "dec": 31.36739,
-        "type": "M",
-        "mag_max": 5.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R CVn",
-        "ra": 207.23771,
-        "dec": 39.54256,
-        "type": "M",
-        "mag_max": 6.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "Y CVn",
-        "ra": 191.28262,
-        "dec": 45.44025,
-        "type": "SRB",
-        "mag_max": 4.86,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RU Cyg",
-        "ra": 325.16287,
-        "dec": 54.32469,
-        "type": "SRA",
-        "mag_max": 9.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "TU Cyg",
-        "ra": 296.54446,
-        "dec": 49.07347,
-        "type": "M",
-        "mag_max": 8.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "Z Cyg",
-        "ra": 300.36442,
-        "dec": 50.04239,
-        "type": "M",
-        "mag_max": 7.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "AF Cyg",
-        "ra": 292.55354,
-        "dec": 46.14781,
-        "type": "SRB",
-        "mag_max": 6.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "khi Cyg",
-        "ra": 297.64133,
-        "dec": 32.91406,
-        "type": "M",
-        "mag_max": 3.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Cyg",
-        "ra": 294.20575,
-        "dec": 50.19986,
-        "type": "M",
-        "mag_max": 6.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RT Cyg",
-        "ra": 295.90738,
-        "dec": 48.77814,
-        "type": "M",
-        "mag_max": 6.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "U Cyg",
-        "ra": 304.90246,
-        "dec": 47.89419,
-        "type": "M",
-        "mag_max": 6.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V Cyg",
-        "ra": 310.32613,
-        "dec": 48.14133,
-        "type": "M",
-        "mag_max": 7.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "W Cyg",
-        "ra": 324.01042,
-        "dec": 45.37458,
-        "type": "SRB",
-        "mag_max": 5.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "WX Cyg",
-        "ra": 304.63862,
-        "dec": 37.44975,
-        "type": "M",
-        "mag_max": 8.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S Del",
-        "ra": 310.77033,
-        "dec": 17.08814,
-        "type": "M",
-        "mag_max": 8.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "EU Del",
-        "ra": 309.47796,
-        "dec": 18.26844,
-        "type": "SRB",
-        "mag_max": 5.41,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "U Del",
-        "ra": 311.36767,
-        "dec": 18.09003,
-        "type": "SRB",
-        "mag_max": 6.14,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Dra",
-        "ra": 248.16762,
-        "dec": 66.75497,
-        "type": "M",
-        "mag_max": 6.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RY Dra",
-        "ra": 194.10796,
-        "dec": 65.99439,
-        "type": "SRB",
-        "mag_max": 5.88,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "TX Dra",
-        "ra": 248.753,
-        "dec": 60.46811,
-        "type": "SRB",
-        "mag_max": 6.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "BU Gem",
-        "ra": 93.07958,
-        "dec": 22.90853,
-        "type": "SRC",
-        "mag_max": 5.74,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "eta Gem",
-        "ra": 93.71942,
-        "dec": 22.50681,
-        "type": "EA/GS+SRA",
-        "mag_max": 3.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "SX Her",
-        "ra": 241.86354,
-        "dec": 24.90831,
-        "type": "SRD:",
-        "mag_max": 7.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "W Her",
-        "ra": 248.80133,
-        "dec": 37.34528,
-        "type": "M",
-        "mag_max": 7.6,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RS Her",
-        "ra": 260.4265,
-        "dec": 22.92111,
-        "type": "M",
-        "mag_max": 7.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RU Her",
-        "ra": 242.5605,
-        "dec": 25.07067,
-        "type": "M",
-        "mag_max": 6.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S Her",
-        "ra": 252.97467,
-        "dec": 14.94186,
-        "type": "M",
-        "mag_max": 6.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T Her",
-        "ra": 272.27587,
-        "dec": 31.02117,
-        "type": "M",
-        "mag_max": 6.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "U Her",
-        "ra": 246.44779,
-        "dec": 18.89247,
-        "type": "M",
-        "mag_max": 6.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "X Her",
-        "ra": 240.66321,
-        "dec": 47.24036,
-        "type": "SRB",
-        "mag_max": 5.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Leo",
-        "ra": 146.88954,
-        "dec": 11.42881,
-        "type": "M",
-        "mag_max": 4.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "W Lyr",
-        "ra": 273.73283,
-        "dec": 36.67033,
-        "type": "M",
-        "mag_max": 7.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Lyr",
-        "ra": 283.83375,
-        "dec": 43.94608,
-        "type": "SRB",
-        "mag_max": 3.81,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "X Oph",
-        "ra": 279.58804,
-        "dec": 8.83411,
-        "type": "M",
-        "mag_max": 5.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "U Ori",
-        "ra": 88.95488,
-        "dec": 20.17519,
-        "type": "M",
-        "mag_max": 4.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "W Ori",
-        "ra": 76.34883,
-        "dec": 1.17761,
-        "type": "SRB",
-        "mag_max": 5.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Peg",
-        "ra": 346.66321,
-        "dec": 10.54336,
-        "type": "M",
-        "mag_max": 6.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "W Peg",
-        "ra": 349.96042,
-        "dec": 26.27878,
-        "type": "M",
-        "mag_max": 7.6,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "U Per",
-        "ra": 29.89629,
-        "dec": 54.82222,
-        "type": "M",
-        "mag_max": 7.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "W Per",
-        "ra": 42.65788,
-        "dec": 56.98342,
-        "type": "SRC",
-        "mag_max": 8.6,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "Y Per",
-        "ra": 51.92662,
-        "dec": 44.17681,
-        "type": "SRB",
-        "mag_max": 8.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S Per",
-        "ra": 35.71546,
-        "dec": 58.5865,
-        "type": "SRC",
-        "mag_max": 7.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Ser",
-        "ra": 237.67388,
-        "dec": 15.13364,
-        "type": "M",
-        "mag_max": 5.16,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "Y Tau",
-        "ra": 86.41421,
-        "dec": 20.69503,
-        "type": "SRB",
-        "mag_max": 6.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Tri",
-        "ra": 39.25975,
-        "dec": 34.26428,
-        "type": "M",
-        "mag_max": 5.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RS UMa",
-        "ra": 189.73979,
-        "dec": 58.48339,
-        "type": "M",
-        "mag_max": 8.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S UMa",
-        "ra": 190.98612,
-        "dec": 61.09319,
-        "type": "M",
-        "mag_max": 7.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R UMa",
-        "ra": 161.16029,
-        "dec": 68.77575,
-        "type": "M",
-        "mag_max": 6.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RY UMa",
-        "ra": 185.11388,
-        "dec": 61.30964,
-        "type": "SRA",
-        "mag_max": 6.49,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "ST UMa",
-        "ra": 171.95992,
-        "dec": 45.18522,
-        "type": "SRB",
-        "mag_max": 6.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T UMa",
-        "ra": 189.09779,
-        "dec": 59.48694,
-        "type": "M",
-        "mag_max": 6.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "VW UMa",
-        "ra": 164.7575,
-        "dec": 69.98906,
-        "type": "SRB",
-        "mag_max": 6.69,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "VY UMa",
-        "ra": 161.26679,
-        "dec": 67.41139,
-        "type": "SRB",
-        "mag_max": 5.73,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "Z UMa",
-        "ra": 179.12592,
-        "dec": 57.87156,
-        "type": "SRB",
-        "mag_max": 6.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S UMi",
-        "ra": 232.39404,
-        "dec": 78.63342,
-        "type": "M",
-        "mag_max": 7.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "U UMi",
-        "ra": 214.33292,
-        "dec": 66.79422,
-        "type": "M",
-        "mag_max": 7.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Vir",
-        "ra": 189.62475,
-        "dec": 6.98861,
-        "type": "M",
-        "mag_max": 6.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "S Vir",
-        "ra": 203.25046,
-        "dec": -7.19472,
-        "type": "M",
-        "mag_max": 6.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "R Vul",
-        "ra": 316.09375,
-        "dec": 23.82169,
-        "type": "M",
-        "mag_max": 7.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "Y Cyg",
-        "ra": 313.01492,
-        "dec": 34.65764,
-        "type": "EA/DM",
-        "mag_max": 7.29,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V404 Cyg",
-        "ra": 306.01592,
-        "dec": 33.86724,
-        "type": "LMXB/BHXB/XN",
-        "mag_max": 11.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "VV Cep",
-        "ra": 329.16308,
-        "dec": 63.62556,
-        "type": "EA/GS+SRC",
-        "mag_max": 4.73,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "CE Tau",
-        "ra": 83.05313,
-        "dec": 18.59425,
-        "type": "SRC",
-        "mag_max": 4.22,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "BW Cyg",
-        "ra": 308.59817,
-        "dec": 58.76486,
-        "type": "SRB",
-        "mag_max": 13.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "ASASSN-18ey",
-        "ra": 275.09146,
-        "dec": 7.18536,
-        "type": "LMXB/BHXB:/XN",
-        "mag_max": 11.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "MAXI J1820+070",
-        "ra": 275.09146,
-        "dec": 7.18536,
-        "type": "LMXB/BHXB:/XN",
-        "mag_max": 11.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "TY Cas",
-        "ra": 9.24748,
-        "dec": 63.13384,
-        "type": "M",
-        "mag_max": 10.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "FI Per",
-        "ra": 58.73642,
-        "dec": 48.60053,
-        "type": "M",
-        "mag_max": 12.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "SY Mon",
-        "ra": 99.38054,
-        "dec": -1.39533,
-        "type": "M",
-        "mag_max": 7.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "FX Mon",
-        "ra": 101.27337,
-        "dec": 9.03844,
-        "type": "M",
-        "mag_max": 10.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "CT Lac",
-        "ra": 331.66638,
-        "dec": 48.45192,
-        "type": "SRB",
-        "mag_max": 8.6,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "FASTT 1100",
-        "ra": 268.43875,
-        "dec": -1.12972,
-        "type": "MISC",
-        "mag_max": 14.04,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "NSVS 12572573",
-        "ra": 101.31221,
-        "dec": -2.44314,
-        "type": "M",
-        "mag_max": 13.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V349 Vul",
-        "ra": 292.79358,
-        "dec": 23.50939,
-        "type": "M",
-        "mag_max": 11.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RT Aql",
-        "ra": 294.50667,
-        "dec": 11.72172,
-        "type": "M",
-        "mag_max": 7.6,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V353 Vul",
-        "ra": 297.34192,
-        "dec": 22.62772,
-        "type": "M",
-        "mag_max": 13.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "SX Cyg",
-        "ra": 303.88967,
-        "dec": 31.07225,
-        "type": "M",
-        "mag_max": 8.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "AU Cyg",
-        "ra": 304.63659,
-        "dec": 34.38905,
-        "type": "M",
-        "mag_max": 8.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V1655 Cyg",
-        "ra": 306.35008,
-        "dec": 38.70989,
-        "type": "M",
-        "mag_max": 12.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V1659 Cyg",
-        "ra": 307.27296,
-        "dec": 39.71272,
-        "type": "M",
-        "mag_max": 12.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "NSVS J2041274+511326",
-        "ra": 310.36433,
-        "dec": 51.22497,
-        "type": "M",
-        "mag_max": 14.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "DR Cyg",
-        "ra": 310.92088,
-        "dec": 38.16561,
-        "type": "M",
-        "mag_max": 8.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V750 Cyg",
-        "ra": 312.33846,
-        "dec": 50.53092,
-        "type": "M",
-        "mag_max": 11.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "W Cep",
-        "ra": 339.11483,
-        "dec": 58.42608,
-        "type": "SRC",
-        "mag_max": 7.02,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "AL Cep",
-        "ra": 342.32058,
-        "dec": 58.58528,
-        "type": "M",
-        "mag_max": 9.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "VX Cep",
-        "ra": 342.70612,
-        "dec": 64.25133,
-        "type": "M",
-        "mag_max": 10.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "FY Aql",
-        "ra": 292.00329,
-        "dec": 3.69958,
-        "type": "M",
-        "mag_max": 12.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V657 Cas",
-        "ra": 358.0205,
-        "dec": 61.80347,
-        "type": "M",
-        "mag_max": 13.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V850 Cas",
-        "ra": 354.41558,
-        "dec": 58.84608,
-        "type": "SR",
-        "mag_max": 12.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "psi 1 Aur",
-        "ra": 96.22458,
-        "dec": 49.28789,
-        "type": "SRC",
-        "mag_max": 4.54,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T Peg",
-        "ra": 332.22629,
-        "dec": 12.54014,
-        "type": "M",
-        "mag_max": 8.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "ST LMi",
-        "ra": 166.41571,
-        "dec": 25.10794,
-        "type": "AM",
-        "mag_max": 14.4,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V2301 Oph",
-        "ra": 270.14805,
-        "dec": 8.17053,
-        "type": "AM+E",
-        "mag_max": 14.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V1333 Aql",
-        "ra": 287.81687,
-        "dec": 0.58494,
-        "type": "LMXB/XB",
-        "mag_max": 14.82,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "AR UMa",
-        "ra": 168.93592,
-        "dec": 42.97286,
-        "type": "AM",
-        "mag_max": 13.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "mu. Cep",
-        "ra": 325.87692,
-        "dec": 58.78003,
-        "type": "SRC",
-        "mag_max": 3.43,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0381 Cep",
-        "ra": 319.81538,
-        "dec": 58.6235,
-        "type": "SRC",
-        "mag_max": 5.55,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "NO Aur",
-        "ra": 85.17521,
-        "dec": 31.92061,
-        "type": "SRC",
-        "mag_max": 6.05,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "SU Per",
-        "ra": 35.52871,
-        "dec": 56.60414,
-        "type": "SRC",
-        "mag_max": 7.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "KK Per",
-        "ra": 32.56579,
-        "dec": 56.55906,
-        "type": "SRC",
-        "mag_max": 7.49,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "FZ Per",
-        "ra": 35.24854,
-        "dec": 57.15833,
-        "type": "SRC",
-        "mag_max": 7.5,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "XX Per",
-        "ra": 30.789,
-        "dec": 55.23239,
-        "type": "SRC",
-        "mag_max": 7.6,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "YZ Per",
-        "ra": 39.60592,
-        "dec": 57.04617,
-        "type": "SRC",
-        "mag_max": 7.66,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "AD Per",
-        "ra": 35.12083,
-        "dec": 56.99314,
-        "type": "SRC",
-        "mag_max": 7.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RW Cyg",
-        "ra": 307.21079,
-        "dec": 39.98178,
-        "type": "SRC",
-        "mag_max": 7.7,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0641 Cas",
-        "ra": 2.35975,
-        "dec": 63.95392,
-        "type": "SRC:",
-        "mag_max": 7.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "AZ Cyg",
-        "ra": 314.49767,
-        "dec": 46.46683,
-        "type": "SRC",
-        "mag_max": 7.8,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RS Per",
-        "ra": 35.60121,
-        "dec": 57.10947,
-        "type": "SRC",
-        "mag_max": 7.82,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0572 Vul",
-        "ra": 301.45975,
-        "dec": 25.60089,
-        "type": "SRC",
-        "mag_max": 7.85,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "IM Cas",
-        "ra": 23.00104,
-        "dec": 62.32903,
-        "type": "SRC",
-        "mag_max": 7.97,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "U Lac",
-        "ra": 341.93096,
-        "dec": 55.15842,
-        "type": "SRC",
-        "mag_max": 8.1,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0778 Cas",
-        "ra": 29.62046,
-        "dec": 59.26911,
-        "type": "SRC",
-        "mag_max": 8.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "SW Cep",
-        "ra": 321.44133,
-        "dec": 62.574,
-        "type": "SRC",
-        "mag_max": 8.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "BU Per",
-        "ra": 34.72204,
-        "dec": 57.42133,
-        "type": "SRC",
-        "mag_max": 8.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "PZ Cas",
-        "ra": 356.01367,
-        "dec": 61.7895,
-        "type": "SRC",
-        "mag_max": 8.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "T Per",
-        "ra": 34.84117,
-        "dec": 58.96119,
-        "type": "SRC",
-        "mag_max": 8.3,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "NSV 544",
-        "ra": 23.37171,
-        "dec": 60.64658,
-        "type": "SRC",
-        "mag_max": 8.34,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0774 Cas",
-        "ra": 26.75004,
-        "dec": 60.37233,
-        "type": "SRC",
-        "mag_max": 8.44,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0704 Cas",
-        "ra": 46.91879,
-        "dec": 60.48947,
-        "type": "SRC",
-        "mag_max": 8.75,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0550 Per",
-        "ra": 33.80542,
-        "dec": 58.14231,
-        "type": "SRC",
-        "mag_max": 8.81,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "BI Cyg",
-        "ra": 305.34121,
-        "dec": 36.93214,
-        "type": "SRC",
-        "mag_max": 8.86,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "NSV 693",
-        "ra": 30.36116,
-        "dec": 64.14388,
-        "type": "SR",
-        "mag_max": 8.9,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "BC Cyg",
-        "ra": 305.41062,
-        "dec": 37.53306,
-        "type": "SRC",
-        "mag_max": 9.0,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0648 Cas",
-        "ra": 42.76646,
-        "dec": 57.85553,
-        "type": "SRC",
-        "mag_max": 9.08,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "HD 232766",
-        "ra": 48.49063,
-        "dec": 54.93578,
-        "type": "SRC",
-        "mag_max": 9.15,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0411 Per",
-        "ra": 48.78525,
-        "dec": 54.88417,
-        "type": "SRC",
-        "mag_max": 9.16,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V0386 Cep",
-        "ra": 343.30142,
-        "dec": 61.2835,
-        "type": "SRC",
-        "mag_max": 9.2,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "GU Cep",
-        "ra": 347.54537,
-        "dec": 61.24161,
-        "type": "SRC",
-        "mag_max": 9.6,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "bet Aur",
-        "ra": 89.88217,
-        "dec": 44.94744,
-        "type": "EA/DM",
-        "mag_max": 1.89,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "RR Lyn",
-        "ra": 96.60767,
-        "dec": 56.28511,
-        "type": "EA/DM",
-        "mag_max": 5.52,
-        "priority": 2,
-        "duration": 600
-    },
-    {
-        "name": "V1143 Cyg",
-        "ra": 294.67158,
-        "dec": 54.97378,
-        "type": "EA/DM",
-        "mag_max": 5.85,
-        "priority": 2,
-        "duration": 600
-    }
-]
+{
+    "metadata": {
+        "objective": "Validated and deduplicated target list for nightly planning.",
+        "generated": "2026-03-09T13:43:48.196613",
+        "schema_version": "2026.1"
+    },
+    "data": [
+        {
+            "name": "CH Cyg",
+            "ra": 291.13779,
+            "dec": 50.24142,
+            "type": "ZAND+SR",
+            "mag_max": 5.6,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0404 Cyg",
+            "ra": 306.01596,
+            "dec": 33.86728,
+            "type": "LMXB/BHXB/XN",
+            "mag_max": 11.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V1016 Cyg",
+            "ra": 299.27087,
+            "dec": 39.82678,
+            "type": "NC+M",
+            "mag_max": 10.05,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V1500 Cyg",
+            "ra": 317.90254,
+            "dec": 48.15067,
+            "type": "NA/AM+E",
+            "mag_max": 1.69,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "AM Her",
+            "ra": 274.05521,
+            "dec": 49.868,
+            "type": "AM+E",
+            "mag_max": 12.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "HM Sge",
+            "ra": 295.48779,
+            "dec": 16.74433,
+            "type": "NC+M",
+            "mag_max": 11.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0497 Lyr",
+            "ra": 286.95467,
+            "dec": 36.38586,
+            "type": "SR",
+            "mag_max": 11.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "AD Tau",
+            "ra": 83.57067,
+            "dec": 25.60453,
+            "type": "MISC",
+            "mag_max": 12.07,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RU And",
+            "ra": 24.65125,
+            "dec": 38.67042,
+            "type": "SRA",
+            "mag_max": 9.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "ST And",
+            "ra": 354.68808,
+            "dec": 35.77256,
+            "type": "SRA",
+            "mag_max": 7.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Aql",
+            "ra": 286.59271,
+            "dec": 8.23,
+            "type": "M",
+            "mag_max": 5.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RR Aql",
+            "ra": 299.40025,
+            "dec": -1.88647,
+            "type": "M",
+            "mag_max": 7.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RS Aqr",
+            "ra": 317.74221,
+            "dec": -4.02781,
+            "type": "M",
+            "mag_max": 9.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S Aur",
+            "ra": 81.78096,
+            "dec": 34.14981,
+            "type": "SR",
+            "mag_max": 8.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "Z Aur",
+            "ra": 90.43958,
+            "dec": 53.30553,
+            "type": "SRD",
+            "mag_max": 9.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V Boo",
+            "ra": 217.43863,
+            "dec": 38.86128,
+            "type": "SRB",
+            "mag_max": 7.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Cnc",
+            "ra": 124.14096,
+            "dec": 11.72625,
+            "type": "M",
+            "mag_max": 6.07,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T CMi",
+            "ra": 113.50196,
+            "dec": 11.73533,
+            "type": "M",
+            "mag_max": 9.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V CMi",
+            "ra": 106.74521,
+            "dec": 8.87689,
+            "type": "M",
+            "mag_max": 7.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T CVn",
+            "ra": 187.55167,
+            "dec": 31.50333,
+            "type": "SRA",
+            "mag_max": 8.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V CVn",
+            "ra": 199.86571,
+            "dec": 45.52714,
+            "type": "SRA",
+            "mag_max": 6.52,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S Cas",
+            "ra": 19.92488,
+            "dec": 72.61131,
+            "type": "M",
+            "mag_max": 7.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "Z Cas",
+            "ra": 356.13142,
+            "dec": 56.58122,
+            "type": "M",
+            "mag_max": 8.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "SV Cas",
+            "ra": 354.75592,
+            "dec": 52.26247,
+            "type": "SRA",
+            "mag_max": 6.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S Cep",
+            "ra": 323.80346,
+            "dec": 78.6245,
+            "type": "M",
+            "mag_max": 6.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V CrB",
+            "ra": 237.38046,
+            "dec": 39.57164,
+            "type": "M",
+            "mag_max": 6.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RS Cyg",
+            "ra": 303.34858,
+            "dec": 38.72903,
+            "type": "SRA",
+            "mag_max": 6.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RZ Cyg",
+            "ra": 312.97163,
+            "dec": 47.35567,
+            "type": "SRA",
+            "mag_max": 9.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "LX Cyg",
+            "ra": 328.98762,
+            "dec": 48.34792,
+            "type": "M",
+            "mag_max": 9.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "Y Del",
+            "ra": 310.41242,
+            "dec": 11.87731,
+            "type": "M",
+            "mag_max": 8.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T Dra",
+            "ra": 269.09713,
+            "dec": 58.21839,
+            "type": "M",
+            "mag_max": 7.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "W Dra",
+            "ra": 271.39442,
+            "dec": 65.95608,
+            "type": "M",
+            "mag_max": 8.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Gem",
+            "ra": 106.83863,
+            "dec": 22.70353,
+            "type": "M",
+            "mag_max": 6.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RT Hya",
+            "ra": 127.42146,
+            "dec": -6.31878,
+            "type": "SRB",
+            "mag_max": 7.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RS Lac",
+            "ra": 333.21888,
+            "dec": 43.75022,
+            "type": "SRD",
+            "mag_max": 9.6,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RY Leo",
+            "ra": 151.06629,
+            "dec": 13.98269,
+            "type": "SRB",
+            "mag_max": 9.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R LMi",
+            "ra": 146.39283,
+            "dec": 34.51189,
+            "type": "M",
+            "mag_max": 6.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "U LMi",
+            "ra": 148.661,
+            "dec": 36.08997,
+            "type": "SRA",
+            "mag_max": 10.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S Lyr",
+            "ra": 288.29917,
+            "dec": 26.00781,
+            "type": "M",
+            "mag_max": 9.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "U Lyr",
+            "ra": 290.03813,
+            "dec": 37.87669,
+            "type": "M",
+            "mag_max": 8.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RU Lyr",
+            "ra": 288.08854,
+            "dec": 41.30375,
+            "type": "M",
+            "mag_max": 9.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S Ori",
+            "ra": 82.25375,
+            "dec": -4.69244,
+            "type": "M",
+            "mag_max": 7.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RV Peg",
+            "ra": 336.40337,
+            "dec": 30.47261,
+            "type": "M",
+            "mag_max": 8.6,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "W Tau",
+            "ra": 66.98829,
+            "dec": 16.04339,
+            "type": "SRB",
+            "mag_max": 8.6,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "Z Tau",
+            "ra": 88.10358,
+            "dec": 15.7955,
+            "type": "M",
+            "mag_max": 9.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RX UMa",
+            "ra": 138.60558,
+            "dec": 67.26064,
+            "type": "SRB",
+            "mag_max": 9.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T UMi",
+            "ra": 203.67104,
+            "dec": 73.43136,
+            "type": "SR",
+            "mag_max": 7.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RU Vir",
+            "ra": 191.82671,
+            "dec": 4.14483,
+            "type": "M",
+            "mag_max": 8.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "SS Vir",
+            "ra": 186.31,
+            "dec": 0.76972,
+            "type": "SRA",
+            "mag_max": 6.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RU Vul",
+            "ra": 309.71954,
+            "dec": 23.25867,
+            "type": "SRB",
+            "mag_max": 8.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R And",
+            "ra": 6.00812,
+            "dec": 38.57703,
+            "type": "M",
+            "mag_max": 5.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "W And",
+            "ra": 34.38733,
+            "dec": 44.30494,
+            "type": "M",
+            "mag_max": 6.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S Aql",
+            "ra": 302.90613,
+            "dec": 15.62072,
+            "type": "SRA",
+            "mag_max": 8.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V Aql",
+            "ra": 286.10067,
+            "dec": -5.68483,
+            "type": "SRB",
+            "mag_max": 6.67,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Ari",
+            "ra": 34.02962,
+            "dec": 25.05656,
+            "type": "M",
+            "mag_max": 7.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T Ari",
+            "ra": 42.08225,
+            "dec": 17.50939,
+            "type": "SR",
+            "mag_max": 7.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "X Aur",
+            "ra": 93.05575,
+            "dec": 50.22789,
+            "type": "M",
+            "mag_max": 7.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Aur",
+            "ra": 79.32371,
+            "dec": 53.58614,
+            "type": "M",
+            "mag_max": 6.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "UU Aur",
+            "ra": 99.13683,
+            "dec": 38.4455,
+            "type": "SRB",
+            "mag_max": 5.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S Boo",
+            "ra": 215.7205,
+            "dec": 53.81036,
+            "type": "M",
+            "mag_max": 7.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Boo",
+            "ra": 219.29825,
+            "dec": 26.73658,
+            "type": "M",
+            "mag_max": 6.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RX Boo",
+            "ra": 216.04846,
+            "dec": 25.70372,
+            "type": "SRB",
+            "mag_max": 7.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "X Cam",
+            "ra": 71.42579,
+            "dec": 75.10097,
+            "type": "M",
+            "mag_max": 7.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Cam",
+            "ra": 214.46263,
+            "dec": 83.83161,
+            "type": "M",
+            "mag_max": 6.97,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T Cam",
+            "ra": 70.03696,
+            "dec": 66.14683,
+            "type": "M",
+            "mag_max": 7.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "U Cam",
+            "ra": 55.45071,
+            "dec": 62.64844,
+            "type": "SRB",
+            "mag_max": 7.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "W Cas",
+            "ra": 13.72438,
+            "dec": 58.56367,
+            "type": "M",
+            "mag_max": 8.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "WZ Cas",
+            "ra": 0.31608,
+            "dec": 60.35528,
+            "type": "SRB",
+            "mag_max": 6.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Cas",
+            "ra": 359.60363,
+            "dec": 51.38881,
+            "type": "M",
+            "mag_max": 4.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T Cas",
+            "ra": 5.80946,
+            "dec": 55.79256,
+            "type": "M",
+            "mag_max": 6.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V Cas",
+            "ra": 347.91967,
+            "dec": 59.69972,
+            "type": "M",
+            "mag_max": 6.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "miu Cep",
+            "ra": 325.87708,
+            "dec": 58.78,
+            "type": "SRC",
+            "mag_max": 3.43,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "AR Cep",
+            "ra": 342.89108,
+            "dec": 85.04639,
+            "type": "SRB",
+            "mag_max": 7.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "SS Cep",
+            "ra": 57.37508,
+            "dec": 80.32247,
+            "type": "SRB",
+            "mag_max": 6.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T Cep",
+            "ra": 317.38242,
+            "dec": 68.49089,
+            "type": "M",
+            "mag_max": 5.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "omi Cet",
+            "ra": 34.83662,
+            "dec": -2.97764,
+            "type": "M",
+            "mag_max": 2.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R CMi",
+            "ra": 107.17754,
+            "dec": 10.02403,
+            "type": "M",
+            "mag_max": 7.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S CMi",
+            "ra": 113.17946,
+            "dec": 8.31811,
+            "type": "M",
+            "mag_max": 6.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RS Cnc",
+            "ra": 137.66167,
+            "dec": 30.96314,
+            "type": "SRB",
+            "mag_max": 5.33,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "X Cnc",
+            "ra": 133.84533,
+            "dec": 17.23128,
+            "type": "SRB",
+            "mag_max": 5.69,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S CrB",
+            "ra": 230.34983,
+            "dec": 31.36739,
+            "type": "M",
+            "mag_max": 5.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R CVn",
+            "ra": 207.23771,
+            "dec": 39.54256,
+            "type": "M",
+            "mag_max": 6.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "Y CVn",
+            "ra": 191.28262,
+            "dec": 45.44025,
+            "type": "SRB",
+            "mag_max": 4.86,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RU Cyg",
+            "ra": 325.16287,
+            "dec": 54.32469,
+            "type": "SRA",
+            "mag_max": 9.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "TU Cyg",
+            "ra": 296.54446,
+            "dec": 49.07347,
+            "type": "M",
+            "mag_max": 8.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "Z Cyg",
+            "ra": 300.36442,
+            "dec": 50.04239,
+            "type": "M",
+            "mag_max": 7.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "AF Cyg",
+            "ra": 292.55354,
+            "dec": 46.14781,
+            "type": "SRB",
+            "mag_max": 6.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "khi Cyg",
+            "ra": 297.64133,
+            "dec": 32.91406,
+            "type": "M",
+            "mag_max": 3.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Cyg",
+            "ra": 294.20575,
+            "dec": 50.19986,
+            "type": "M",
+            "mag_max": 6.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RT Cyg",
+            "ra": 295.90738,
+            "dec": 48.77814,
+            "type": "M",
+            "mag_max": 6.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "U Cyg",
+            "ra": 304.90246,
+            "dec": 47.89419,
+            "type": "M",
+            "mag_max": 6.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V Cyg",
+            "ra": 310.32613,
+            "dec": 48.14133,
+            "type": "M",
+            "mag_max": 7.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "W Cyg",
+            "ra": 324.01042,
+            "dec": 45.37458,
+            "type": "SRB",
+            "mag_max": 5.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "WX Cyg",
+            "ra": 304.63862,
+            "dec": 37.44975,
+            "type": "M",
+            "mag_max": 8.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S Del",
+            "ra": 310.77033,
+            "dec": 17.08814,
+            "type": "M",
+            "mag_max": 8.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "EU Del",
+            "ra": 309.47796,
+            "dec": 18.26844,
+            "type": "SRB",
+            "mag_max": 5.41,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "U Del",
+            "ra": 311.36767,
+            "dec": 18.09003,
+            "type": "SRB",
+            "mag_max": 6.14,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Dra",
+            "ra": 248.16762,
+            "dec": 66.75497,
+            "type": "M",
+            "mag_max": 6.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RY Dra",
+            "ra": 194.10796,
+            "dec": 65.99439,
+            "type": "SRB",
+            "mag_max": 5.88,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "TX Dra",
+            "ra": 248.753,
+            "dec": 60.46811,
+            "type": "SRB",
+            "mag_max": 6.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "BU Gem",
+            "ra": 93.07958,
+            "dec": 22.90853,
+            "type": "SRC",
+            "mag_max": 5.74,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "eta Gem",
+            "ra": 93.71942,
+            "dec": 22.50681,
+            "type": "EA/GS+SRA",
+            "mag_max": 3.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "SX Her",
+            "ra": 241.86354,
+            "dec": 24.90831,
+            "type": "SRD:",
+            "mag_max": 7.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "W Her",
+            "ra": 248.80133,
+            "dec": 37.34528,
+            "type": "M",
+            "mag_max": 7.6,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RS Her",
+            "ra": 260.4265,
+            "dec": 22.92111,
+            "type": "M",
+            "mag_max": 7.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RU Her",
+            "ra": 242.5605,
+            "dec": 25.07067,
+            "type": "M",
+            "mag_max": 6.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S Her",
+            "ra": 252.97467,
+            "dec": 14.94186,
+            "type": "M",
+            "mag_max": 6.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T Her",
+            "ra": 272.27587,
+            "dec": 31.02117,
+            "type": "M",
+            "mag_max": 6.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "U Her",
+            "ra": 246.44779,
+            "dec": 18.89247,
+            "type": "M",
+            "mag_max": 6.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "X Her",
+            "ra": 240.66321,
+            "dec": 47.24036,
+            "type": "SRB",
+            "mag_max": 5.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Leo",
+            "ra": 146.88954,
+            "dec": 11.42881,
+            "type": "M",
+            "mag_max": 4.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "W Lyr",
+            "ra": 273.73283,
+            "dec": 36.67033,
+            "type": "M",
+            "mag_max": 7.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Lyr",
+            "ra": 283.83375,
+            "dec": 43.94608,
+            "type": "SRB",
+            "mag_max": 3.81,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "X Oph",
+            "ra": 279.58804,
+            "dec": 8.83411,
+            "type": "M",
+            "mag_max": 5.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "U Ori",
+            "ra": 88.95488,
+            "dec": 20.17519,
+            "type": "M",
+            "mag_max": 4.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "W Ori",
+            "ra": 76.34883,
+            "dec": 1.17761,
+            "type": "SRB",
+            "mag_max": 5.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Peg",
+            "ra": 346.66321,
+            "dec": 10.54336,
+            "type": "M",
+            "mag_max": 6.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "W Peg",
+            "ra": 349.96042,
+            "dec": 26.27878,
+            "type": "M",
+            "mag_max": 7.6,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "U Per",
+            "ra": 29.89629,
+            "dec": 54.82222,
+            "type": "M",
+            "mag_max": 7.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "W Per",
+            "ra": 42.65787,
+            "dec": 56.98342,
+            "type": "SRC",
+            "mag_max": 8.6,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "Y Per",
+            "ra": 51.92662,
+            "dec": 44.17681,
+            "type": "SRB",
+            "mag_max": 8.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S Per",
+            "ra": 35.71546,
+            "dec": 58.5865,
+            "type": "SRC",
+            "mag_max": 7.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Ser",
+            "ra": 237.67388,
+            "dec": 15.13364,
+            "type": "M",
+            "mag_max": 5.16,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "Y Tau",
+            "ra": 86.41421,
+            "dec": 20.69503,
+            "type": "SRB",
+            "mag_max": 6.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Tri",
+            "ra": 39.25975,
+            "dec": 34.26428,
+            "type": "M",
+            "mag_max": 5.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RS UMa",
+            "ra": 189.73979,
+            "dec": 58.48339,
+            "type": "M",
+            "mag_max": 8.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S UMa",
+            "ra": 190.98612,
+            "dec": 61.09319,
+            "type": "M",
+            "mag_max": 7.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R UMa",
+            "ra": 161.16029,
+            "dec": 68.77575,
+            "type": "M",
+            "mag_max": 6.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RY UMa",
+            "ra": 185.11388,
+            "dec": 61.30964,
+            "type": "SRA",
+            "mag_max": 6.49,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "ST UMa",
+            "ra": 171.95992,
+            "dec": 45.18522,
+            "type": "SRB",
+            "mag_max": 6.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T UMa",
+            "ra": 189.09779,
+            "dec": 59.48694,
+            "type": "M",
+            "mag_max": 6.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "VW UMa",
+            "ra": 164.7575,
+            "dec": 69.98906,
+            "type": "SRB",
+            "mag_max": 6.69,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "VY UMa",
+            "ra": 161.26679,
+            "dec": 67.41139,
+            "type": "SRB",
+            "mag_max": 5.73,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "Z UMa",
+            "ra": 179.12592,
+            "dec": 57.87156,
+            "type": "SRB",
+            "mag_max": 6.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S UMi",
+            "ra": 232.39404,
+            "dec": 78.63342,
+            "type": "M",
+            "mag_max": 7.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "U UMi",
+            "ra": 214.33292,
+            "dec": 66.79422,
+            "type": "M",
+            "mag_max": 7.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Vir",
+            "ra": 189.62475,
+            "dec": 6.98861,
+            "type": "M",
+            "mag_max": 6.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "S Vir",
+            "ra": 203.25046,
+            "dec": -7.19472,
+            "type": "M",
+            "mag_max": 6.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "R Vul",
+            "ra": 316.09375,
+            "dec": 23.82169,
+            "type": "M",
+            "mag_max": 7.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "Y Cyg",
+            "ra": 313.01492,
+            "dec": 34.65764,
+            "type": "EA/DM",
+            "mag_max": 7.29,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V404 Cyg",
+            "ra": 306.01592,
+            "dec": 33.86724,
+            "type": "LMXB/BHXB/XN",
+            "mag_max": 11.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "VV Cep",
+            "ra": 329.16308,
+            "dec": 63.62556,
+            "type": "EA/GS+SRC",
+            "mag_max": 4.73,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "CE Tau",
+            "ra": 83.05312,
+            "dec": 18.59425,
+            "type": "SRC",
+            "mag_max": 4.22,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "BW Cyg",
+            "ra": 308.59817,
+            "dec": 58.76486,
+            "type": "SRB",
+            "mag_max": 13.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "ASASSN-18ey",
+            "ra": 275.09146,
+            "dec": 7.18536,
+            "type": "LMXB/BHXB:/XN",
+            "mag_max": 11.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "MAXI J1820+070",
+            "ra": 275.09146,
+            "dec": 7.18536,
+            "type": "LMXB/BHXB:/XN",
+            "mag_max": 11.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "TY Cas",
+            "ra": 9.24748,
+            "dec": 63.13384,
+            "type": "M",
+            "mag_max": 10.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "FI Per",
+            "ra": 58.73642,
+            "dec": 48.60053,
+            "type": "M",
+            "mag_max": 12.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "SY Mon",
+            "ra": 99.38054,
+            "dec": -1.39533,
+            "type": "M",
+            "mag_max": 7.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "FX Mon",
+            "ra": 101.27337,
+            "dec": 9.03844,
+            "type": "M",
+            "mag_max": 10.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "CT Lac",
+            "ra": 331.66638,
+            "dec": 48.45192,
+            "type": "SRB",
+            "mag_max": 8.6,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "FASTT 1100",
+            "ra": 268.43875,
+            "dec": -1.12972,
+            "type": "MISC",
+            "mag_max": 14.04,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "NSVS 12572573",
+            "ra": 101.31221,
+            "dec": -2.44314,
+            "type": "M",
+            "mag_max": 13.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V349 Vul",
+            "ra": 292.79358,
+            "dec": 23.50939,
+            "type": "M",
+            "mag_max": 11.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RT Aql",
+            "ra": 294.50667,
+            "dec": 11.72172,
+            "type": "M",
+            "mag_max": 7.6,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V353 Vul",
+            "ra": 297.34192,
+            "dec": 22.62772,
+            "type": "M",
+            "mag_max": 13.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "SX Cyg",
+            "ra": 303.88967,
+            "dec": 31.07225,
+            "type": "M",
+            "mag_max": 8.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "AU Cyg",
+            "ra": 304.63659,
+            "dec": 34.38905,
+            "type": "M",
+            "mag_max": 8.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V1655 Cyg",
+            "ra": 306.35008,
+            "dec": 38.70989,
+            "type": "M",
+            "mag_max": 12.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V1659 Cyg",
+            "ra": 307.27296,
+            "dec": 39.71272,
+            "type": "M",
+            "mag_max": 12.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "NSVS J2041274+511326",
+            "ra": 310.36433,
+            "dec": 51.22497,
+            "type": "M",
+            "mag_max": 14.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "DR Cyg",
+            "ra": 310.92088,
+            "dec": 38.16561,
+            "type": "M",
+            "mag_max": 8.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V750 Cyg",
+            "ra": 312.33846,
+            "dec": 50.53092,
+            "type": "M",
+            "mag_max": 11.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "W Cep",
+            "ra": 339.11483,
+            "dec": 58.42608,
+            "type": "SRC",
+            "mag_max": 7.02,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "AL Cep",
+            "ra": 342.32058,
+            "dec": 58.58528,
+            "type": "M",
+            "mag_max": 9.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "VX Cep",
+            "ra": 342.70612,
+            "dec": 64.25133,
+            "type": "M",
+            "mag_max": 10.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "FY Aql",
+            "ra": 292.00329,
+            "dec": 3.69958,
+            "type": "M",
+            "mag_max": 12.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V657 Cas",
+            "ra": 358.0205,
+            "dec": 61.80347,
+            "type": "M",
+            "mag_max": 13.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V850 Cas",
+            "ra": 354.41558,
+            "dec": 58.84608,
+            "type": "SR",
+            "mag_max": 12.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "psi 1 Aur",
+            "ra": 96.22458,
+            "dec": 49.28789,
+            "type": "SRC",
+            "mag_max": 4.54,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T Peg",
+            "ra": 332.22629,
+            "dec": 12.54014,
+            "type": "M",
+            "mag_max": 8.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "ST LMi",
+            "ra": 166.41571,
+            "dec": 25.10794,
+            "type": "AM",
+            "mag_max": 14.4,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V2301 Oph",
+            "ra": 270.14805,
+            "dec": 8.17053,
+            "type": "AM+E",
+            "mag_max": 14.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V1333 Aql",
+            "ra": 287.81687,
+            "dec": 0.58494,
+            "type": "LMXB/XB",
+            "mag_max": 14.82,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "AR UMa",
+            "ra": 168.93592,
+            "dec": 42.97286,
+            "type": "AM",
+            "mag_max": 13.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "mu. Cep",
+            "ra": 325.87692,
+            "dec": 58.78003,
+            "type": "SRC",
+            "mag_max": 3.43,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0381 Cep",
+            "ra": 319.81538,
+            "dec": 58.6235,
+            "type": "SRC",
+            "mag_max": 5.55,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "NO Aur",
+            "ra": 85.17521,
+            "dec": 31.92061,
+            "type": "SRC",
+            "mag_max": 6.05,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "SU Per",
+            "ra": 35.52871,
+            "dec": 56.60414,
+            "type": "SRC",
+            "mag_max": 7.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "KK Per",
+            "ra": 32.56579,
+            "dec": 56.55906,
+            "type": "SRC",
+            "mag_max": 7.49,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "FZ Per",
+            "ra": 35.24854,
+            "dec": 57.15833,
+            "type": "SRC",
+            "mag_max": 7.5,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "XX Per",
+            "ra": 30.789,
+            "dec": 55.23239,
+            "type": "SRC",
+            "mag_max": 7.6,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "YZ Per",
+            "ra": 39.60592,
+            "dec": 57.04617,
+            "type": "SRC",
+            "mag_max": 7.66,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "AD Per",
+            "ra": 35.12083,
+            "dec": 56.99314,
+            "type": "SRC",
+            "mag_max": 7.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RW Cyg",
+            "ra": 307.21079,
+            "dec": 39.98178,
+            "type": "SRC",
+            "mag_max": 7.7,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0641 Cas",
+            "ra": 2.35975,
+            "dec": 63.95392,
+            "type": "SRC:",
+            "mag_max": 7.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "AZ Cyg",
+            "ra": 314.49767,
+            "dec": 46.46683,
+            "type": "SRC",
+            "mag_max": 7.8,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RS Per",
+            "ra": 35.60121,
+            "dec": 57.10947,
+            "type": "SRC",
+            "mag_max": 7.82,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0572 Vul",
+            "ra": 301.45975,
+            "dec": 25.60089,
+            "type": "SRC",
+            "mag_max": 7.85,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "IM Cas",
+            "ra": 23.00104,
+            "dec": 62.32903,
+            "type": "SRC",
+            "mag_max": 7.97,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "U Lac",
+            "ra": 341.93096,
+            "dec": 55.15842,
+            "type": "SRC",
+            "mag_max": 8.1,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0778 Cas",
+            "ra": 29.62046,
+            "dec": 59.26911,
+            "type": "SRC",
+            "mag_max": 8.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "SW Cep",
+            "ra": 321.44133,
+            "dec": 62.574,
+            "type": "SRC",
+            "mag_max": 8.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "BU Per",
+            "ra": 34.72204,
+            "dec": 57.42133,
+            "type": "SRC",
+            "mag_max": 8.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "PZ Cas",
+            "ra": 356.01367,
+            "dec": 61.7895,
+            "type": "SRC",
+            "mag_max": 8.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "T Per",
+            "ra": 34.84117,
+            "dec": 58.96119,
+            "type": "SRC",
+            "mag_max": 8.3,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "NSV 544",
+            "ra": 23.37171,
+            "dec": 60.64658,
+            "type": "SRC",
+            "mag_max": 8.34,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0774 Cas",
+            "ra": 26.75004,
+            "dec": 60.37233,
+            "type": "SRC",
+            "mag_max": 8.44,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0704 Cas",
+            "ra": 46.91879,
+            "dec": 60.48947,
+            "type": "SRC",
+            "mag_max": 8.75,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0550 Per",
+            "ra": 33.80542,
+            "dec": 58.14231,
+            "type": "SRC",
+            "mag_max": 8.81,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "BI Cyg",
+            "ra": 305.34121,
+            "dec": 36.93214,
+            "type": "SRC",
+            "mag_max": 8.86,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "NSV 693",
+            "ra": 30.36116,
+            "dec": 64.14388,
+            "type": "SR",
+            "mag_max": 8.9,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "BC Cyg",
+            "ra": 305.41062,
+            "dec": 37.53306,
+            "type": "SRC",
+            "mag_max": 9.0,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0648 Cas",
+            "ra": 42.76646,
+            "dec": 57.85553,
+            "type": "SRC",
+            "mag_max": 9.08,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "HD 232766",
+            "ra": 48.49063,
+            "dec": 54.93578,
+            "type": "SRC",
+            "mag_max": 9.15,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0411 Per",
+            "ra": 48.78525,
+            "dec": 54.88417,
+            "type": "SRC",
+            "mag_max": 9.16,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V0386 Cep",
+            "ra": 343.30142,
+            "dec": 61.2835,
+            "type": "SRC",
+            "mag_max": 9.2,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "GU Cep",
+            "ra": 347.54537,
+            "dec": 61.24161,
+            "type": "SRC",
+            "mag_max": 9.6,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "bet Aur",
+            "ra": 89.88217,
+            "dec": 44.94744,
+            "type": "EA/DM",
+            "mag_max": 1.89,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "RR Lyn",
+            "ra": 96.60767,
+            "dec": 56.28511,
+            "type": "EA/DM",
+            "mag_max": 5.52,
+            "priority": 2,
+            "duration": 600
+        },
+        {
+            "name": "V1143 Cyg",
+            "ra": 294.67158,
+            "dec": 54.97378,
+            "type": "EA/DM",
+            "mag_max": 5.85,
+            "priority": 2,
+            "duration": 600
+        }
+    ]
+}

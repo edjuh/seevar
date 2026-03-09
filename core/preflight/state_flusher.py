@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: core/preflight/state_flusher.py
-Version: 1.0.0
+Filename: /home/ed/seestar_organizer/core/preflight/state_flusher.py
+Version: 1.1.0
 Objective: Preflight utility to flush stale system state and reset the dashboard to IDLE before a new flight.
 """
 import json
@@ -19,13 +19,17 @@ STATE_FILE = PROJECT_ROOT / "data" / "system_state.json"
 def flush_state():
     logger.info("🧹 Sweeping stale telemetry from system_state.json...")
     
-    # Safe default idle state
     clean_state = {
+        "metadata": {
+            "objective": "System state initialization to safe IDLE before flight operations.",
+            "generated": datetime.now().isoformat(),
+            "schema_version": "2026.1"
+        },
         "state": "IDLE",
         "sub": "STANDBY",
         "msg": "Preflight complete. Awaiting Flight Controller...",
         "flight_log": ["✅ Preflight pipeline executed.", "⏳ Standing by for nightfall..."],
-        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), # Added the Date!
+        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "storage": {
             "total_gb": 0.0,
             "free_gb": 0.0,
