@@ -1,11 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
+Filename: /home/ed/seestar_organizer/core/utils/notifier.py
+Version: 1.1.0
 Objective: Outbound alert management via Telegram and system bells.
 """
-"""
-Filename: core/notifier.py
-Usage: notifier.send_alert("Fog detected! Closing shutter.")
-Note: Requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env.
-"""
+
 import requests
 from core.env_loader import cfg
 from core.logger import log_event

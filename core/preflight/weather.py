@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: core/preflight/weather.py
-Version: 2.0.2
+Filename: /home/ed/seestar_organizer/core/preflight/weather.py
+Version: 2.0.3
 Objective: Tri-Source Emoticon Aggregator for astronomical weather prediction (Strictly Dynamic Coordinates).
 """
 
@@ -21,29 +21,21 @@ class WeatherSentinel:
         self.lat, self.lon = self.get_coordinates()
 
     def get_coordinates(self):
-        """Strictly parses config.toml for coordinates. Zero hardcoding."""
         config_path = PROJECT_ROOT / "config.toml"
         if config_path.exists():
             try:
                 with open(config_path, "rb") as f:
                     cfg = tomllib.load(f)
-                    
-                    # 1. Check [location] block
                     loc = cfg.get("location", {})
                     if "lat" in loc and "lon" in loc:
                         return float(loc["lat"]), float(loc["lon"])
-                        
-                    # 2. Check [observer] block
                     obs = cfg.get("observer", {})
                     if "lat" in obs and "lon" in obs:
                         return float(obs["lat"]), float(obs["lon"])
             except: pass
-        
-        # Absolute fallback: Null Island
         return 0.0, 0.0
 
     def get_open_meteo(self):
-        """Source 1: Open-Meteo (Precipitation, Wind, Clouds)"""
         if self.lat == 0.0 and self.lon == 0.0: return None
         try:
             url = f"https://api.open-meteo.com/v1/forecast?latitude={self.lat}&longitude={self.lon}&hourly=precipitation,cloudcover,windspeed_10m,temperature_2m&forecast_days=1"
@@ -58,7 +50,6 @@ class WeatherSentinel:
         except: return None
 
     def get_7timer(self):
-        """Source 2: 7Timer! (Astronomical Transparency & Clouds)"""
         if self.lat == 0.0 and self.lon == 0.0: return None
         try:
             url = f"https://www.7timer.info/bin/astro.php?lon={self.lon}&lat={self.lat}&ac=0&unit=metric&output=json"
@@ -71,7 +62,6 @@ class WeatherSentinel:
         except: return None
 
     def get_consensus(self):
-        # Source 3: Local Meteoblue Cache
         transparency = "AVERAGE"
         if self.seeing_cache.exists():
             try:
@@ -114,9 +104,13 @@ class WeatherSentinel:
         else:
             icon, text = "⭐", "CLEAR"
 
-        state = {"status": text, "icon": icon}
+        state = {
+            "#objective": "Current astronomical weather consensus for dashboard UI.",
+            "status": text, 
+            "icon": icon
+        }
         with open(self.weather_state, 'w') as f:
-            json.dump(state, f)
+            json.dump(state, f, indent=4)
         
         print(f"--- SKY AUDIT: {text} {icon} ---")
         return state

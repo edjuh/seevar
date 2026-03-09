@@ -2,60 +2,63 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/vault_manager.py
-Version: 1.2.0 (Pee Pastinakel)
-Objective: Manages secure access to observational metadata and synchronizes GPS coordinates with config.toml.
+Version: 1.3.0
+Objective: Manages secure access to observational metadata. Implements Live GPS RAM Override.
 """
 
-import toml
 import os
+import json
+import logging
+import tomllib
 from datetime import datetime
+
+logger = logging.getLogger("VaultManager")
 
 class VaultManager:
     def __init__(self):
         self.config_path = os.path.expanduser("~/seestar_organizer/config.toml")
+        self.live_gps_path = "/dev/shm/env_status.json"
         self.data = self._load_config()
 
     def _load_config(self):
         if os.path.exists(self.config_path):
             try:
-                return toml.load(self.config_path)
-            except Exception:
+                with open(self.config_path, "rb") as f:
+                    return tomllib.load(f)
+            except Exception as e:
+                logger.error(f"❌ VaultManager failed to parse config.toml: {e}")
                 return {}
+        logger.warning(f"⚠️ config.toml not found at {self.config_path}")
         return {}
 
     def get_observer_config(self):
-        # Aligned with your config.toml sections
         aavso = self.data.get("aavso", {})
         loc = self.data.get("location", {})
         planner = self.data.get("planner", {})
         
+        # 1. Base Config Fallbacks (From config.toml)
+        lat = loc.get("lat", 52.3874)
+        lon = loc.get("lon", 4.6462)
+        maidenhead = loc.get("maidenhead", "JO22hj")
+        
+        # 2. Live GPS Override (From gps_monitor.py RAM disk)
+        if os.path.exists(self.live_gps_path):
+            try:
+                with open(self.live_gps_path, "r") as f:
+                    live = json.load(f)
+                    if live.get("gps_status") == "FIXED":
+                        lat = live.get("lat", lat)
+                        lon = live.get("lon", lon)
+                        maidenhead = live.get("maidenhead", maidenhead)
+            except Exception:
+                pass
+        
         return {
             "observer_id": aavso.get("observer_code", "MISSING_ID"),
-            "maidenhead": loc.get("maidenhead", "WAITING_FOR_GPS"),
-            "lat": loc.get("lat", 0.0),
-            "lon": loc.get("lon", 0.0),
+            "maidenhead": maidenhead,
+            "lat": lat,
+            "lon": lon,
             "elevation": loc.get("elevation", 0.0),
             "sun_altitude_limit": planner.get("sun_altitude_limit", -18.0),
             "last_refresh": loc.get("last_refresh", "NEVER")
         }
-
-    def sync_gps(self, new_lat, new_lon, new_mh):
-        if "location" not in self.data:
-            self.data["location"] = {}
-            
-        current_lat = self.data["location"].get("lat")
-        current_mh = self.data["location"].get("maidenhead")
-        
-        if current_lat != new_lat or current_mh != new_mh:
-            self.data["location"]["lat"] = new_lat
-            self.data["location"]["lon"] = new_lon
-            self.data["location"]["maidenhead"] = new_mh
-            self.data["location"]["last_refresh"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
-            try:
-                with open(self.config_path, "w") as f:
-                    toml.dump(self.data, f)
-                return True
-            except Exception:
-                return False
-        return True

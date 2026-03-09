@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: utils/platesolve_analyst.py
-Version: 1.2.0 (Pee Pastinakel)
+Filename: /home/ed/seestar_organizer/core/utils/platesolve_analyst.py
+Version: 1.2.1
 Objective: Quantitative reporter for plate-solving success rates, performing blind solves to compare header coordinates against reality.
 """
 

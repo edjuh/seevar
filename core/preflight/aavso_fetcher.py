@@ -2,21 +2,17 @@
 # -*- coding: utf-8 -*-
 """
 Filename: /home/ed/seestar_organizer/core/preflight/aavso_fetcher.py
-Version: 12.1.0
-Objective: Step 1 - Haul AAVSO targets and strictly filter by 30-degree horizon physics, with metadata injection.
+Version: 12.1.2
+Objective: Step 1 - Haul scientific targets from AAVSO TargetTool and filter by local horizon physics.
 """
 
 import json
 import requests
 import sys
 import logging
+import tomllib
 from datetime import datetime
 from pathlib import Path
-
-try:
-    import tomllib
-except ImportError:
-    import toml as tomllib
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - %(message)s')
 logger = logging.getLogger("AAVSO_Step1")
@@ -26,10 +22,7 @@ CONFIG_PATH = PROJECT_ROOT / "config.toml"
 CATALOG_DIR = PROJECT_ROOT / "catalogs"
 MASTER_HAUL_FILE = CATALOG_DIR / "campaign_targets.json"
 
-# PHYSICS CONSTRAINTS
 MAG_LIMIT = 15.0
-# To reach 30 degrees altitude at 52.38N latitude:
-# 30 = 90 - 52.38 + Dec -> Dec must be >= -7.62
 MIN_DEC = -7.62  
 
 def get_aavso_key():
@@ -68,7 +61,6 @@ def haul_and_filter(api_key):
             try: dec = float(t.get("dec", -90.0))
             except: dec = -90.0
                 
-            # The triple gate: Slow Variable + Brighter than Mag 15 + Crosses 30-degree horizon
             if is_slow and mag <= MAG_LIMIT and dec >= MIN_DEC:
                 targets.append({
                     "name": star_name,
@@ -80,10 +72,9 @@ def haul_and_filter(api_key):
                     "duration": 600
                 })
                 
-        # Inject Sovereign Metadata
         output_data = {
+            "#objective": "Master haul of AAVSO targets filtered by 30-degree horizon physics.",
             "metadata": {
-                "objective": "Master haul of AAVSO targets filtered by 30-degree horizon physics.",
                 "generated": datetime.now().isoformat(),
                 "schema_version": "2026.1",
                 "target_count": len(targets)
@@ -94,7 +85,7 @@ def haul_and_filter(api_key):
         with open(MASTER_HAUL_FILE, "w") as f:
             json.dump(output_data, f, indent=4)
             
-        logger.info(f"✅ Target Base Secured: {len(targets)} scientifically observable targets locked into {MASTER_HAUL_FILE.name}")
+        logger.info(f"✅ Target Base Secured: {len(targets)} scientifically observable targets locked.")
 
     except Exception as e:
         logger.error(f"❌ Failed to fetch or filter targets: {e}")
@@ -104,4 +95,3 @@ if __name__ == "__main__":
     auth_key = get_aavso_key()
     if auth_key:
         haul_and_filter(auth_key)
-

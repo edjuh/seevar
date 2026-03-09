@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: core/preflight/ledger_manager.py
-Version: 2.1.1
+Filename: /home/ed/seestar_organizer/core/preflight/ledger_manager.py
+Version: 2.1.2
 Objective: The High-Authority Mission Brain. Manages target cadence and observation history.
 """
 
@@ -27,31 +27,27 @@ def load_json(path):
         return json.load(f)
 
 def save_json(path, data, objective):
-    header = {
-        "objective": objective,
-        "last_updated": datetime.now().isoformat(),
-        "schema_version": "2026.1"
+    output = {
+        "#objective": objective,
+        "metadata": {
+            "last_updated": datetime.now().isoformat(),
+            "schema_version": "2026.1"
+        },
+        "entries": data
     }
-    output = {"metadata": header, "entries": data}
     with open(path, 'w') as f:
         json.dump(output, f, indent=4)
 
 def execute_ledger_sync():
-    # 1. Intake - Robust handling for list or dict
     catalog_raw = load_json(FEDERATED_CATALOG)
-    if isinstance(catalog_raw, list):
-        targets = catalog_raw
-    else:
-        targets = catalog_raw.get("data", [])
+    targets = catalog_raw.get("data", []) if isinstance(catalog_raw, dict) else catalog_raw
     
-    # 2. Load Ledger
     ledger_raw = load_json(LEDGER_FILE)
     entries = ledger_raw.get("entries", {})
     
     now = datetime.now()
     due_names = []
     
-    # 3. Sync and Cadence
     for t in targets:
         name = t['name'].replace(" ", "_").upper()
         if name not in entries:
@@ -70,20 +66,16 @@ def execute_ledger_sync():
             if now - last_date > timedelta(days=STANDARD_CADENCE_DAYS):
                 due_names.append(name)
 
-    # 4. Apply to Tonight's Plan
     plan_data = load_json(TONIGHTS_PLAN)
-    # Handle list vs dict for the plan as well
-    visible_targets = plan_data if isinstance(plan_data, list) else plan_data.get("targets", [])
+    visible_targets = plan_data.get("targets", []) if isinstance(plan_data, dict) else plan_data
     
     due_plan = [t for t in visible_targets if t['name'].replace(" ", "_").upper() in due_names]
     
-    # 5. Save
     save_json(LEDGER_FILE, entries, "Master Observational Register and Status Ledger")
     
-    # Standardize the plan output to Dict format
     final_plan = {
+        "#objective": "Tactical flight plan filtered by Ledger Cadence.",
         "metadata": {
-            "objective": "Tactical flight plan filtered by Ledger Cadence.",
             "generated": now.isoformat(),
             "due_count": len(due_plan)
         },

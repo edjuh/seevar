@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: utils/aavso_client.py
-Version: 1.2.0 (Pee Pastinakel)
-Objective: Low-level API client for authenticated AAVSO VSX and WebObs data retrieval.
+Filename: /home/ed/seestar_organizer/core/utils/aavso_client.py
+Version: 1.2.1
+Objective: Low-level API client for authenticated AAVSO VSX and WebObs data retrieval. Returns JSON-ready dictionaries with #objective tags.
 """
 
 import os
@@ -43,9 +43,10 @@ class AAVSOClient:
         target = self.resolve_object(name)
         sequence = self.fetch_sequence(target["ra_deg"], target["dec_deg"])
         return {
+            "#objective": f"AAVSO Target Package resolved for {name}",
             "target": target,
             "sequence": sequence,
-            "metadata": {"client_version": "1.2.0", "status": "resolved"}
+            "metadata": {"client_version": "1.2.1", "status": "resolved"}
         }
 
 if __name__ == "__main__":

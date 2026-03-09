@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: core/preflight/librarian.py
-Version: 4.2.0
-Objective: The Single Source of Truth. Manages metadata, purges corruption, 
-           and validates charts for the Nightly Planner.
+Filename: /home/ed/seestar_organizer/core/preflight/librarian.py
+Version: 4.2.1
+Objective: The Single Source of Truth. Manages metadata and validates charts for the Nightly Planner.
 """
 import json
 import logging
@@ -24,8 +23,8 @@ VALIDATED_CATALOG = CATALOG_DIR / "federation_catalog.json"
 def inject_metadata(data, objective):
     """Standardizes the header for all Sovereign JSON files."""
     return {
+        "#objective": objective,
         "metadata": {
-            "objective": objective,
             "generated": datetime.now().isoformat(),
             "schema_version": "2026.1"
         },
@@ -43,16 +42,14 @@ def process_library():
         raw_data = json.load(f)
         targets = raw_data.get("targets", []) if isinstance(raw_data, dict) else raw_data
 
-    # Deduplicate and Validate
     unique_map = {t['name']: t for t in targets if 'name' in t}
     valid_targets = []
     
     for name, target in unique_map.items():
-        safe_name = name.replace(" ", "_").upper()
-        if (REF_DIR / f"{safe_name}_comps.json").exists():
+        clean_name = name.lower().replace(' ', '_').replace('-', '_')
+        if (REF_DIR / f"{clean_name}.json").exists():
             valid_targets.append(target)
 
-    # Save with full metadata header
     federated_data = inject_metadata(valid_targets, "Validated and deduplicated target list for nightly planning.")
     
     with open(VALIDATED_CATALOG, 'w') as f:

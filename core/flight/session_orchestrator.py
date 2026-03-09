@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: core/flight/session_orchestrator.py
-Version: 1.2.0
+Filename: /home/ed/seestar_organizer/core/flight/session_orchestrator.py
+Version: 1.2.1
 Objective: Executive Orchestrator. Ties Flight operations to Postflight science.
 """
 
@@ -29,23 +29,24 @@ class Orchestrator:
         self.pilot = Pilot()
         self.processor = ScienceProcessor()
 
-    def run_mission(self, target_name, ra, dec, exp_ms, count):
+    def run_mission(self, target_name, ra, dec, exp_ms):
         """The Complete Sovereignty Lifecycle: Acquisition -> Extraction."""
         logger.info(f"🌌 Starting mission for: {target_name}")
         
-        # 1. Acquisition (The Pilot commands the Librarian to RAID1)
-        self.pilot.fly_mission(target_name, ra, dec, exp_ms, count)
+        # 1. Acquisition (The Pilot commands the Librarian to RAID1 via Sovereign Stamp)
+        final_fits = self.pilot.capture_and_stamp(target_name, ra, dec, exp_ms)
         
         # 2. Science Extraction (The Siril-backed Green Squeeze)
-        logger.info(f"🧪 Handing over {target_name} to Science Processor...")
-        final_fits = self.processor.process_green_stack(target_name.replace(" ", "_"))
-        
-        if final_fits:
-            logger.info(f"🏆 Mission Success. Green-Mono Diamond ready: {final_fits}")
+        if final_fits and final_fits.exists():
+            logger.info(f"🧪 Handing over {target_name} to Science Processor...")
+            processed_fits = self.processor.process_green_stack(target_name.replace(" ", "_"))
+            
+            if processed_fits:
+                logger.info(f"🏆 Mission Success. Green-Mono Diamond ready: {processed_fits}")
+            else:
+                logger.error("⚠️ Flight succeeded, but Science processing failed.")
         else:
-            logger.error("⚠️ Flight succeeded, but Science processing failed.")
+            logger.error(f"❌ Aborting handover. No valid FITS generated for {target_name}.")
 
 if __name__ == "__main__":
-    # Saturday Night Run
-    boss = Orchestrator()
-    boss.run_mission("T Uma", 188.256, 59.486, 60000, 10)
+    pass

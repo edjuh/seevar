@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: core/preflight/preflight_checklist.py
-Version: 1.0.0
+Filename: /home/ed/seestar_organizer/core/preflight/preflight_checklist.py
+Version: 1.0.1
 Objective: Verify bridge connectivity, mount orientation, and imaging pipeline status prior to flight.
 """
 
@@ -43,7 +43,6 @@ def main():
     print("\n📸 Pillar 2: Imaging Pipeline Status")
     view_state = cam.get_view_status()
     if view_state and isinstance(view_state, dict):
-        # Digging into the nested state we discovered
         view_data = view_state.get("result", {}).get("View", {})
         state = view_data.get("state", "Unknown")
         mode = view_data.get("mode", "Unknown")

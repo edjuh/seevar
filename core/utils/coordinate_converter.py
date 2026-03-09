@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: utils/coordinate_converter.py
-Version: 1.2.0 (Pee Pastinakel)
-Objective: Ensures data validity by converting sexagesimal AAVSO coordinates into decimal degrees for internal computational use and plate-solving.
+Filename: /home/ed/seestar_organizer/core/utils/coordinate_converter.py
+Version: 1.2.1
+Objective: Ensures data validity by converting sexagesimal AAVSO coordinates into decimal degrees, appending #objective to JSON writes.
 """
 
 import os
@@ -15,19 +15,22 @@ logger = logging.getLogger("Librarian_Coords")
 
 def hms_to_deg(hms):
     try:
-        h, m, s = map(float, hms.split(':'))
+        parts = hms.split(':')
+        h, m, s = float(parts[0]), float(parts[1]), float(parts[2])
         return (h + m/60 + s/3600) * 15
-    except: return None
+    except Exception: 
+        return None
 
 def dms_to_deg(dms):
     try:
         parts = dms.split(':')
-        d = float(parts)
-        m = float(parts)
-        s = float(parts)
-        sign = -1 if parts.strip().startswith('-') else 1
+        d = float(parts[0])
+        m = float(parts[1])
+        s = float(parts[2])
+        sign = -1 if parts[0].strip().startswith('-') else 1
         return d + (sign * m/60) + (sign * s/3600)
-    except: return None
+    except Exception: 
+        return None
 
 def process_library():
     seq_dir = os.path.expanduser('~/seestar_organizer/data/comp_stars')
@@ -39,7 +42,11 @@ def process_library():
     for filename in files:
         path = os.path.join(seq_dir, filename)
         with open(path, 'r+') as f:
-            data = json.load(f)
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                continue
+                
             modified = False
             
             t = data.get("target", {})
@@ -56,6 +63,8 @@ def process_library():
                     modified = True
             
             if modified:
+                # Inject the objective tag per requirements
+                data["#objective"] = "Coordinate data enriched with decimal degrees for processing."
                 f.seek(0)
                 json.dump(data, f, indent=4)
                 f.truncate()

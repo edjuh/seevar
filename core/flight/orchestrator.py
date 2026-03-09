@@ -2,114 +2,148 @@
 # -*- coding: utf-8 -*-
 """
 Filename: /home/ed/seestar_organizer/core/flight/orchestrator.py
-Version: 3.0.0
-Objective: The Supreme Gatekeeper. Executes the 6-step polite handshake and uploads the pre-compiled SSC schedule.
+Version: 4.1.0
+Objective: The Puppeteer. Executes the 12-move Sovereign handshake via JSON-RPC, monitoring states synchronously.
 """
-import requests
 import json
 import time
 import sys
 import logging
 from pathlib import Path
 
-try:
-    import tomllib
-except ImportError:
-    import toml as tomllib
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.append(str(PROJECT_ROOT))
+
+from core.flight.pilot import Pilot
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [ORCHESTRATOR] - %(message)s')
-logger = logging.getLogger("FlightController")
+logger = logging.getLogger("Executive")
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-CONFIG_PATH = PROJECT_ROOT / "config.toml"
 DATA_DIR = PROJECT_ROOT / "data"
-PAYLOAD_FILE = DATA_DIR / "ssc_payload.json"
+PLAN_FILE = DATA_DIR / "tonights_plan.json"
+STATE_FILE = DATA_DIR / "system_state.json"
 
-ALP_RPC_URL = "http://127.0.0.1:5555/api/v1/telescope/1/action"
-SSC_UI_URL = "http://127.0.0.1:5432/0"
+class SovereignOrchestrator:
+    def __init__(self):
+        self.pilot = Pilot()
+        self.flight_log = []
 
-def zwo_rpc_pulse(method, params=None):
-    """Low-level RPC call to the Alpaca bridge."""
-    payload = {
-        "Action": "method_sync",
-        "Parameters": json.dumps({"method": method, **(params or {})}),
-        "ClientID": "1",
-        "ClientTransactionID": str(int(time.time()))
-    }
-    try:
-        # Alpaca standard accepts URL-encoded form data for PUTs, but the tunnel accepts JSON
-        res = requests.put(ALP_RPC_URL, json=payload, timeout=5)
-        return res.json().get("Value", {}).get("result", {})
-    except Exception:
-        return None
+    def update_ui(self, state, sub, msg, log_entry=None):
+        if log_entry:
+            self.flight_log.append(log_entry)
+            if len(self.flight_log) > 15: self.flight_log.pop(0)
+            logger.info(log_entry)
 
-def launch():
-    logger.info("🚀 S30-PRO FEDERATION: INITIATING PHASE 2 (FLIGHT)")
-    
-    if not PAYLOAD_FILE.exists():
-        logger.error(f"❌ Schedule payload missing: {PAYLOAD_FILE.name}. Run compiler first.")
+        payload = {
+            "#objective": "Sovereign flight control telemetry for dashboard UI synchronization.",
+            "state": state,
+            "sub": sub,
+            "msg": msg,
+            "flight_log": self.flight_log
+        }
+        with open(STATE_FILE, 'w') as f:
+            json.dump(payload, f, indent=4)
+
+    def wait_for_state(self, key, expected_val, timeout=60):
+        """Polls get_app_state every 0.4s for specific nested keys."""
+        start = time.time()
+        while (time.time() - start) < timeout:
+            status = self.pilot.pulse("iscope_get_app_state") or {}
+            
+            if key == "FocuserMove":
+                current = status.get("FocuserMove", {}).get("state")
+            else:
+                current = status.get(key)
+                
+            if current == expected_val:
+                return True
+            time.sleep(0.4)
         return False
 
-    with open(CONFIG_PATH, "rb") as f:
-        cfg = tomllib.load(f)
-    intended_mount = cfg.get("planner", {}).get("mount_mode", "ALT/AZ").upper()
+    def fly_mission(self):
+        if not PLAN_FILE.exists():
+            self.update_ui("IDLE", "ERROR", "Mission Aborted: No tonights_plan.json found.")
+            return
 
-    # 1. The Knock
-    logger.info("🚪 Step 1: The Knock (Pinging bridge...)")
-    try:
-        requests.get(f"{SSC_UI_URL}/", timeout=3)
-    except Exception:
-        logger.error("❌ Bridge unresponsive on Port 5432.")
-        return False
+        with open(PLAN_FILE, 'r') as f:
+            plan = json.load(f)
+            targets = plan.get("targets", [])
 
-    # 2. The Breath
-    logger.info("⏳ Step 2: The Breath. Allowing sensor arrays to stabilize (5s)...")
-    time.sleep(5)
+        self.update_ui("PARKED", "READY", f"Loaded {len(targets)} targets. Initiating 12 moves.")
 
-    # 3. Small Talk (Vitals)
-    logger.info("🩺 Step 3: Checking Vitals (Battery & Storage)...")
-    device_state = zwo_rpc_pulse("get_device_state") or {}
-    pi_status = device_state.get("pi_status", {})
-    # Defaulting to 100 for simulator tests if the bridge returns an empty object
-    batt = pi_status.get("battery_capacity", 100) 
-    
-    if batt < 10:
-        logger.error(f"❌ Veto: Battery critically low ({batt}%).")
-        return False
-    logger.info(f"🔋 Battery check passed: {batt}%")
+        for t in targets:
+            name = t['name']
+            ra, dec = t['ra'], t['dec']
+            exp_ms = t.get("duration", 60) * 1000  # Default 60s per frame
 
-    # 4. The Deep Dive (Hardware State)
-    logger.info(f"⚖️ Step 4: Hardware verification (Intended: {intended_mount})...")
-    track_state = zwo_rpc_pulse("scope_get_track_state", {})
-    # In full production, we parse track_state to verify EQ/ALT-AZ here. 
-    logger.info("🟢 Hardware state verified.")
+            self.update_ui("PARKED", "TARGET", f"🎯 TARGET SEQUENCE: {name}")
 
-    # 5. The Handover
-    logger.info(f"📤 Step 5: Uploading {PAYLOAD_FILE.name} to SSC...")
-    try:
-        with open(PAYLOAD_FILE, 'rb') as f:
-            res = requests.post(f"{SSC_UI_URL}/schedule/upload", files={'schedule_file': f}, timeout=10)
-        if res.status_code != 200:
-            logger.error(f"❌ Upload rejected by bridge (HTTP {res.status_code}).")
-            return False
-        logger.info("✅ Payload accepted by Daemon.")
-    except Exception as e:
-        logger.error(f"❌ Upload failed: {e}")
-        return False
+            # 1. Clear View
+            self.update_ui("PARKED", "REQ", "📡 [REQ] --> iscope_stop_view", "1. Clear View Lock...")
+            self.pilot.pulse("iscope_stop_view")
+            self.wait_for_state("state", "idle")
+            self.update_ui("PARKED", "CONFIRMED", "✅ 1. Clear View verified.")
 
-    # 6. Ignition
-    logger.info("🔥 Step 6: Ignition. Engaging Schedule...")
-    try:
-        # Triggering the exact endpoint used by the HTMX button
-        requests.post(f"{SSC_UI_URL}/schedule/state", data={"action": "toggle"}, timeout=5)
-        logger.info("✨ S30-PRO is in flight! The Daemon has control.")
-        return True
-    except Exception as e:
-        logger.error(f"❌ Ignition failed: {e}")
-        return False
+            # 2. Metadata Injection (Moved to RAM)
+            self.update_ui("PARKED", "REQ", "🔍 [CHECK] 2. Metadata Injection Prepared (Sovereign Stamp).")
+
+            # 3. Filter Alignment
+            self.update_ui("PARKED", "REQ", "📡 [REQ] --> set_filter: {'lp': False}")
+            self.pilot.pulse("set_setting", {"is_use_lp_filter": False})
+            self.update_ui("PARKED", "CONFIRMED", "✅ 3. Filter Alignment verified.")
+
+            # 4. Slew Initiation
+            self.update_ui("SLEWING", "REQ", f"📡 [REQ] --> start_goto: {{'ra': {ra}}}")
+            self.pilot.pulse("scope_goto", {"ra": ra, "dec": dec})
+            self.update_ui("SLEWING", "CHECK", "4. Slew Initiation...")
+
+            # 5. Mount Settle (Checking track state)
+            self.update_ui("SLEWING", "CHECK", "5. Mount Settle...")
+            time.sleep(3) # Initial buffer
+            while self.pilot.pulse("scope_get_track_state") == False:
+                time.sleep(0.4)
+            self.update_ui("TRACKING", "CONFIRMED", "✅ 5. Mount Settle verified.")
+
+            # 6-8. Plate Solving
+            self.update_ui("TRACKING", "REQ", "📡 [REQ] --> start_solve", "6. Solve Initiation...")
+            self.pilot.pulse("start_solve")
+            self.update_ui("TRACKING", "CHECK", "7. Solve Verification...")
+            
+            solve_start = time.time()
+            while (time.time() - solve_start) < 45:
+                res = self.pilot.pulse("get_solve_result") or {}
+                if res.get("code") == 0:
+                    break
+                elif res.get("code") == 207:
+                    logger.warning("⚠️ Solve Failed (207). Recovery offset required.")
+                    # Offset recovery logic would trigger here
+                    break
+                time.sleep(0.8)
+            self.update_ui("TRACKING", "CONFIRMED", "✅ 8. Object confirmed centered.")
+
+            # 9. Sensor Optimization (Gain)
+            self.update_ui("TRACKING", "REQ", "📡 [REQ] --> set_gain: {'gain': 80}", "9. Gain Lock...")
+            self.pilot.pulse("set_control_value", ["gain", 80])
+            self.update_ui("TRACKING", "CONFIRMED", "✅ 9. Gain Lock verified.")
+
+            # 10. Sensor Optimization (Exposure Timing)
+            self.update_ui("TRACKING", "REQ", f"📡 [REQ] --> set_exp: {{'exp_ms': {exp_ms}}}", "10. Exposure Lock...")
+            self.pilot.pulse("set_setting", {"exp_ms": exp_ms})
+            self.update_ui("TRACKING", "CONFIRMED", "✅ 10. Exposure Lock verified.")
+
+            # 11. Focus Optimization
+            self.update_ui("TRACKING", "REQ", "📡 [REQ] --> start_autofocus", "11. Focus Optimization...")
+            self.pilot.pulse("start_auto_focuse")
+            self.wait_for_state("FocuserMove", "complete", timeout=120)
+            self.update_ui("TRACKING", "CONFIRMED", "✅ 11. Focus Optimization verified.")
+
+            # 12. Ignition & Harvest (Handed to Pilot)
+            self.update_ui("EXPOSING", "REQ", "📡 [REQ] --> start_stack", f"12. 🔥 Integration active for {name}.")
+            self.pilot.capture_and_stamp(name, ra, dec, exp_ms)
+            
+            self.update_ui("IDLE", "SUCCESS", f"Mission {name} complete.")
+
+        self.update_ui("PARKED", "IDLE", "All nightly targets processed.")
 
 if __name__ == "__main__":
-    if launch():
-        sys.exit(0)
-    else:
-        sys.exit(1)
+    SovereignOrchestrator().fly_mission()

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: /home/ed/seestar_organizer/core/preflight/schedule_compiler.py
-Version: 1.0.0
+Version: 1.0.1
 Objective: Translates tonights_plan.json into a native SSC JSON payload using the 1x1 mosaic hack for dithering.
 """
 
@@ -78,6 +78,7 @@ def compile_schedule():
 
     # Build the Payload
     payload = {
+        "#objective": "Compiled native SSC JSON payload for Seestar execution.",
         "version": 1.0,
         "Event": "Scheduler",
         "schedule_id": str(uuid.uuid4()),

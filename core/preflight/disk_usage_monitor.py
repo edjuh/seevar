@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: core/preflight/disk_usage_monitor.py
-Version: 1.1.0
+Filename: /home/ed/seestar_organizer/core/preflight/disk_usage_monitor.py
+Version: 1.1.1
 Objective: Monitor S30 internal storage via SMB mount and update system state with Go/No-Go veto.
 """
 
@@ -38,9 +38,14 @@ def check_storage():
         # Update system_state.json
         state = {}
         if STATE_FILE.exists():
-            with open(STATE_FILE, 'r') as f:
-                state = json.load(f)
+            try:
+                with open(STATE_FILE, 'r') as f:
+                    state = json.load(f)
+            except json.JSONDecodeError:
+                state = {}
         
+        # Ensure root-level objective is present
+        state["#objective"] = "Live system telemetry and hardware state tracking."
         state["storage"] = {
             "percent_used": round(percent_used, 2),
             "free_gb": round(free_gb, 2),

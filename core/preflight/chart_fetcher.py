@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: core/preflight/chart_fetcher.py
-Version: 1.3.0
-Objective: Fetch missing AAVSO VSP charts. Supports targeted fetch via CLI or full audit.
+Filename: /home/ed/seestar_organizer/core/preflight/chart_fetcher.py
+Version: 1.3.2
+Objective: Step 2 - Fetch AAVSO VSP comparison star sequences for targeted objects.
 """
 import json
 import time
@@ -17,13 +17,14 @@ logger = logging.getLogger("AAVSO_Step2")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CATALOG_DIR = PROJECT_ROOT / "catalogs"
-# Updated to match production naming
 MASTER_HAUL_FILE = CATALOG_DIR / "campaign_targets.json"
 REF_DIR = CATALOG_DIR / "reference_stars"
 
 POLL_DELAY_SECONDS = 31.4
 
 def fetch_charts(target_list=None):
+    REF_DIR.mkdir(parents=True, exist_ok=True)
+    
     if target_list:
         logger.info(f"🎯 Targeted Fetch: {len(target_list)} stars requested.")
         process_list = target_list
@@ -57,8 +58,15 @@ def fetch_charts(target_list=None):
             res = requests.get(vsp_url, params=vsp_params, timeout=15)
             if res.status_code == 200:
                 comps = res.json().get("photometry", [])
+                
+                output_data = {
+                    "#objective": f"AAVSO VSP Photometry sequence for {star_name}",
+                    "target": {"name": star_name},
+                    "comparison_stars": comps
+                }
+                
                 with open(out_file, "w") as f:
-                    json.dump(comps, f, indent=4)
+                    json.dump(output_data, f, indent=4)
                 logger.info(f"✅ Cached {len(comps)} comparison stars.")
             else:
                 logger.warning(f"⚠️ VSP Error {res.status_code} for {star_name}")
@@ -67,6 +75,5 @@ def fetch_charts(target_list=None):
         api_hits += 1
 
 if __name__ == "__main__":
-    # If arguments are passed, use them as star names. Otherwise, audit the library.
     manual_targets = sys.argv[1:]
     fetch_charts(manual_targets if manual_targets else None)
