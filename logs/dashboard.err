@@ -3,3 +3,869 @@
  * Running on http://127.0.0.1:5050
  * Running on http://192.168.178.55:5050
 [33mPress CTRL+C to quit[0m
+192.168.178.222 - - [10/Mar/2026 22:12:05] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:06] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:08] "GET / HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:08] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:10] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:12] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:14] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:16] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:18] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:21] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:22] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:25] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:26] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:29] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:30] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:33] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:34] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:37] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:38] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:41] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:42] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:45] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:46] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:49] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:50] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:53] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:57] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:12:58] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:13:01] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:13:02] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:13:05] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:13:06] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:13:09] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:13:10] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:13:13] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:13:14] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:13:17] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:13:18] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:13:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:14:53] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:15:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:16:53] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:17:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:18:53] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:19:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:20:53] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:21:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:22:53] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:23:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:24:53] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:25:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:33] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:34] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:36] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:36] "GET / HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:36] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:38] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:42] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:43] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:46] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:47] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:50] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:51] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:55] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:58] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:26:59] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:02] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:03] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:06] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:07] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:10] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:11] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:14] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:15] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:18] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:19] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:22] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:23] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:26] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:27] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:30] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:31] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:34] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:35] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:38] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:39] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:27:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:40] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:43] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:44] "GET / HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:44] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:46] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:48] "GET / HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:48] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:50] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:52] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:55] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:56] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:28:59] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:00] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:03] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:04] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:07] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:08] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:11] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:12] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:15] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:16] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:19] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:20] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:23] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:24] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:27] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:28] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:31] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:32] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:35] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:36] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:39] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:40] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:43] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:44] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:47] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:48] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:51] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:29:52] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:30:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:31:53] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:32:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:33:53] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:34:54] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:35:53] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:35:56] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:35:58] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:00] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:01] "GET / HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:01] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:03] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:05] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:07] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:09] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:11] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:13] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:28] "GET / HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:28] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:28] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.178.222 - - [10/Mar/2026 22:36:30] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:32] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:34] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:36] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:49] "GET / HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:49] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:51] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:53] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:55] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:58] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:36:59] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:02] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:03] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:06] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:07] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:10] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:11] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:14] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:15] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:18] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:19] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:22] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:23] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:26] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:27] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:30] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:31] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:34] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:35] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:38] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:39] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:42] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:43] "GET /telemetry HTTP/1.1" 200 -
+192.168.178.222 - - [10/Mar/2026 22:37:46] "GET /telemetry HTTP/1.1" 200 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.178.55:5000
+[33mPress CTRL+C to quit[0m
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.178.55:5000
+[33mPress CTRL+C to quit[0m
+192.168.178.222 - - [10/Mar/2026 22:40:43] "[33mGET / HTTP/1.1[0m" 404 -
+192.168.178.222 - - [10/Mar/2026 22:40:43] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.178.55:5050
+[33mPress CTRL+C to quit[0m
+[2026-03-10 22:43:29,453] ERROR in app: Exception on / [GET]
+Traceback (most recent call last):
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/ed/seevar/core/dashboard/dashboard.py", line 36, in index
+    return render_template('index.html')
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 132, in _render
+    rv = template.render(context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "/home/ed/seevar/core/dashboard/templates/index.html", line 152, in top-level template code
+    const targetData = {{ target_data | tojson | safe }};
+    ^^^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/filters.py", line 1721, in do_tojson
+    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/utils.py", line 669, in htmlsafe_json_dumps
+    dumps(obj, **kwargs)
+    ~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 179, in dumps
+    return json.dumps(obj, **kwargs)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ~~~~~~^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 261, in iterencode
+    return _iterencode(o, 0)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 121, in _default
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+TypeError: Object of type Undefined is not JSON serializable
+192.168.178.222 - - [10/Mar/2026 22:43:29] "[35m[1mGET / HTTP/1.1[0m" 500 -
+[2026-03-10 22:43:33,543] ERROR in app: Exception on / [GET]
+Traceback (most recent call last):
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/ed/seevar/core/dashboard/dashboard.py", line 36, in index
+    return render_template('index.html')
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 132, in _render
+    rv = template.render(context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "/home/ed/seevar/core/dashboard/templates/index.html", line 152, in top-level template code
+    const targetData = {{ target_data | tojson | safe }};
+    ^^^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/filters.py", line 1721, in do_tojson
+    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/utils.py", line 669, in htmlsafe_json_dumps
+    dumps(obj, **kwargs)
+    ~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 179, in dumps
+    return json.dumps(obj, **kwargs)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ~~~~~~^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 261, in iterencode
+    return _iterencode(o, 0)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 121, in _default
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+TypeError: Object of type Undefined is not JSON serializable
+192.168.178.222 - - [10/Mar/2026 22:43:33] "[35m[1mGET / HTTP/1.1[0m" 500 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.178.55:5050
+[33mPress CTRL+C to quit[0m
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.178.55:5050
+[33mPress CTRL+C to quit[0m
+192.168.178.222 - - [10/Mar/2026 22:45:44] "[35m[1mGET / HTTP/1.1[0m" 500 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.178.55:5050
+[33mPress CTRL+C to quit[0m
+[2026-03-10 22:48:01,322] ERROR in app: Exception on / [GET]
+Traceback (most recent call last):
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/ed/seevar/core/dashboard/dashboard.py", line 38, in index
+    return render_template('index.html')
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 132, in _render
+    rv = template.render(context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "/home/ed/seevar/core/dashboard/templates/index.html", line 152, in top-level template code
+    const targetData = {{ target_data | tojson | safe }};
+    ^^^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/filters.py", line 1721, in do_tojson
+    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/utils.py", line 669, in htmlsafe_json_dumps
+    dumps(obj, **kwargs)
+    ~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 179, in dumps
+    return json.dumps(obj, **kwargs)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ~~~~~~^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 261, in iterencode
+    return _iterencode(o, 0)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 121, in _default
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+TypeError: Object of type Undefined is not JSON serializable
+192.168.178.222 - - [10/Mar/2026 22:48:01] "[35m[1mGET / HTTP/1.1[0m" 500 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://127.0.0.1:5050
+[33mPress CTRL+C to quit[0m
+[2026-03-10 22:49:25,299] ERROR in app: Exception on / [GET]
+Traceback (most recent call last):
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/ed/seevar/core/dashboard/dashboard.py", line 38, in index
+    return render_template('index.html')
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 132, in _render
+    rv = template.render(context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "/home/ed/seevar/core/dashboard/templates/index.html", line 152, in top-level template code
+    const targetData = {{ target_data | tojson | safe }};
+    ^^^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/filters.py", line 1721, in do_tojson
+    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/utils.py", line 669, in htmlsafe_json_dumps
+    dumps(obj, **kwargs)
+    ~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 179, in dumps
+    return json.dumps(obj, **kwargs)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ~~~~~~^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 261, in iterencode
+    return _iterencode(o, 0)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 121, in _default
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+TypeError: Object of type Undefined is not JSON serializable
+192.168.178.222 - - [10/Mar/2026 22:49:25] "[35m[1mGET / HTTP/1.1[0m" 500 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.178.55:5050
+[33mPress CTRL+C to quit[0m
+[2026-03-10 22:51:48,080] ERROR in app: Exception on / [GET]
+Traceback (most recent call last):
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/ed/seevar/core/dashboard/dashboard.py", line 45, in index
+    return render_template('index.html')
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 132, in _render
+    rv = template.render(context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "/home/ed/seevar/core/dashboard/templates/index.html", line 152, in top-level template code
+    const targetData = {{ target_data | tojson | safe }};
+    ^^^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/filters.py", line 1721, in do_tojson
+    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/utils.py", line 669, in htmlsafe_json_dumps
+    dumps(obj, **kwargs)
+    ~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 179, in dumps
+    return json.dumps(obj, **kwargs)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ~~~~~~^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 261, in iterencode
+    return _iterencode(o, 0)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 121, in _default
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+TypeError: Object of type Undefined is not JSON serializable
+192.168.178.222 - - [10/Mar/2026 22:51:48] "[35m[1mGET / HTTP/1.1[0m" 500 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.178.55:5050
+[33mPress CTRL+C to quit[0m
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.178.55:5050
+[33mPress CTRL+C to quit[0m
+[2026-03-10 22:53:06,380] ERROR in app: Exception on / [GET]
+Traceback (most recent call last):
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/ed/seevar/core/dashboard/dashboard.py", line 45, in index
+    return render_template('index.html')
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 132, in _render
+    rv = template.render(context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "/home/ed/seevar/core/dashboard/templates/index.html", line 152, in top-level template code
+    const targetData = {{ target_data | tojson | safe }};
+    ^^^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/filters.py", line 1721, in do_tojson
+    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/utils.py", line 669, in htmlsafe_json_dumps
+    dumps(obj, **kwargs)
+    ~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 179, in dumps
+    return json.dumps(obj, **kwargs)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ~~~~~~^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 261, in iterencode
+    return _iterencode(o, 0)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 121, in _default
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+TypeError: Object of type Undefined is not JSON serializable
+192.168.178.222 - - [10/Mar/2026 22:53:06] "[35m[1mGET / HTTP/1.1[0m" 500 -
+[2026-03-11 08:19:51,833] ERROR in app: Exception on / [GET]
+Traceback (most recent call last):
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/ed/seevar/core/dashboard/dashboard.py", line 45, in index
+    return render_template('index.html')
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/templating.py", line 132, in _render
+    rv = template.render(context)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "/home/ed/seevar/core/dashboard/templates/index.html", line 152, in top-level template code
+    const targetData = {{ target_data | tojson | safe }};
+    ^^^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/filters.py", line 1721, in do_tojson
+    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/jinja2/utils.py", line 669, in htmlsafe_json_dumps
+    dumps(obj, **kwargs)
+    ~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 179, in dumps
+    return json.dumps(obj, **kwargs)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ~~~~~~^^^^^
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "/home/ed/.pyenv/versions/3.13.5/lib/python3.13/json/encoder.py", line 261, in iterencode
+    return _iterencode(o, 0)
+  File "/home/ed/seevar/.venv/lib/python3.13/site-packages/flask/json/provider.py", line 121, in _default
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+TypeError: Object of type Undefined is not JSON serializable
+192.168.178.222 - - [11/Mar/2026 08:19:51] "[35m[1mGET / HTTP/1.1[0m" 500 -
+08:59:14 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.178.55:5050
+08:59:14 [INFO] [33mPress CTRL+C to quit[0m
+08:59:23 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:23] "GET / HTTP/1.1" 200 -
+08:59:23 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:23] "GET /telemetry HTTP/1.1" 200 -
+08:59:25 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:25] "GET /telemetry HTTP/1.1" 200 -
+08:59:28 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:28] "GET /telemetry HTTP/1.1" 200 -
+08:59:29 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:29] "GET /telemetry HTTP/1.1" 200 -
+08:59:32 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:32] "GET /telemetry HTTP/1.1" 200 -
+08:59:33 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:33] "GET /telemetry HTTP/1.1" 200 -
+08:59:36 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:36] "GET /telemetry HTTP/1.1" 200 -
+08:59:37 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:37] "GET /telemetry HTTP/1.1" 200 -
+08:59:40 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:40] "GET /telemetry HTTP/1.1" 200 -
+08:59:41 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:41] "GET /telemetry HTTP/1.1" 200 -
+08:59:44 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:44] "GET /telemetry HTTP/1.1" 200 -
+08:59:45 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:45] "GET /telemetry HTTP/1.1" 200 -
+08:59:48 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:48] "GET /telemetry HTTP/1.1" 200 -
+08:59:49 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:49] "GET /telemetry HTTP/1.1" 200 -
+08:59:52 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:52] "GET /telemetry HTTP/1.1" 200 -
+08:59:53 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:53] "GET /telemetry HTTP/1.1" 200 -
+08:59:56 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:56] "GET /telemetry HTTP/1.1" 200 -
+08:59:57 [INFO] 192.168.178.222 - - [11/Mar/2026 08:59:57] "GET /telemetry HTTP/1.1" 200 -
+09:00:00 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:00] "GET /telemetry HTTP/1.1" 200 -
+09:00:01 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:01] "GET /telemetry HTTP/1.1" 200 -
+09:00:04 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:04] "GET /telemetry HTTP/1.1" 200 -
+09:00:05 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:05] "GET /telemetry HTTP/1.1" 200 -
+09:00:08 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:08] "GET /telemetry HTTP/1.1" 200 -
+09:00:09 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:09] "GET /telemetry HTTP/1.1" 200 -
+09:00:12 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:12] "GET /telemetry HTTP/1.1" 200 -
+09:00:13 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:13] "GET /telemetry HTTP/1.1" 200 -
+09:00:16 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:16] "GET /telemetry HTTP/1.1" 200 -
+09:00:17 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:17] "GET /telemetry HTTP/1.1" 200 -
+09:00:20 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:20] "GET /telemetry HTTP/1.1" 200 -
+09:00:21 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:21] "GET /telemetry HTTP/1.1" 200 -
+09:00:24 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:24] "GET /telemetry HTTP/1.1" 200 -
+09:00:25 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:25] "GET /telemetry HTTP/1.1" 200 -
+09:00:28 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:28] "GET /telemetry HTTP/1.1" 200 -
+09:00:29 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:29] "GET /telemetry HTTP/1.1" 200 -
+09:00:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:00:54] "GET /telemetry HTTP/1.1" 200 -
+09:01:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:01:53] "GET /telemetry HTTP/1.1" 200 -
+09:02:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:02:54] "GET /telemetry HTTP/1.1" 200 -
+09:03:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:03:53] "GET /telemetry HTTP/1.1" 200 -
+09:04:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:04:54] "GET /telemetry HTTP/1.1" 200 -
+09:05:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:05:53] "GET /telemetry HTTP/1.1" 200 -
+09:06:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:06:54] "GET /telemetry HTTP/1.1" 200 -
+09:07:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:07:53] "GET /telemetry HTTP/1.1" 200 -
+09:08:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:08:54] "GET /telemetry HTTP/1.1" 200 -
+09:09:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:09:53] "GET /telemetry HTTP/1.1" 200 -
+09:10:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:10:54] "GET /telemetry HTTP/1.1" 200 -
+09:11:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:11:53] "GET /telemetry HTTP/1.1" 200 -
+09:12:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:12:54] "GET /telemetry HTTP/1.1" 200 -
+09:13:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:13:53] "GET /telemetry HTTP/1.1" 200 -
+09:14:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:14:54] "GET /telemetry HTTP/1.1" 200 -
+09:15:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:15:53] "GET /telemetry HTTP/1.1" 200 -
+09:16:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:16:54] "GET /telemetry HTTP/1.1" 200 -
+09:17:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:17:53] "GET /telemetry HTTP/1.1" 200 -
+09:18:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:18:54] "GET /telemetry HTTP/1.1" 200 -
+09:19:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:19:53] "GET /telemetry HTTP/1.1" 200 -
+09:20:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:20:54] "GET /telemetry HTTP/1.1" 200 -
+09:21:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:21:54] "GET /telemetry HTTP/1.1" 200 -
+09:22:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:22:53] "GET /telemetry HTTP/1.1" 200 -
+09:23:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:23:54] "GET /telemetry HTTP/1.1" 200 -
+09:24:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:24:53] "GET /telemetry HTTP/1.1" 200 -
+09:25:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:25:54] "GET /telemetry HTTP/1.1" 200 -
+09:26:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:26:53] "GET /telemetry HTTP/1.1" 200 -
+09:27:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:27:54] "GET /telemetry HTTP/1.1" 200 -
+09:28:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:28:53] "GET /telemetry HTTP/1.1" 200 -
+09:29:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:29:54] "GET /telemetry HTTP/1.1" 200 -
+09:30:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:30:53] "GET /telemetry HTTP/1.1" 200 -
+09:31:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:31:54] "GET /telemetry HTTP/1.1" 200 -
+09:32:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:32:53] "GET /telemetry HTTP/1.1" 200 -
+09:33:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:33:54] "GET /telemetry HTTP/1.1" 200 -
+09:34:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:34:53] "GET /telemetry HTTP/1.1" 200 -
+09:35:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:35:54] "GET /telemetry HTTP/1.1" 200 -
+09:36:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:36:53] "GET /telemetry HTTP/1.1" 200 -
+09:37:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:37:54] "GET /telemetry HTTP/1.1" 200 -
+09:38:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:38:53] "GET /telemetry HTTP/1.1" 200 -
+09:39:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:39:54] "GET /telemetry HTTP/1.1" 200 -
+09:40:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:40:53] "GET /telemetry HTTP/1.1" 200 -
+09:41:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:41:54] "GET /telemetry HTTP/1.1" 200 -
+09:42:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:42:53] "GET /telemetry HTTP/1.1" 200 -
+09:43:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:43:54] "GET /telemetry HTTP/1.1" 200 -
+09:44:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:44:53] "GET /telemetry HTTP/1.1" 200 -
+09:45:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:45:54] "GET /telemetry HTTP/1.1" 200 -
+09:46:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:46:53] "GET /telemetry HTTP/1.1" 200 -
+09:47:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:47:54] "GET /telemetry HTTP/1.1" 200 -
+09:48:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:48:53] "GET /telemetry HTTP/1.1" 200 -
+09:49:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:49:54] "GET /telemetry HTTP/1.1" 200 -
+09:50:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:50:54] "GET /telemetry HTTP/1.1" 200 -
+09:51:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:51:54] "GET /telemetry HTTP/1.1" 200 -
+09:52:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:52:53] "GET /telemetry HTTP/1.1" 200 -
+09:53:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:53:54] "GET /telemetry HTTP/1.1" 200 -
+09:54:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:54:53] "GET /telemetry HTTP/1.1" 200 -
+09:55:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:55:54] "GET /telemetry HTTP/1.1" 200 -
+09:56:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:56:53] "GET /telemetry HTTP/1.1" 200 -
+09:57:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:57:54] "GET /telemetry HTTP/1.1" 200 -
+09:58:53 [INFO] 192.168.178.222 - - [11/Mar/2026 09:58:53] "GET /telemetry HTTP/1.1" 200 -
+09:59:54 [INFO] 192.168.178.222 - - [11/Mar/2026 09:59:54] "GET /telemetry HTTP/1.1" 200 -
+10:00:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:00:53] "GET /telemetry HTTP/1.1" 200 -
+10:01:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:01:54] "GET /telemetry HTTP/1.1" 200 -
+10:02:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:02:53] "GET /telemetry HTTP/1.1" 200 -
+10:03:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:03:54] "GET /telemetry HTTP/1.1" 200 -
+10:04:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:04:53] "GET /telemetry HTTP/1.1" 200 -
+10:05:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:05:54] "GET /telemetry HTTP/1.1" 200 -
+10:06:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:06:53] "GET /telemetry HTTP/1.1" 200 -
+10:07:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:07:54] "GET /telemetry HTTP/1.1" 200 -
+10:08:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:08:53] "GET /telemetry HTTP/1.1" 200 -
+10:09:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:09:54] "GET /telemetry HTTP/1.1" 200 -
+10:10:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:10:53] "GET /telemetry HTTP/1.1" 200 -
+10:11:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:11:54] "GET /telemetry HTTP/1.1" 200 -
+10:12:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:12:53] "GET /telemetry HTTP/1.1" 200 -
+10:13:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:13:54] "GET /telemetry HTTP/1.1" 200 -
+10:14:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:14:53] "GET /telemetry HTTP/1.1" 200 -
+10:15:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:15:54] "GET /telemetry HTTP/1.1" 200 -
+10:16:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:16:53] "GET /telemetry HTTP/1.1" 200 -
+10:17:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:17:54] "GET /telemetry HTTP/1.1" 200 -
+10:18:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:18:53] "GET /telemetry HTTP/1.1" 200 -
+10:19:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:19:54] "GET /telemetry HTTP/1.1" 200 -
+10:20:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:20:53] "GET /telemetry HTTP/1.1" 200 -
+10:21:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:21:54] "GET /telemetry HTTP/1.1" 200 -
+10:22:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:22:53] "GET /telemetry HTTP/1.1" 200 -
+10:23:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:23:54] "GET /telemetry HTTP/1.1" 200 -
+10:24:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:24:53] "GET /telemetry HTTP/1.1" 200 -
+10:25:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:25:54] "GET /telemetry HTTP/1.1" 200 -
+10:26:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:26:53] "GET /telemetry HTTP/1.1" 200 -
+10:27:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:27:54] "GET /telemetry HTTP/1.1" 200 -
+10:28:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:28:53] "GET /telemetry HTTP/1.1" 200 -
+10:29:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:29:54] "GET /telemetry HTTP/1.1" 200 -
+10:30:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:30:53] "GET /telemetry HTTP/1.1" 200 -
+10:31:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:31:54] "GET /telemetry HTTP/1.1" 200 -
+10:32:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:32:53] "GET /telemetry HTTP/1.1" 200 -
+10:33:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:33:54] "GET /telemetry HTTP/1.1" 200 -
+10:34:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:34:53] "GET /telemetry HTTP/1.1" 200 -
+10:35:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:35:54] "GET /telemetry HTTP/1.1" 200 -
+10:36:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:36:53] "GET /telemetry HTTP/1.1" 200 -
+10:37:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:37:54] "GET /telemetry HTTP/1.1" 200 -
+10:38:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:38:53] "GET /telemetry HTTP/1.1" 200 -
+10:39:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:39:54] "GET /telemetry HTTP/1.1" 200 -
+10:40:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:40:53] "GET /telemetry HTTP/1.1" 200 -
+10:41:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:41:54] "GET /telemetry HTTP/1.1" 200 -
+10:42:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:42:53] "GET /telemetry HTTP/1.1" 200 -
+10:43:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:43:54] "GET /telemetry HTTP/1.1" 200 -
+10:44:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:44:53] "GET /telemetry HTTP/1.1" 200 -
+10:45:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:45:54] "GET /telemetry HTTP/1.1" 200 -
+10:46:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:46:53] "GET /telemetry HTTP/1.1" 200 -
+10:47:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:47:54] "GET /telemetry HTTP/1.1" 200 -
+10:48:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:48:53] "GET /telemetry HTTP/1.1" 200 -
+10:49:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:49:54] "GET /telemetry HTTP/1.1" 200 -
+10:50:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:50:53] "GET /telemetry HTTP/1.1" 200 -
+10:51:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:51:54] "GET /telemetry HTTP/1.1" 200 -
+10:52:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:52:53] "GET /telemetry HTTP/1.1" 200 -
+10:53:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:53:54] "GET /telemetry HTTP/1.1" 200 -
+10:54:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:54:53] "GET /telemetry HTTP/1.1" 200 -
+10:55:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:55:54] "GET /telemetry HTTP/1.1" 200 -
+10:56:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:56:53] "GET /telemetry HTTP/1.1" 200 -
+10:57:54 [INFO] 192.168.178.222 - - [11/Mar/2026 10:57:54] "GET /telemetry HTTP/1.1" 200 -
+10:58:53 [INFO] 192.168.178.222 - - [11/Mar/2026 10:58:53] "GET /telemetry HTTP/1.1" 200 -
+10:59:55 [INFO] 192.168.178.222 - - [11/Mar/2026 10:59:55] "GET /telemetry HTTP/1.1" 200 -
+11:00:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:00:53] "GET /telemetry HTTP/1.1" 200 -
+11:01:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:01:55] "GET /telemetry HTTP/1.1" 200 -
+11:02:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:02:53] "GET /telemetry HTTP/1.1" 200 -
+11:03:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:03:55] "GET /telemetry HTTP/1.1" 200 -
+11:04:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:04:53] "GET /telemetry HTTP/1.1" 200 -
+11:05:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:05:55] "GET /telemetry HTTP/1.1" 200 -
+11:06:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:06:53] "GET /telemetry HTTP/1.1" 200 -
+11:07:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:07:55] "GET /telemetry HTTP/1.1" 200 -
+11:08:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:08:53] "GET /telemetry HTTP/1.1" 200 -
+11:09:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:09:55] "GET /telemetry HTTP/1.1" 200 -
+11:10:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:10:53] "GET /telemetry HTTP/1.1" 200 -
+11:11:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:11:55] "GET /telemetry HTTP/1.1" 200 -
+11:12:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:12:53] "GET /telemetry HTTP/1.1" 200 -
+11:13:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:13:55] "GET /telemetry HTTP/1.1" 200 -
+11:14:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:14:53] "GET /telemetry HTTP/1.1" 200 -
+11:15:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:15:55] "GET /telemetry HTTP/1.1" 200 -
+11:16:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:16:53] "GET /telemetry HTTP/1.1" 200 -
+11:17:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:17:55] "GET /telemetry HTTP/1.1" 200 -
+11:18:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:18:53] "GET /telemetry HTTP/1.1" 200 -
+11:19:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:19:55] "GET /telemetry HTTP/1.1" 200 -
+11:20:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:20:53] "GET /telemetry HTTP/1.1" 200 -
+11:21:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:21:55] "GET /telemetry HTTP/1.1" 200 -
+11:22:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:22:53] "GET /telemetry HTTP/1.1" 200 -
+11:23:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:23:55] "GET /telemetry HTTP/1.1" 200 -
+11:24:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:24:53] "GET /telemetry HTTP/1.1" 200 -
+11:25:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:25:55] "GET /telemetry HTTP/1.1" 200 -
+11:26:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:26:53] "GET /telemetry HTTP/1.1" 200 -
+11:27:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:27:55] "GET /telemetry HTTP/1.1" 200 -
+11:28:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:28:53] "GET /telemetry HTTP/1.1" 200 -
+11:29:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:29:55] "GET /telemetry HTTP/1.1" 200 -
+11:30:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:30:53] "GET /telemetry HTTP/1.1" 200 -
+11:31:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:31:55] "GET /telemetry HTTP/1.1" 200 -
+11:32:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:32:53] "GET /telemetry HTTP/1.1" 200 -
+11:33:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:33:55] "GET /telemetry HTTP/1.1" 200 -
+11:34:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:34:53] "GET /telemetry HTTP/1.1" 200 -
+11:35:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:35:55] "GET /telemetry HTTP/1.1" 200 -
+11:36:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:36:53] "GET /telemetry HTTP/1.1" 200 -
+11:37:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:37:55] "GET /telemetry HTTP/1.1" 200 -
+11:38:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:38:53] "GET /telemetry HTTP/1.1" 200 -
+11:39:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:39:55] "GET /telemetry HTTP/1.1" 200 -
+11:40:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:40:53] "GET /telemetry HTTP/1.1" 200 -
+11:41:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:41:55] "GET /telemetry HTTP/1.1" 200 -
+11:42:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:42:53] "GET /telemetry HTTP/1.1" 200 -
+11:43:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:43:55] "GET /telemetry HTTP/1.1" 200 -
+11:44:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:44:53] "GET /telemetry HTTP/1.1" 200 -
+11:45:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:45:55] "GET /telemetry HTTP/1.1" 200 -
+11:46:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:46:53] "GET /telemetry HTTP/1.1" 200 -
+11:47:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:47:55] "GET /telemetry HTTP/1.1" 200 -
+11:48:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:48:53] "GET /telemetry HTTP/1.1" 200 -
+11:49:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:49:55] "GET /telemetry HTTP/1.1" 200 -
+11:50:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:50:53] "GET /telemetry HTTP/1.1" 200 -
+11:51:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:51:55] "GET /telemetry HTTP/1.1" 200 -
+11:52:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:52:53] "GET /telemetry HTTP/1.1" 200 -
+11:53:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:53:55] "GET /telemetry HTTP/1.1" 200 -
+11:54:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:54:53] "GET /telemetry HTTP/1.1" 200 -
+11:55:55 [INFO] 192.168.178.222 - - [11/Mar/2026 11:55:55] "GET /telemetry HTTP/1.1" 200 -
+11:56:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:56:53] "GET /telemetry HTTP/1.1" 200 -
+11:57:54 [INFO] 192.168.178.222 - - [11/Mar/2026 11:57:54] "GET /telemetry HTTP/1.1" 200 -
+11:58:53 [INFO] 192.168.178.222 - - [11/Mar/2026 11:58:53] "GET /telemetry HTTP/1.1" 200 -
+11:59:54 [INFO] 192.168.178.222 - - [11/Mar/2026 11:59:54] "GET /telemetry HTTP/1.1" 200 -
+12:00:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:00:53] "GET /telemetry HTTP/1.1" 200 -
+12:01:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:01:54] "GET /telemetry HTTP/1.1" 200 -
+12:02:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:02:53] "GET /telemetry HTTP/1.1" 200 -
+12:03:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:03:54] "GET /telemetry HTTP/1.1" 200 -
+12:04:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:04:53] "GET /telemetry HTTP/1.1" 200 -
+12:05:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:05:54] "GET /telemetry HTTP/1.1" 200 -
+12:06:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:06:53] "GET /telemetry HTTP/1.1" 200 -
+12:07:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:07:54] "GET /telemetry HTTP/1.1" 200 -
+12:08:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:08:53] "GET /telemetry HTTP/1.1" 200 -
+12:09:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:09:54] "GET /telemetry HTTP/1.1" 200 -
+12:10:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:10:53] "GET /telemetry HTTP/1.1" 200 -
+12:11:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:11:54] "GET /telemetry HTTP/1.1" 200 -
+12:12:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:12:53] "GET /telemetry HTTP/1.1" 200 -
+12:13:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:13:54] "GET /telemetry HTTP/1.1" 200 -
+12:14:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:14:53] "GET /telemetry HTTP/1.1" 200 -
+12:15:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:15:54] "GET /telemetry HTTP/1.1" 200 -
+12:16:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:16:53] "GET /telemetry HTTP/1.1" 200 -
+12:17:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:17:54] "GET /telemetry HTTP/1.1" 200 -
+12:18:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:18:53] "GET /telemetry HTTP/1.1" 200 -
+12:19:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:19:54] "GET /telemetry HTTP/1.1" 200 -
+12:20:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:20:53] "GET /telemetry HTTP/1.1" 200 -
+12:21:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:21:54] "GET /telemetry HTTP/1.1" 200 -
+12:22:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:22:53] "GET /telemetry HTTP/1.1" 200 -
+12:23:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:23:54] "GET /telemetry HTTP/1.1" 200 -
+12:24:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:24:53] "GET /telemetry HTTP/1.1" 200 -
+12:25:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:25:54] "GET /telemetry HTTP/1.1" 200 -
+12:26:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:26:53] "GET /telemetry HTTP/1.1" 200 -
+12:27:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:27:54] "GET /telemetry HTTP/1.1" 200 -
+12:28:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:28:53] "GET /telemetry HTTP/1.1" 200 -
+12:29:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:29:54] "GET /telemetry HTTP/1.1" 200 -
+12:30:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:30:53] "GET /telemetry HTTP/1.1" 200 -
+12:31:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:31:54] "GET /telemetry HTTP/1.1" 200 -
+12:32:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:32:53] "GET /telemetry HTTP/1.1" 200 -
+12:33:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:33:54] "GET /telemetry HTTP/1.1" 200 -
+12:34:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:34:53] "GET /telemetry HTTP/1.1" 200 -
+12:35:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:35:54] "GET /telemetry HTTP/1.1" 200 -
+12:36:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:36:53] "GET /telemetry HTTP/1.1" 200 -
+12:37:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:37:54] "GET /telemetry HTTP/1.1" 200 -
+12:38:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:38:53] "GET /telemetry HTTP/1.1" 200 -
+12:39:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:39:54] "GET /telemetry HTTP/1.1" 200 -
+12:40:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:40:53] "GET /telemetry HTTP/1.1" 200 -
+12:41:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:41:54] "GET /telemetry HTTP/1.1" 200 -
+12:42:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:42:53] "GET /telemetry HTTP/1.1" 200 -
+12:43:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:43:54] "GET /telemetry HTTP/1.1" 200 -
+12:44:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:44:53] "GET /telemetry HTTP/1.1" 200 -
+12:45:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:45:54] "GET /telemetry HTTP/1.1" 200 -
+12:46:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:46:53] "GET /telemetry HTTP/1.1" 200 -
+12:47:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:47:54] "GET /telemetry HTTP/1.1" 200 -
+12:48:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:48:53] "GET /telemetry HTTP/1.1" 200 -
+12:49:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:49:54] "GET /telemetry HTTP/1.1" 200 -
+12:50:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:50:53] "GET /telemetry HTTP/1.1" 200 -
+12:51:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:51:54] "GET /telemetry HTTP/1.1" 200 -
+12:52:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:52:53] "GET /telemetry HTTP/1.1" 200 -
+12:53:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:53:54] "GET /telemetry HTTP/1.1" 200 -
+12:54:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:54:53] "GET /telemetry HTTP/1.1" 200 -
+12:55:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:55:54] "GET /telemetry HTTP/1.1" 200 -
+12:56:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:56:53] "GET /telemetry HTTP/1.1" 200 -
+12:57:54 [INFO] 192.168.178.222 - - [11/Mar/2026 12:57:54] "GET /telemetry HTTP/1.1" 200 -
+12:58:53 [INFO] 192.168.178.222 - - [11/Mar/2026 12:58:53] "GET /telemetry HTTP/1.1" 200 -
+18:31:59 [INFO] 192.168.178.222 - - [11/Mar/2026 18:31:59] "GET /telemetry HTTP/1.1" 200 -
+18:32:01 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:01] "GET /telemetry HTTP/1.1" 200 -
+18:32:04 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:04] "GET /telemetry HTTP/1.1" 200 -
+18:32:05 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:05] "GET /telemetry HTTP/1.1" 200 -
+18:32:08 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:08] "GET /telemetry HTTP/1.1" 200 -
+18:32:09 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:09] "GET /telemetry HTTP/1.1" 200 -
+18:32:12 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:12] "GET /telemetry HTTP/1.1" 200 -
+18:32:13 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:13] "GET /telemetry HTTP/1.1" 200 -
+18:32:16 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:16] "GET /telemetry HTTP/1.1" 200 -
+18:32:17 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:17] "GET /telemetry HTTP/1.1" 200 -
+18:32:20 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:20] "GET /telemetry HTTP/1.1" 200 -
+18:32:21 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:21] "GET /telemetry HTTP/1.1" 200 -
+18:32:24 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:24] "GET /telemetry HTTP/1.1" 200 -
+18:32:25 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:25] "GET /telemetry HTTP/1.1" 200 -
+18:32:28 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:28] "GET /telemetry HTTP/1.1" 200 -
+18:32:29 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:29] "GET /telemetry HTTP/1.1" 200 -
+18:32:32 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:32] "GET /telemetry HTTP/1.1" 200 -
+18:32:33 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:33] "GET /telemetry HTTP/1.1" 200 -
+18:32:36 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:36] "GET /telemetry HTTP/1.1" 200 -
+18:32:37 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:37] "GET /telemetry HTTP/1.1" 200 -
+18:32:40 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:40] "GET /telemetry HTTP/1.1" 200 -
+18:32:41 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:41] "GET /telemetry HTTP/1.1" 200 -
+18:32:44 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:44] "GET /telemetry HTTP/1.1" 200 -
+18:32:45 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:45] "GET /telemetry HTTP/1.1" 200 -
+18:32:48 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:48] "GET /telemetry HTTP/1.1" 200 -
+18:32:49 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:49] "GET /telemetry HTTP/1.1" 200 -
+18:32:52 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:52] "GET /telemetry HTTP/1.1" 200 -
+18:32:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:53] "GET /telemetry HTTP/1.1" 200 -
+18:32:56 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:56] "GET /telemetry HTTP/1.1" 200 -
+18:32:57 [INFO] 192.168.178.222 - - [11/Mar/2026 18:32:57] "GET /telemetry HTTP/1.1" 200 -
+18:33:54 [INFO] 192.168.178.222 - - [11/Mar/2026 18:33:54] "GET /telemetry HTTP/1.1" 200 -
+18:34:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:34:53] "GET /telemetry HTTP/1.1" 200 -
+18:35:54 [INFO] 192.168.178.222 - - [11/Mar/2026 18:35:54] "GET /telemetry HTTP/1.1" 200 -
+18:36:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:36:53] "GET /telemetry HTTP/1.1" 200 -
+18:37:54 [INFO] 192.168.178.222 - - [11/Mar/2026 18:37:54] "GET /telemetry HTTP/1.1" 200 -
+18:38:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:38:53] "GET /telemetry HTTP/1.1" 200 -
+18:39:54 [INFO] 192.168.178.222 - - [11/Mar/2026 18:39:54] "GET /telemetry HTTP/1.1" 200 -
+18:40:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:40:53] "GET /telemetry HTTP/1.1" 200 -
+18:41:54 [INFO] 192.168.178.222 - - [11/Mar/2026 18:41:54] "GET /telemetry HTTP/1.1" 200 -
+18:42:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:42:53] "GET /telemetry HTTP/1.1" 200 -
+18:43:54 [INFO] 192.168.178.222 - - [11/Mar/2026 18:43:54] "GET /telemetry HTTP/1.1" 200 -
+18:44:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:44:53] "GET /telemetry HTTP/1.1" 200 -
+18:45:55 [INFO] 192.168.178.222 - - [11/Mar/2026 18:45:55] "GET /telemetry HTTP/1.1" 200 -
+18:46:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:46:53] "GET /telemetry HTTP/1.1" 200 -

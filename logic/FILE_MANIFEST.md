@@ -29,13 +29,13 @@
 | core/flight/fsm.py | 1.0.0 | The Finite State Machine governing S30-PRO Sovereign Operations. |
 | core/flight/mission_chronicle.py | 4.1.1 | Orchestrates the Sovereign funnel from Library Purge to Ledger Sync to Flight. |
 | core/flight/neutralizer.py | 2.6.1 | Optimized hardware reset (Neutralizer) locked to local Alpaca bridge. |
-| core/flight/orchestrator.py | 4.1.0 | The Puppeteer. Executes the 12-move Sovereign handshake via JSON-RPC, monitoring states synchronously. |
+| core/flight/orchestrator.py | 1.4.0 | Full pipeline state machine controlling the data lifecycle. |
 | core/flight/pilot.py | 3.0.1 | Executive control of the S30-PRO, handling direct RPC pulses. (IP safely locked to 127.0.0.1) |
 | core/flight/session_orchestrator.py | 1.2.1 | Executive Orchestrator. Ties Flight operations to Postflight science. |
 | core/flight/vault_manager.py | 1.3.0 | Manages secure access to observational metadata. Implements Live GPS RAM Override. |
 | core/flight/__pycache__/__init__.cpython-313.pyc | N/A | No objective defined. |
 | core/flight/__pycache__/vault_manager.cpython-313.pyc | N/A | No objective defined. |
-| core/dashboard/dashboard.py | 4.4.6 | Flawless integration with caching, Weather Emoticon, Postflight Science telemetry, and dynamic 6-char Maidenhead. |
+| core/dashboard/dashboard.py | 4.4.8 | Corrected telemetry dashboard — all fatal and soft failures resolved. |
 | core/dashboard/templates/index.html | N/A | No objective defined. |
 | core/preflight/aavso_fetcher.py | 12.1.2 | Step 1 - Haul scientific targets from AAVSO TargetTool and filter by local horizon physics. |
 | core/preflight/audit.py | 1.2.1 | Enforces scientific cadence by cross-referencing the Federation catalog with ledger.json. |
@@ -43,7 +43,7 @@
 | core/preflight/disk_monitor.py | 1.1.2 | Verifies storage availability. Respects location context: NAS is only audited when on the Home Grid. |
 | core/preflight/disk_usage_monitor.py | 1.1.1 | Monitor S30 internal storage via SMB mount and update system state with Go/No-Go veto. |
 | core/preflight/fog_monitor.py | 1.0.0 | Infrared sky-clarity monitor using MLX90614 to prevent imaging in fog. |
-| core/preflight/gps.py | 1.2.1 | Bi-directional GPS provider. Reads from and writes hardware coordinates to config.toml without hardcoded fallbacks. |
+| core/preflight/gps.py | 1.3.0 | Bi-directional GPS provider realigned for SeeVar. |
 | core/preflight/gps_monitor.py | 1.3.0 | Monitor GPSD natively via TCP socket (bypassing broken pip libraries), |
 | core/preflight/hardware_audit.py | 1.3.1 | Deep hardware audit using the get_event_state bus, exporting to hardware_telemetry.json for Dashboard vitals. |
 | core/preflight/horizon.py | 1.1.0 | Veto targets based on local obstructions using Az/Alt mapping. |
@@ -62,6 +62,8 @@
 | core/utils/aavso_client.py | 1.2.1 | Low-level API client for authenticated AAVSO VSX and WebObs data retrieval. Returns JSON-ready dictionaries with #objective tags. |
 | core/utils/astro.py | 1.2.1 | Core library for RA/Dec parsing, sidereal time, and coordinate math. |
 | core/utils/coordinate_converter.py | 1.2.1 | Ensures data validity by converting sexagesimal AAVSO coordinates into decimal degrees, appending #objective to JSON writes. |
+| core/utils/env_loader.py | 1.0.0 | Single source of truth for SeeVar environment paths and TOML configuration loading. |
+| core/utils/gps_monitor.py | 1.4.0 | Monitor GPSD natively via TCP socket, calculate Maidenhead, and update status. |
 | core/utils/notifier.py | 1.1.0 | Outbound alert management via Telegram and system bells. |
 | core/utils/observer_math.py | 1.0.2 | Mathematical utilities for observational astronomy, including Maidenhead grid calculations dynamically tested against config.toml. |
 | core/utils/platesolve_analyst.py | 1.2.1 | Quantitative reporter for plate-solving success rates, performing blind solves to compare header coordinates against reality. |
@@ -149,12 +151,12 @@
 | tests/fits/ss_cyg.rdls | N/A | No objective defined. |
 | tests/fits/ss_cyg.solved | N/A | No objective defined. |
 | tests/fits/ss_cyg.wcs | N/A | No objective defined. |
-| utils/comp_purger.py | 1.0.0 | Prunes orphaned or corrupted comparison star charts to ensure a clean Librarian sync. |
+| utils/comp_purger.py | 1.1.0 | Prunes orphaned comparison star charts in the SeeVar catalog. |
 | utils/generate_manifest.py | 1.5.0 | Generate FILE_MANIFEST.md for SeeVar and mirror it to NAS for quick reference. |
-| utils/harvest_manager.py | 1.1.2 | Tiered storage management. Harvests RAW from Workspace to RAID1 Archive. |
+| utils/harvest_manager.py | 1.3.0 | SeeVar Harvester - Supports simulation data (.fit) and real FITS. |
 | utils/mount_guard.py | 1.1.0 | Check if /mnt/raid1 is mounted and /mnt/raid1/data exists. |
 | utils/nas_backup.sh | 1.3.0 | Backup SeeVar code and logic to NAS. |
-| utils/notifier.py | 1.2.0 | Outbound notification manager that generates morning reports and sends mission summaries via Telegram. |
+| utils/notifier.py | 1.3.0 | Outbound notification manager realigned for SeeVar paths. |
 | data/hardware_telemetry.json | JSON | Data/Configuration file. |
 | data/ledger.json | JSON | Data/Configuration file. |
 | data/ssc_payload.json | JSON | Data/Configuration file. |
