@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/postflight/calibration_engine.py
+Filename: /home/ed/seevar/core/postflight/calibration_engine.py
 Version: 1.0.1
 Objective: Manages Zero-Point (ZP) offsets and flat-field corrections for the IMX585.
 """

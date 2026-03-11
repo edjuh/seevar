@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/postflight/master_analyst.py
+Filename: /home/ed/seevar/core/postflight/master_analyst.py
 Version: 2.0.0
 Objective: High-level plate-solving coordinator executing astrometry.net's solve-field.
 """

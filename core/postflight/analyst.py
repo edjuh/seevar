@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/postflight/analyst.py
+Filename: /home/ed/seevar/core/postflight/analyst.py
 Version: 1.0.0
 Objective: Analyzes FITS image quality, FWHM, and basic observational metrics.
 """

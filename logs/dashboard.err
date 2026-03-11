@@ -869,3 +869,38 @@ TypeError: Object of type Undefined is not JSON serializable
 18:44:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:44:53] "GET /telemetry HTTP/1.1" 200 -
 18:45:55 [INFO] 192.168.178.222 - - [11/Mar/2026 18:45:55] "GET /telemetry HTTP/1.1" 200 -
 18:46:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:46:53] "GET /telemetry HTTP/1.1" 200 -
+18:47:55 [INFO] 192.168.178.222 - - [11/Mar/2026 18:47:55] "GET /telemetry HTTP/1.1" 200 -
+18:48:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:48:53] "GET /telemetry HTTP/1.1" 200 -
+18:49:55 [INFO] 192.168.178.222 - - [11/Mar/2026 18:49:55] "GET /telemetry HTTP/1.1" 200 -
+18:50:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:50:53] "GET /telemetry HTTP/1.1" 200 -
+18:51:55 [INFO] 192.168.178.222 - - [11/Mar/2026 18:51:55] "GET /telemetry HTTP/1.1" 200 -
+18:52:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:52:53] "GET /telemetry HTTP/1.1" 200 -
+18:53:55 [INFO] 192.168.178.222 - - [11/Mar/2026 18:53:55] "GET /telemetry HTTP/1.1" 200 -
+18:54:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:54:53] "GET /telemetry HTTP/1.1" 200 -
+18:55:55 [INFO] 192.168.178.222 - - [11/Mar/2026 18:55:55] "GET /telemetry HTTP/1.1" 200 -
+18:56:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:56:53] "GET /telemetry HTTP/1.1" 200 -
+18:57:55 [INFO] 192.168.178.222 - - [11/Mar/2026 18:57:55] "GET /telemetry HTTP/1.1" 200 -
+18:58:53 [INFO] 192.168.178.222 - - [11/Mar/2026 18:58:53] "GET /telemetry HTTP/1.1" 200 -
+18:59:54 [INFO] 192.168.178.222 - - [11/Mar/2026 18:59:54] "GET /telemetry HTTP/1.1" 200 -
+19:00:53 [INFO] 192.168.178.222 - - [11/Mar/2026 19:00:53] "GET /telemetry HTTP/1.1" 200 -
+19:01:55 [INFO] 192.168.178.222 - - [11/Mar/2026 19:01:55] "GET /telemetry HTTP/1.1" 200 -
+19:02:53 [INFO] 192.168.178.222 - - [11/Mar/2026 19:02:53] "GET /telemetry HTTP/1.1" 200 -
+19:03:55 [INFO] 192.168.178.222 - - [11/Mar/2026 19:03:55] "GET /telemetry HTTP/1.1" 200 -
+19:04:53 [INFO] 192.168.178.222 - - [11/Mar/2026 19:04:53] "GET /telemetry HTTP/1.1" 200 -
+19:05:55 [INFO] 192.168.178.222 - - [11/Mar/2026 19:05:55] "GET /telemetry HTTP/1.1" 200 -
+19:06:53 [INFO] 192.168.178.222 - - [11/Mar/2026 19:06:53] "GET /telemetry HTTP/1.1" 200 -
+19:07:55 [INFO] 192.168.178.222 - - [11/Mar/2026 19:07:55] "GET /telemetry HTTP/1.1" 200 -
+19:08:53 [INFO] 192.168.178.222 - - [11/Mar/2026 19:08:53] "GET /telemetry HTTP/1.1" 200 -
+19:09:55 [INFO] 192.168.178.222 - - [11/Mar/2026 19:09:55] "GET /telemetry HTTP/1.1" 200 -
+19:10:53 [INFO] 192.168.178.222 - - [11/Mar/2026 19:10:53] "GET /telemetry HTTP/1.1" 200 -
+19:11:46 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.178.55:5050
+19:11:46 [INFO] [33mPress CTRL+C to quit[0m
+19:11:55 [INFO] 192.168.178.222 - - [11/Mar/2026 19:11:55] "GET /telemetry HTTP/1.1" 200 -
+19:12:53 [INFO] 192.168.178.222 - - [11/Mar/2026 19:12:53] "GET /telemetry HTTP/1.1" 200 -
+19:13:54 [INFO] 192.168.178.222 - - [11/Mar/2026 19:13:54] "GET /telemetry HTTP/1.1" 200 -
+19:14:53 [INFO] 192.168.178.222 - - [11/Mar/2026 19:14:53] "GET /telemetry HTTP/1.1" 200 -
+19:15:54 [INFO] 192.168.178.222 - - [11/Mar/2026 19:15:54] "GET /telemetry HTTP/1.1" 200 -
+19:16:53 [INFO] 192.168.178.222 - - [11/Mar/2026 19:16:53] "GET /telemetry HTTP/1.1" 200 -

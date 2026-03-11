@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/flight/pilot.py
+Filename: /home/ed/seevar/core/flight/pilot.py
 Version: 3.0.1
 Objective: Executive control of the S30-PRO, handling direct RPC pulses. (IP safely locked to 127.0.0.1)
 """

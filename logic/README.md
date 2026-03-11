@@ -3,7 +3,7 @@
 > **Objective:** Definitive entry point and Table of Contents for the Seestar Federation’s foundational rules, schemas, and communication protocols.
 > **Version:** 1.3.0 (Diamond Revision)
 
-**Path:** `~/seestar_organizer/logic/`
+**Path:** `~/seevar/logic/`
 
 This directory houses the foundational rules, schemas, and communication protocols that govern the observatory's state machine.
 

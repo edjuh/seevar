@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/preflight/aavso_fetcher.py
+Filename: /home/ed/seevar/core/preflight/aavso_fetcher.py
 Version: 12.1.2
 Objective: Step 1 - Haul scientific targets from AAVSO TargetTool and filter by local horizon physics.
 """

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/preflight/hardware_audit.py
+Filename: /home/ed/seevar/core/preflight/hardware_audit.py
 Version: 1.3.1
 Objective: Deep hardware audit using the get_event_state bus, exporting to hardware_telemetry.json for Dashboard vitals.
 """
@@ -19,7 +19,7 @@ logger = logging.getLogger("PreflightAudit")
 class HardwareGuard:
     def __init__(self):
         self.endpoint = "http://127.0.0.1:5555/api/v1/telescope/1/action"
-        self.telemetry_path = Path("~/seestar_organizer/data/hardware_telemetry.json").expanduser()
+        self.telemetry_path = Path("~/seevar/data/hardware_telemetry.json").expanduser()
 
     def _fetch_event_bus(self):
         payload = {

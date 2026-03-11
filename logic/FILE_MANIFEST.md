@@ -32,7 +32,7 @@
 | core/flight/orchestrator.py | 1.4.0 | Full pipeline state machine controlling the data lifecycle. |
 | core/flight/pilot.py | 3.0.1 | Executive control of the S30-PRO, handling direct RPC pulses. (IP safely locked to 127.0.0.1) |
 | core/flight/session_orchestrator.py | 1.2.1 | Executive Orchestrator. Ties Flight operations to Postflight science. |
-| core/flight/vault_manager.py | 1.3.0 | Manages secure access to observational metadata. Implements Live GPS RAM Override. |
+| core/flight/vault_manager.py | 1.4.1 | Secure metadata access with actual bi-directional tomli_w syncing. |
 | core/flight/__pycache__/__init__.cpython-313.pyc | N/A | No objective defined. |
 | core/flight/__pycache__/vault_manager.cpython-313.pyc | N/A | No objective defined. |
 | core/dashboard/dashboard.py | 4.4.8 | Corrected telemetry dashboard — all fatal and soft failures resolved. |
@@ -43,7 +43,7 @@
 | core/preflight/disk_monitor.py | 1.1.2 | Verifies storage availability. Respects location context: NAS is only audited when on the Home Grid. |
 | core/preflight/disk_usage_monitor.py | 1.1.1 | Monitor S30 internal storage via SMB mount and update system state with Go/No-Go veto. |
 | core/preflight/fog_monitor.py | 1.0.0 | Infrared sky-clarity monitor using MLX90614 to prevent imaging in fog. |
-| core/preflight/gps.py | 1.3.0 | Bi-directional GPS provider realigned for SeeVar. |
+| core/preflight/gps.py | 1.4.1 | Bi-directional GPS provider with lazy initialization and Null Island protection. |
 | core/preflight/gps_monitor.py | 1.3.0 | Monitor GPSD natively via TCP socket (bypassing broken pip libraries), |
 | core/preflight/hardware_audit.py | 1.3.1 | Deep hardware audit using the get_event_state bus, exporting to hardware_telemetry.json for Dashboard vitals. |
 | core/preflight/horizon.py | 1.1.0 | Veto targets based on local obstructions using Az/Alt mapping. |
@@ -63,7 +63,7 @@
 | core/utils/astro.py | 1.2.1 | Core library for RA/Dec parsing, sidereal time, and coordinate math. |
 | core/utils/coordinate_converter.py | 1.2.1 | Ensures data validity by converting sexagesimal AAVSO coordinates into decimal degrees, appending #objective to JSON writes. |
 | core/utils/env_loader.py | 1.0.0 | Single source of truth for SeeVar environment paths and TOML configuration loading. |
-| core/utils/gps_monitor.py | 1.4.0 | Monitor GPSD natively via TCP socket, calculate Maidenhead, and update status. |
+| core/utils/gps_monitor.py | 1.4.1 | Continuous native GPSD socket monitor with resource safety and logging. |
 | core/utils/notifier.py | 1.1.0 | Outbound alert management via Telegram and system bells. |
 | core/utils/observer_math.py | 1.0.2 | Mathematical utilities for observational astronomy, including Maidenhead grid calculations dynamically tested against config.toml. |
 | core/utils/platesolve_analyst.py | 1.2.1 | Quantitative reporter for plate-solving success rates, performing blind solves to compare header coordinates against reality. |

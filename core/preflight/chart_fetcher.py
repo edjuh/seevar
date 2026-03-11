@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/preflight/chart_fetcher.py
+Filename: /home/ed/seevar/core/preflight/chart_fetcher.py
 Version: 1.3.2
 Objective: Step 2 - Fetch AAVSO VSP comparison star sequences for targeted objects.
 """

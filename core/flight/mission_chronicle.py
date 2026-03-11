@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/flight/mission_chronicle.py
+Filename: /home/ed/seevar/core/flight/mission_chronicle.py
 Version: 4.1.1
 Objective: Orchestrates the Sovereign funnel from Library Purge to Ledger Sync to Flight.
 """

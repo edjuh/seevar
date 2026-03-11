@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/flight/neutralizer.py
+Filename: /home/ed/seevar/core/flight/neutralizer.py
 Version: 2.6.1
 Objective: Optimized hardware reset (Neutralizer) locked to local Alpaca bridge.
 """

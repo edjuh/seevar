@@ -4,7 +4,7 @@
 > **Version:** 1.5.0 (Diamond Revision)
 
 ## 🛑 1. The Prime Directives (Rules of Engagement)
-1. **No "Vibe-Coding":** All logic must map directly to the defined schemas and protocols in `~/seestar_organizer/logic/`. No guessing API endpoints or hardware states.
+1. **No "Vibe-Coding":** All logic must map directly to the defined schemas and protocols in `~/seevar/logic/`. No guessing API endpoints or hardware states.
 2. **Infrastructure as Code (IaC):** Python 3.13.5 environment is strictly locked via `bootstrap.sh` and `requirements.txt`.
 3. **The "Garmt" Header Standard:** Every script must contain a PEP 257 docstring stating: Filename, Version, and a single-sentence Objective.
 4. **The Sovereignty Principle:** All hardware control must bypass consumer UI via `iscope_stop_view` and `start_exposure` to ensure deterministic RAW data capture.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/preflight/target_evaluator.py
+Filename: /home/ed/seevar/core/preflight/target_evaluator.py
 Version: 1.0.1
 Objective: Audits the nightly plan for freshness and quantity to update dashboard UI.
 """
@@ -13,7 +13,7 @@ from pathlib import Path
 
 class TargetEvaluator:
     def __init__(self):
-        self.base_dir = Path(os.path.expanduser("~/seestar_organizer/data"))
+        self.base_dir = Path(os.path.expanduser("~/seevar/data"))
         self.observable_path = self.base_dir / "targets" / "observable_targets.json"
         self.plan_path = self.base_dir / "tonights_plan.json"
 

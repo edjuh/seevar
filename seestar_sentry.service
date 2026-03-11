@@ -7,8 +7,8 @@ Requires=seestar_audit.service
 Type=simple
 User=ed
 Group=ed
-WorkingDirectory=/home/ed/seestar_organizer
-ExecStart=/usr/bin/python3 /home/ed/seestar_organizer/main.py
+WorkingDirectory=/home/ed/seevar
+ExecStart=/usr/bin/python3 /home/ed/seevar/main.py
 Restart=always
 RestartSec=5
 

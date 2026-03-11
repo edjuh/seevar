@@ -7,10 +7,10 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=ed
-WorkingDirectory=/home/ed/seestar_organizer
-ExecStart=/usr/bin/python3 /home/ed/seestar_organizer/core/utils/env_vampire_hunter.py
-StandardOutput=append:/home/ed/seestar_organizer/logs/guardian_debug.log
-StandardError=append:/home/ed/seestar_organizer/logs/guardian_debug.log
+WorkingDirectory=/home/ed/seevar
+ExecStart=/usr/bin/python3 /home/ed/seevar/core/utils/env_vampire_hunter.py
+StandardOutput=append:/home/ed/seevar/logs/guardian_debug.log
+StandardError=append:/home/ed/seevar/logs/guardian_debug.log
 RemainAfterExit=yes
 
 # The Armor: If it crashes because the scope/network is missing, wait 30s and try again

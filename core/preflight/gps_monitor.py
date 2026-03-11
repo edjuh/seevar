@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 
 # Ensure we can import from the project root
-sys.path.append(os.path.expanduser("~/seestar_organizer"))
+sys.path.append(os.path.expanduser("~/seevar"))
 from core.utils.observer_math import get_maidenhead_6char
 
 STATUS_PATH = Path("/dev/shm/env_status.json")

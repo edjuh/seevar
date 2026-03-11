@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/preflight/nightly_planner.py
+Filename: /home/ed/seevar/core/preflight/nightly_planner.py
 Version: 2.5.3
 Objective: Executes the 6-step filtering funnel using the Federated Catalog. Dynamically pulls horizon limits from config.
 """

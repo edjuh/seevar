@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/postflight/debayer.py
+Filename: /home/ed/seevar/core/postflight/debayer.py
 Version: 1.0.0
 Objective: Reference Siril script for fotometrie (Master-Flat -> Green extraction -> Stacking).
 """

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/preflight/sync_location.py
+Filename: /home/ed/seevar/core/preflight/sync_location.py
 Version: 1.3.1
 Objective: Synchronize S30 location using dynamic config coordinates to the verified open Port 80.
 """
@@ -26,13 +26,13 @@ def get_seestar_ip():
     alp = load_config("~/seestar_alp/device/config.toml")
     if ip := alp.get("device", {}).get("ip"): return ip
     
-    org = load_config("~/seestar_organizer/config.toml")
+    org = load_config("~/seevar/config.toml")
     if ip := org.get("seestar", {}).get("ip"): return ip
     
     return "127.0.0.1" # Safe fallback
 
 def sync_hardware():
-    config = load_config("~/seestar_organizer/config.toml")
+    config = load_config("~/seevar/config.toml")
     loc = config.get("location", {})
     lat = loc.get("lat", 0.0)
     lon = loc.get("lon", 0.0)

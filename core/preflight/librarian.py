@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/preflight/librarian.py
+Filename: /home/ed/seevar/core/preflight/librarian.py
 Version: 4.2.1
 Objective: The Single Source of Truth. Manages metadata and validates charts for the Nightly Planner.
 """

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/utils/aavso_client.py
+Filename: /home/ed/seevar/core/utils/aavso_client.py
 Version: 1.2.1
 Objective: Low-level API client for authenticated AAVSO VSX and WebObs data retrieval. Returns JSON-ready dictionaries with #objective tags.
 """
@@ -11,7 +11,7 @@ import json
 import requests
 from dotenv import load_dotenv
 
-load_dotenv(os.path.expanduser("~/seestar_organizer/.env"))
+load_dotenv(os.path.expanduser("~/seevar/.env"))
 
 class AAVSOClient:
     def __init__(self):

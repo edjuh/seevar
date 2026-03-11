@@ -5,7 +5,7 @@ After=network.target mnt-raid1.mount
 [Service]
 Type=simple
 User=ed
-WorkingDirectory=/home/ed/seestar_organizer/core/dashboard
+WorkingDirectory=/home/ed/seevar/core/dashboard
 ExecStart=/home/ed/.pyenv/versions/ssc-3.13.5/bin/python3 dashboard.py
 Restart=always
 RestartSec=10

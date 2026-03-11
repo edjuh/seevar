@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/preflight/ledger_manager.py
+Filename: /home/ed/seevar/core/preflight/ledger_manager.py
 Version: 2.1.2
 Objective: The High-Authority Mission Brain. Manages target cadence and observation history.
 """

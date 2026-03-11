@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/preflight/schedule_compiler.py
+Filename: /home/ed/seevar/core/preflight/schedule_compiler.py
 Version: 1.0.1
 Objective: Translates tonights_plan.json into a native SSC JSON payload using the 1x1 mosaic hack for dithering.
 """

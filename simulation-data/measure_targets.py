@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: ~/seestar_organizer/simulation-data/measure_targets.py
+Filename: ~/seevar/simulation-data/measure_targets.py
 Version: 1.0.0
 Objective: Simulates photometric reduction by extracting object metadata and calculating synthetic flux from FITS headers and pixel data.
 """

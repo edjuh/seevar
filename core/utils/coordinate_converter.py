@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/utils/coordinate_converter.py
+Filename: /home/ed/seevar/core/utils/coordinate_converter.py
 Version: 1.2.1
 Objective: Ensures data validity by converting sexagesimal AAVSO coordinates into decimal degrees, appending #objective to JSON writes.
 """
@@ -33,7 +33,7 @@ def dms_to_deg(dms):
         return None
 
 def process_library():
-    seq_dir = os.path.expanduser('~/seestar_organizer/data/comp_stars')
+    seq_dir = os.path.expanduser('~/seevar/data/comp_stars')
     if not os.path.exists(seq_dir): return
     
     files = [f for f in os.listdir(seq_dir) if f.endswith('.json')]

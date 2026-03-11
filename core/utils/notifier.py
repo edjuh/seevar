@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/utils/notifier.py
+Filename: /home/ed/seevar/core/utils/notifier.py
 Version: 1.1.0
 Objective: Outbound alert management via Telegram and system bells.
 """

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/utils/platesolve_analyst.py
+Filename: /home/ed/seevar/core/utils/platesolve_analyst.py
 Version: 1.2.1
 Objective: Quantitative reporter for plate-solving success rates, performing blind solves to compare header coordinates against reality.
 """
@@ -10,7 +10,7 @@ import os
 import subprocess
 from astropy.io import fits
 
-SAMPLE_DIR = os.path.expanduser("~/seestar_organizer/tests/samples")
+SAMPLE_DIR = os.path.expanduser("~/seevar/tests/samples")
 TEMP_DIR = os.path.join(SAMPLE_DIR, "solve_temp")
 os.makedirs(TEMP_DIR, exist_ok=True)
 

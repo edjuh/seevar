@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/postflight/analyzer.py
+Filename: /home/ed/seevar/core/postflight/analyzer.py
 Version: 1.0.1
 Objective: Validates FITS headers and calculates basic QC metrics.
 """
@@ -22,13 +22,13 @@ class Analyst:
         self.config = self._load_config()
         storage = self.config.get('storage', {})
         usb = storage.get('primary_dir', '/mnt/usb_buffer')
-        lifeboat = os.path.expanduser(storage.get('lifeboat_dir', '~/seestar_organizer/data/local_buffer'))
+        lifeboat = os.path.expanduser(storage.get('lifeboat_dir', '~/seevar/data/local_buffer'))
         
         self.source_path = usb if os.path.exists(usb) and any(f.endswith('.fits') for f in os.listdir(usb)) else lifeboat
-        self.report_path = os.path.expanduser("~/seestar_organizer/core/postflight/data/qc_report.json")
+        self.report_path = os.path.expanduser("~/seevar/core/postflight/data/qc_report.json")
 
     def _load_config(self):
-        path = os.path.expanduser("~/seestar_organizer/config.toml")
+        path = os.path.expanduser("~/seevar/config.toml")
         return toml.load(open(path))
 
     def analyze_frame(self, filepath):

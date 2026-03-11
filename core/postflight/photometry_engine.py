@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/postflight/photometry_engine.py
+Filename: /home/ed/seevar/core/postflight/photometry_engine.py
 Version: 1.5.0
 Objective: Executes precision aperture photometry on specific X/Y pixel coordinates.
 """

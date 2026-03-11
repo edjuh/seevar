@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/preflight/weather.py
+Filename: /home/ed/seevar/core/preflight/weather.py
 Version: 2.0.3
 Objective: Tri-Source Emoticon Aggregator for astronomical weather prediction (Strictly Dynamic Coordinates).
 """

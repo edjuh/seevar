@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/utils/observer_math.py
+Filename: /home/ed/seevar/core/utils/observer_math.py
 Version: 1.0.2
 Objective: Mathematical utilities for observational astronomy, including Maidenhead grid calculations dynamically tested against config.toml.
 """
@@ -34,7 +34,7 @@ def get_maidenhead_6char(lat: float, lon: float) -> str:
     return f"{char1}{char2}{char3}{char4}{char5}{char6}"
 
 if __name__ == "__main__":
-    config_path = os.path.expanduser("~/seestar_organizer/config.toml")
+    config_path = os.path.expanduser("~/seevar/config.toml")
     try:
         with open(config_path, "rb") as f:
             config = tomllib.load(f)

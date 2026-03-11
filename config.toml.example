@@ -23,7 +23,7 @@ usb_drive_2 = "/mnt/usb2/astro_archive"
 
 # The Local Fallback archive (Field Profile / AP Mode).
 # Safely anchored to the user's home directory.
-lifeboat_dir = "~/seestar_organizer/data/local_buffer"
+lifeboat_dir = "~/seevar/data/local_buffer"
 
 [weather]
 # Options: "open-meteo" (No API key required) or "openweathermap"

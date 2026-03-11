@@ -1,4 +1,4 @@
-cat << 'EOF' > ~/seestar_organizer/WORKFLOW.md
+cat << 'EOF' > ~/seevar/WORKFLOW.md
 # 🛰️ S30-PRO Federation: Master Workflow
 > **Version:** 1.5.0 (Garmt-Factory Standard)
 > **Objective:** Deterministic pipeline from AAVSO Haul to Photon Acquisition.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/preflight/audit.py
+Filename: /home/ed/seevar/core/preflight/audit.py
 Version: 1.2.1
 Objective: Enforces scientific cadence by cross-referencing the Federation catalog with ledger.json.
 """

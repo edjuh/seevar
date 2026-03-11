@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/postflight/post_to_pre_feedback.py
+Filename: /home/ed/seevar/core/postflight/post_to_pre_feedback.py
 Version: 1.2.1
 Objective: Updates the master targets.json with successful observation dates extracted from QC reports.
 """
@@ -10,8 +10,8 @@ import json
 import os
 from datetime import datetime
 
-REPORT_PATH = os.path.expanduser("~/seestar_organizer/core/postflight/data/qc_report.json")
-TARGETS_PATH = os.path.expanduser("~/seestar_organizer/data/targets.json")
+REPORT_PATH = os.path.expanduser("~/seevar/core/postflight/data/qc_report.json")
+TARGETS_PATH = os.path.expanduser("~/seevar/data/targets.json")
 
 def apply_feedback():
     if not os.path.exists(REPORT_PATH): return

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/postflight/pixel_mapper.py
+Filename: /home/ed/seevar/core/postflight/pixel_mapper.py
 Version: 1.0.1
 Objective: Converts celestial WCS coordinates to local sensor pixel X/Y coordinates.
 """

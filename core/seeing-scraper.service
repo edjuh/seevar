@@ -5,4 +5,4 @@ After=network.target
 [Service]
 Type=oneshot
 User=ed
-ExecStart=/home/ed/.pyenv/versions/ssc-3.13.5/bin/python3 /home/ed/seestar_organizer/core/preflight/seeing_scraper.py
+ExecStart=/home/ed/.pyenv/versions/ssc-3.13.5/bin/python3 /home/ed/seevar/core/preflight/seeing_scraper.py

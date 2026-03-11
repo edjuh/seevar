@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/postflight/science_processor.py
+Filename: /home/ed/seevar/core/postflight/science_processor.py
 Version: 3.1.0
 Objective: Automate Siril Green-channel extraction matching the Sovereign Pilot handoff.
 """

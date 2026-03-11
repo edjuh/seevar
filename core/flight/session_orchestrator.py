@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seestar_organizer/core/flight/session_orchestrator.py
+Filename: /home/ed/seevar/core/flight/session_orchestrator.py
 Version: 1.2.1
 Objective: Executive Orchestrator. Ties Flight operations to Postflight science.
 """
