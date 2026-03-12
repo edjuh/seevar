@@ -1,119 +1,138 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/preflight/weather.py
-Version: 2.0.3
-Objective: Tri-Source Emoticon Aggregator for astronomical weather prediction (Strictly Dynamic Coordinates).
+Filename: core/preflight/weather.py
+Version: 1.4.2 (Diamond Revision)
+Objective: Tri-source weather consensus daemon. 
+           Feeds status, clouds_pct, and humidity_pct to the Orchestrator.
 """
 
-import json, os, sys, urllib.request, tomllib
+import json
+import time
+import logging
+import requests
+import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-sys.path.append(str(PROJECT_ROOT))
+# ---------------------------------------------------------------------------
+# Sovereign Paths & Imports
+# ---------------------------------------------------------------------------
+PROJECT_ROOT = Path("/home/ed/seevar")
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from core.utils.env_loader import DATA_DIR
 from core.flight.vault_manager import VaultManager
+
+# Logging setup
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+log = logging.getLogger("WeatherSentinel")
 
 class WeatherSentinel:
     def __init__(self):
+        self.weather_state_file = DATA_DIR / "weather_state.json"
         self.vault = VaultManager()
-        self.seeing_cache = PROJECT_ROOT / "core/flight/data/seeing_cache.json"
-        self.weather_state = PROJECT_ROOT / "data/weather_state.json"
-        self.lat, self.lon = self.get_coordinates()
 
-    def get_coordinates(self):
-        config_path = PROJECT_ROOT / "config.toml"
-        if config_path.exists():
-            try:
-                with open(config_path, "rb") as f:
-                    cfg = tomllib.load(f)
-                    loc = cfg.get("location", {})
-                    if "lat" in loc and "lon" in loc:
-                        return float(loc["lat"]), float(loc["lon"])
-                    obs = cfg.get("observer", {})
-                    if "lat" in obs and "lon" in obs:
-                        return float(obs["lat"]), float(obs["lon"])
-            except: pass
-        return 0.0, 0.0
+    def get_coordinates(self) -> tuple[float, float]:
+        """
+        Fetches coordinates from the VaultManager.
+        Thanks to v1.4.1, this automatically handles the Live GPS RAM override!
+        """
+        cfg = self.vault.get_observer_config()
+        return float(cfg.get("lat", 0.0)), float(cfg.get("lon", 0.0))
 
-    def get_open_meteo(self):
-        if self.lat == 0.0 and self.lon == 0.0: return None
+    def fetch_open_meteo(self, lat: float, lon: float) -> dict:
+        """Fetches standard meteorological data for the next 12 hours."""
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=precipitation,cloud_cover,relative_humidity_2m,wind_speed_10m"
         try:
-            url = f"https://api.open-meteo.com/v1/forecast?latitude={self.lat}&longitude={self.lon}&hourly=precipitation,cloudcover,windspeed_10m,temperature_2m&forecast_days=1"
-            req = urllib.request.Request(url, headers={'User-Agent': 'S30-Federation/2.0'})
-            with urllib.request.urlopen(req, timeout=5) as r:
-                data = json.loads(r.read().decode())
-                precip = max(data['hourly']['precipitation'][:12])
-                clouds = max(data['hourly']['cloudcover'][:12])
-                wind = max(data['hourly']['windspeed_10m'][:12])
-                temp = min(data['hourly']['temperature_2m'][:12])
-                return {"precip": precip, "clouds": clouds, "wind": wind, "temp": temp}
-        except: return None
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+            data = r.json().get('hourly', {})
+            
+            # Extract max values for the upcoming 12-hour window safely
+            precip = max(data.get('precipitation', [0])[:12]) if data.get('precipitation') else 0
+            clouds = max(data.get('cloud_cover', [0])[:12]) if data.get('cloud_cover') else 0
+            humidity = max(data.get('relative_humidity_2m', [0])[:12]) if data.get('relative_humidity_2m') else 0
+            wind = max(data.get('wind_speed_10m', [0])[:12]) if data.get('wind_speed_10m') else 0
+            
+            return {"precip": precip, "clouds": clouds, "humidity": humidity, "wind": wind}
+        except Exception as e:
+            log.warning("Open-Meteo fetch failed: %s", e)
+            return {}
 
-    def get_7timer(self):
-        if self.lat == 0.0 and self.lon == 0.0: return None
+    def fetch_7timer(self, lat: float, lon: float) -> dict:
+        """Fetches astronomical seeing and transparency."""
+        url = f"https://www.7timer.info/bin/astro.php?lon={lon}&lat={lat}&ac=0&unit=metric&output=json&tzshift=0"
         try:
-            url = f"https://www.7timer.info/bin/astro.php?lon={self.lon}&lat={self.lat}&ac=0&unit=metric&output=json"
-            req = urllib.request.Request(url, headers={'User-Agent': 'S30-Federation/2.0'})
-            with urllib.request.urlopen(req, timeout=5) as r:
-                data = json.loads(r.read().decode())
-                worst_cloud = max([tp['cloudcover'] for tp in data['dataseries'][:4]])
-                precip = any(tp['prec_type'] != 'none' for tp in data['dataseries'][:4])
-                return {"astro_cloud": worst_cloud, "precip": precip}
-        except: return None
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+            dataseries = r.json().get('dataseries', [])
+            if not dataseries:
+                return {}
+                
+            # Grab the worst seeing/transparency over the next 3 data points (9 hours)
+            seeing = max([point.get('seeing', 1) for point in dataseries[:3]])
+            transparency = max([point.get('transparency', 1) for point in dataseries[:3]])
+            
+            return {"seeing": seeing, "transparency": transparency}
+        except Exception as e:
+            log.warning("7timer fetch failed: %s", e)
+            return {}
 
     def get_consensus(self):
-        transparency = "AVERAGE"
-        if self.seeing_cache.exists():
-            try:
-                with open(self.seeing_cache, 'r') as f:
-                    transparency = json.load(f).get("transparency", "AVERAGE")
-            except: pass
+        """Builds the consensus payload and writes to disk for the Orchestrator."""
+        lat, lon = self.get_coordinates()
+        if lat == 0.0 and lon == 0.0:
+            log.error("Coordinates are 0.0 (Null Island). Cannot fetch weather.")
+            return
 
-        om = self.get_open_meteo()
-        st = self.get_7timer()
-
-        is_storm = False
-        is_precip = False
-        is_snow = False
-        is_cloudy = False
-
-        if om:
-            if om['wind'] > 40 or om['precip'] > 10: is_storm = True
-            elif om['precip'] > 0:
-                is_precip = True
-                if om['temp'] <= 0: is_snow = True
-            elif om['clouds'] > 50: is_cloudy = True
+        log.info("Fetching tri-source weather data for %s, %s...", lat, lon)
+        om = self.fetch_open_meteo(lat, lon)
+        astro = self.fetch_7timer(lat, lon)
         
-        if st:
-            if st['precip']: is_precip = True
-            if st['astro_cloud'] >= 6: is_cloudy = True
+        # Default optimistic state
+        status = "CLEAR"
+        icon = "✨"
+        clouds_pct = om.get("clouds", 0)
+        humidity_pct = om.get("humidity", 0)
 
-        if transparency == "HAZY" and not (is_storm or is_precip):
-            is_cloudy = True
+        # 1. Hard Weather Aborts (Open-Meteo)
+        if om.get("precip", 0) > 0.5:
+            status, icon = "RAIN", "🌧️"
+        elif clouds_pct > 70:
+            status, icon = "CLOUDY", "☁️"
+        elif humidity_pct > 90:
+            status, icon = "HUMID", "💧"
+        elif om.get("wind", 0) > 30:
+            status, icon = "WINDY", "💨"
+            
+        # 2. Astronomical Downgrades (7timer)
+        # 7timer scale: 1 is excellent, 8 is terrible.
+        elif astro.get("seeing", 1) > 5 or astro.get("transparency", 1) > 5:
+            status, icon = "POOR-SEEING", "🌫️"
 
-        if self.lat == 0.0 and self.lon == 0.0:
-            icon, text = "🌍", "NO GPS"
-        elif is_storm:
-            icon, text = "⛈️", "STORM WARNING"
-        elif is_snow:
-            icon, text = "❄️", "SNOW"
-        elif is_precip:
-            icon, text = "🌧️", "RAIN"
-        elif is_cloudy:
-            icon, text = "☁️", "CLOUDY"
-        else:
-            icon, text = "⭐", "CLEAR"
-
+        # Construct Orchestrator payload
         state = {
-            "#objective": "Current astronomical weather consensus for dashboard UI.",
-            "status": text, 
-            "icon": icon
+            "_objective": "Provides consensus weather data. Read by dashboard.py and orchestrator.py.",
+            "status": status,
+            "icon": icon,
+            "clouds_pct": int(clouds_pct),
+            "humidity_pct": int(humidity_pct),
+            "last_update": time.time()
         }
-        with open(self.weather_state, 'w') as f:
-            json.dump(state, f, indent=4)
-        
-        print(f"--- SKY AUDIT: {text} {icon} ---")
-        return state
+
+        # Safe Write
+        try:
+            self.weather_state_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.weather_state_file, 'w') as f:
+                json.dump(state, f, indent=4)
+            log.info("Consensus reached: %s %s (Clouds: %s%%, Humidity: %s%%)", status, icon, clouds_pct, humidity_pct)
+        except OSError as e:
+            log.error("Failed to write weather_state.json: %s", e)
+
 
 if __name__ == "__main__":
-    WeatherSentinel().get_consensus()
+    log.info("Starting WeatherSentinel daemon...")
+    sentinel = WeatherSentinel()
+    while True:
+        sentinel.get_consensus()
+        time.sleep(600)  # Sleep for 10 minutes between checks

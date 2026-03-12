@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/pilot.py
-Version: 4.0.0
-Objective: Direct TCP control of ZWO S30-Pro for AAVSO-compliant Sovereign RAW acquisition, completely bypassing Alpaca.
+Version: 4.0.3
+Objective: Direct TCP control of ZWO S30-Pro for AAVSO-compliant Sovereign RAW acquisition with Dashboard Telemetry Callbacks.
 
 pilot.py — SeeVar Sovereign Acquisition Pilot
-v4.0.0 "Praw" — Zbigniew Prlwytzkofsky Edition
+v4.0.3 "Praw" — Zbigniew Prlwytzkofsky Edition
 
 Wire protocol — reverse engineered from seestar_alp source:
   Port 4700  JSON-RPC control  (text, \r\n terminated)
@@ -62,7 +62,7 @@ SETTLE_SECONDS  = 8             # Post-slew settle time
 FRAME_TIMEOUT   = 60            # Max wait for preview frame (seconds)
 EXP_MS_DEFAULT  = 5000          # Default exposure ms
 
-DATA_DIR        = Path("/home/ed/seevar/data")
+from core.utils.env_loader import DATA_DIR
 LOCAL_BUFFER    = DATA_DIR / "local_buffer"
 
 logger = logging.getLogger("seevar.pilot")
@@ -296,8 +296,9 @@ def sovereign_stamp(target: AcquisitionTarget,
                     width: int,
                     height: int) -> dict:
     """
-    Build AAVSO-compliant FITS header dict.
+    Build AAVSO-compliant FITS header dict with strict WCS anchor points.
     """
+    ra_deg = target.ra_hours * 15.0
     h = {
         "SIMPLE":   True,
         "BITPIX":   16,
@@ -307,6 +308,14 @@ def sovereign_stamp(target: AcquisitionTarget,
         "OBJECT":   target.name,
         "OBJCTRA":  _hours_to_hms(target.ra_hours),
         "OBJCTDEC": _deg_to_dms(target.dec_deg),
+        "CRVAL1":   ra_deg,
+        "CRVAL2":   target.dec_deg,
+        "CRPIX1":   width / 2.0,
+        "CRPIX2":   height / 2.0,
+        "CDELT1":   -0.001042,
+        "CDELT2":   0.001042,
+        "CTYPE1":   "RA---TAN",
+        "CTYPE2":   "DEC--TAN",
         "DATE-OBS": utc_obs.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3],
         "EXPTIME":  target.exp_ms / 1000.0,
         "INSTRUME": INSTRUMENT,
@@ -330,7 +339,8 @@ def write_fits(array: np.ndarray, header_dict: dict, output_path: Path) -> bool:
     # Ensure big-endian uint16
     array = array.astype(np.uint16)
     if array.dtype.byteorder not in (">",):
-        array = array.byteswap().newbyteorder(">")
+        # NumPy 2.0 compliant byte swap
+        array = array.byteswap().view(array.dtype.newbyteorder(">"))
 
     def card(key: str, value, comment: str = "") -> str:
         key = key.upper()[:8].ljust(8)
@@ -570,39 +580,46 @@ class DiamondSequence:
     def __init__(self, host: str = SEESTAR_HOST):
         self.host = host
 
-    def acquire(self, target: AcquisitionTarget) -> FrameResult:
+    def acquire(self, target: AcquisitionTarget, status_cb=None) -> FrameResult:
+        def notify(msg):
+            logger.info(msg)
+            if status_cb:
+                status_cb(msg)
+
         t_start = time.monotonic()
         utc_obs = datetime.now(timezone.utc)
 
-        logger.info(
-            f"DiamondSequence: {target.name}  "
-            f"RA={target.ra_hours:.4f}h  Dec={target.dec_deg:.4f}deg"
-        )
+        notify(f"Initializing Coordinates: RA={target.ra_hours:.4f}h, DEC={target.dec_deg:.4f}°")
 
         ctrl = ControlSocket(host=self.host)
         if not ctrl.connect():
             return FrameResult(success=False, error="Control socket connect failed")
 
         try:
+            notify("Clearing active views (iscope_stop_view)...")
             ctrl.send("iscope_stop_view")
             time.sleep(1.0)
 
+            notify(f"Commanding Mount Slew to {target.name}...")
             ctrl.send("scope_sync", [target.ra_hours, target.dec_deg])
-            logger.info(f"Slewing to {target.name} ...")
+            
+            notify(f"Mount Settling ({SETTLE_SECONDS}s rule)...")
             time.sleep(SETTLE_SECONDS)
 
+            notify("Engaging Continuous Exposure (iscope_start_view)...")
             ctrl.send("iscope_start_view", {"mode": "star"})
-            logger.info("iscope_start_view sent — awaiting ContinuousExposure ...")
             time.sleep(2.0)
 
         except Exception as e:
             ctrl.disconnect()
             return FrameResult(success=False, error=f"Control sequence error: {e}")
 
+        notify("Streaming Raw Payload via Port 4801...")
         img_sock = ImageSocket(host=self.host, timeout=FRAME_TIMEOUT)
         raw_data, width, height = img_sock.capture_one_preview()
 
         try:
+            notify("Closing shutter (iscope_stop_view)...")
             ctrl.send("iscope_stop_view")
         finally:
             ctrl.disconnect()
@@ -610,7 +627,7 @@ class DiamondSequence:
         if raw_data is None:
             return FrameResult(success=False, error="No preview frame received")
 
-        # uint16 Bayer array — height rows, width columns
+        notify(f"Generating Sovereign WCS Headers (AUID: {target.auid})...")
         array = np.frombuffer(raw_data, dtype=np.uint16).reshape(height, width)
 
         LOCAL_BUFFER.mkdir(parents=True, exist_ok=True)
@@ -619,11 +636,12 @@ class DiamondSequence:
         out_path  = LOCAL_BUFFER / f"{safe_name}_{timestamp}_Raw.fits"
 
         header = sovereign_stamp(target, utc_obs, width, height)
+        notify("Writing 16-bit FITS to Local Buffer...")
         ok     = write_fits(array, header, out_path)
         elapsed = time.monotonic() - t_start
 
         if ok:
-            logger.info(f"Acquired {target.name} -> {out_path.name}  ({elapsed:.1f}s)")
+            notify(f"Acquired {target.name} -> {out_path.name} ({elapsed:.1f}s)")
             return FrameResult(
                 success=True, path=out_path,
                 width=width, height=height, elapsed_s=elapsed,

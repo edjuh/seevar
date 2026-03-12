@@ -1,18 +1,64 @@
 {
-    "#objective": "Validated and deduplicated target list for nightly planning.",
+    "#objective": "Validated catalog updated with scientific cadence skip-logic.",
     "metadata": {
-        "generated": "2026-03-10T14:18:14.235370",
+        "generated": "2026-03-12T18:58:01.996055",
         "schema_version": "2026.1"
     },
     "data": [
+        {
+            "name": "PQ And",
+            "ra": 37.37321,
+            "dec": 40.04439,
+            "type": "UGWZ+ZZ/GWLIB",
+            "mag_max": 10.0,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "YZ Cnc",
+            "ra": 122.73604,
+            "dec": 28.14256,
+            "type": "UGSU",
+            "mag_max": 10.5,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "T CrB",
+            "ra": 239.87567,
+            "dec": 25.92017,
+            "type": "NR+ELL",
+            "mag_max": 2.0,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
         {
             "name": "CH Cyg",
             "ra": 291.13779,
             "dec": 50.24142,
             "type": "ZAND+SR",
             "mag_max": 5.6,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "EM Cyg",
+            "ra": 294.66713,
+            "dec": 30.50789,
+            "type": "UGZ+E",
+            "mag_max": 11.9,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0404 Cyg",
@@ -20,8 +66,10 @@
             "dec": 33.86728,
             "type": "LMXB/BHXB/XN",
             "mag_max": 11.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V1016 Cyg",
@@ -29,8 +77,10 @@
             "dec": 39.82678,
             "type": "NC+M",
             "mag_max": 10.05,
+            "recommended_cadence_days": 1,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V1500 Cyg",
@@ -38,8 +88,32 @@
             "dec": 48.15067,
             "type": "NA/AM+E",
             "mag_max": 1.69,
+            "recommended_cadence_days": 1,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "AG Dra",
+            "ra": 240.42087,
+            "dec": 66.80283,
+            "type": "ZAND",
+            "mag_max": 7.9,
+            "recommended_cadence_days": 5,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "DO Dra",
+            "ra": 175.91039,
+            "dec": 71.68904,
+            "type": "UG/DQ",
+            "mag_max": 10.0,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "AM Her",
@@ -47,8 +121,54 @@
             "dec": 49.868,
             "type": "AM+E",
             "mag_max": 12.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "LL Lyr",
+            "ra": 278.80341,
+            "dec": 38.33454,
+            "type": "UG",
+            "mag_max": 12.9,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "RS Oph",
+            "ra": 267.55487,
+            "dec": -6.70794,
+            "type": "NR+LB",
+            "mag_max": 4.3,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "AG Peg",
+            "ra": 327.75825,
+            "dec": 12.62558,
+            "type": "ZAND+R",
+            "mag_max": 6.0,
+            "recommended_cadence_days": 5,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "GK Per",
+            "ra": 52.80004,
+            "dec": 43.90431,
+            "type": "NA/DQ+UG",
+            "mag_max": 0.2,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "HM Sge",
@@ -56,8 +176,32 @@
             "dec": 16.74433,
             "type": "NC+M",
             "mag_max": 11.1,
+            "recommended_cadence_days": 1,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "CH UMa",
+            "ra": 151.75301,
+            "dec": 67.54653,
+            "type": "UG",
+            "mag_max": 10.7,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "SU UMa",
+            "ra": 123.11778,
+            "dec": 62.60623,
+            "type": "UGSU",
+            "mag_max": 10.8,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0497 Lyr",
@@ -65,8 +209,10 @@
             "dec": 36.38586,
             "type": "SR",
             "mag_max": 11.9,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "AD Tau",
@@ -74,8 +220,10 @@
             "dec": 25.60453,
             "type": "MISC",
             "mag_max": 12.07,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RU And",
@@ -83,8 +231,10 @@
             "dec": 38.67042,
             "type": "SRA",
             "mag_max": 9.9,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "ST And",
@@ -92,8 +242,10 @@
             "dec": 35.77256,
             "type": "SRA",
             "mag_max": 7.7,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Aql",
@@ -101,8 +253,10 @@
             "dec": 8.23,
             "type": "M",
             "mag_max": 5.5,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RR Aql",
@@ -110,8 +264,10 @@
             "dec": -1.88647,
             "type": "M",
             "mag_max": 7.8,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RS Aqr",
@@ -119,8 +275,10 @@
             "dec": -4.02781,
             "type": "M",
             "mag_max": 9.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S Aur",
@@ -128,8 +286,10 @@
             "dec": 34.14981,
             "type": "SR",
             "mag_max": 8.2,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "Z Aur",
@@ -137,8 +297,10 @@
             "dec": 53.30553,
             "type": "SRD",
             "mag_max": 9.3,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V Boo",
@@ -146,8 +308,10 @@
             "dec": 38.86128,
             "type": "SRB",
             "mag_max": 7.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Cnc",
@@ -155,8 +319,10 @@
             "dec": 11.72625,
             "type": "M",
             "mag_max": 6.07,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T CMi",
@@ -164,8 +330,10 @@
             "dec": 11.73533,
             "type": "M",
             "mag_max": 9.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V CMi",
@@ -173,8 +341,10 @@
             "dec": 8.87689,
             "type": "M",
             "mag_max": 7.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T CVn",
@@ -182,8 +352,10 @@
             "dec": 31.50333,
             "type": "SRA",
             "mag_max": 8.9,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V CVn",
@@ -191,8 +363,10 @@
             "dec": 45.52714,
             "type": "SRA",
             "mag_max": 6.52,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S Cas",
@@ -200,8 +374,10 @@
             "dec": 72.61131,
             "type": "M",
             "mag_max": 7.9,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "Z Cas",
@@ -209,8 +385,10 @@
             "dec": 56.58122,
             "type": "M",
             "mag_max": 8.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "SV Cas",
@@ -218,8 +396,10 @@
             "dec": 52.26247,
             "type": "SRA",
             "mag_max": 6.8,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S Cep",
@@ -227,8 +407,10 @@
             "dec": 78.6245,
             "type": "M",
             "mag_max": 6.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V CrB",
@@ -236,8 +418,10 @@
             "dec": 39.57164,
             "type": "M",
             "mag_max": 6.9,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RS Cyg",
@@ -245,8 +429,10 @@
             "dec": 38.72903,
             "type": "SRA",
             "mag_max": 6.5,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RZ Cyg",
@@ -254,8 +440,10 @@
             "dec": 47.35567,
             "type": "SRA",
             "mag_max": 9.8,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "LX Cyg",
@@ -263,8 +451,10 @@
             "dec": 48.34792,
             "type": "M",
             "mag_max": 9.1,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "Y Del",
@@ -272,8 +462,10 @@
             "dec": 11.87731,
             "type": "M",
             "mag_max": 8.8,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T Dra",
@@ -281,8 +473,10 @@
             "dec": 58.21839,
             "type": "M",
             "mag_max": 7.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "W Dra",
@@ -290,8 +484,10 @@
             "dec": 65.95608,
             "type": "M",
             "mag_max": 8.9,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Gem",
@@ -299,8 +495,10 @@
             "dec": 22.70353,
             "type": "M",
             "mag_max": 6.0,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RT Hya",
@@ -308,8 +506,10 @@
             "dec": -6.31878,
             "type": "SRB",
             "mag_max": 7.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RS Lac",
@@ -317,8 +517,10 @@
             "dec": 43.75022,
             "type": "SRD",
             "mag_max": 9.6,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RY Leo",
@@ -326,8 +528,10 @@
             "dec": 13.98269,
             "type": "SRB",
             "mag_max": 9.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R LMi",
@@ -335,8 +539,10 @@
             "dec": 34.51189,
             "type": "M",
             "mag_max": 6.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "U LMi",
@@ -344,8 +550,10 @@
             "dec": 36.08997,
             "type": "SRA",
             "mag_max": 10.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S Lyr",
@@ -353,8 +561,10 @@
             "dec": 26.00781,
             "type": "M",
             "mag_max": 9.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "U Lyr",
@@ -362,8 +572,10 @@
             "dec": 37.87669,
             "type": "M",
             "mag_max": 8.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RU Lyr",
@@ -371,8 +583,10 @@
             "dec": 41.30375,
             "type": "M",
             "mag_max": 9.5,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S Ori",
@@ -380,8 +594,10 @@
             "dec": -4.69244,
             "type": "M",
             "mag_max": 7.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RV Peg",
@@ -389,8 +605,10 @@
             "dec": 30.47261,
             "type": "M",
             "mag_max": 8.6,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "W Tau",
@@ -398,8 +616,10 @@
             "dec": 16.04339,
             "type": "SRB",
             "mag_max": 8.6,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "Z Tau",
@@ -407,8 +627,10 @@
             "dec": 15.7955,
             "type": "M",
             "mag_max": 9.5,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RX UMa",
@@ -416,8 +638,10 @@
             "dec": 67.26064,
             "type": "SRB",
             "mag_max": 9.7,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T UMi",
@@ -425,8 +649,10 @@
             "dec": 73.43136,
             "type": "SR",
             "mag_max": 7.8,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RU Vir",
@@ -434,8 +660,10 @@
             "dec": 4.14483,
             "type": "M",
             "mag_max": 8.1,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "SS Vir",
@@ -443,8 +671,10 @@
             "dec": 0.76972,
             "type": "SRA",
             "mag_max": 6.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RU Vul",
@@ -452,8 +682,10 @@
             "dec": 23.25867,
             "type": "SRB",
             "mag_max": 8.3,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R And",
@@ -461,8 +693,10 @@
             "dec": 38.57703,
             "type": "M",
             "mag_max": 5.8,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "W And",
@@ -470,8 +704,10 @@
             "dec": 44.30494,
             "type": "M",
             "mag_max": 6.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S Aql",
@@ -479,8 +715,10 @@
             "dec": 15.62072,
             "type": "SRA",
             "mag_max": 8.9,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V Aql",
@@ -488,8 +726,10 @@
             "dec": -5.68483,
             "type": "SRB",
             "mag_max": 6.67,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Ari",
@@ -497,8 +737,10 @@
             "dec": 25.05656,
             "type": "M",
             "mag_max": 7.1,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T Ari",
@@ -506,8 +748,10 @@
             "dec": 17.50939,
             "type": "SR",
             "mag_max": 7.3,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "X Aur",
@@ -515,8 +759,10 @@
             "dec": 50.22789,
             "type": "M",
             "mag_max": 7.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Aur",
@@ -524,8 +770,10 @@
             "dec": 53.58614,
             "type": "M",
             "mag_max": 6.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "UU Aur",
@@ -533,8 +781,10 @@
             "dec": 38.4455,
             "type": "SRB",
             "mag_max": 5.1,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S Boo",
@@ -542,8 +792,10 @@
             "dec": 53.81036,
             "type": "M",
             "mag_max": 7.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Boo",
@@ -551,8 +803,10 @@
             "dec": 26.73658,
             "type": "M",
             "mag_max": 6.0,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RX Boo",
@@ -560,8 +814,10 @@
             "dec": 25.70372,
             "type": "SRB",
             "mag_max": 7.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "X Cam",
@@ -569,8 +825,10 @@
             "dec": 75.10097,
             "type": "M",
             "mag_max": 7.1,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Cam",
@@ -578,8 +836,10 @@
             "dec": 83.83161,
             "type": "M",
             "mag_max": 6.97,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T Cam",
@@ -587,8 +847,10 @@
             "dec": 66.14683,
             "type": "M",
             "mag_max": 7.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "U Cam",
@@ -596,8 +858,10 @@
             "dec": 62.64844,
             "type": "SRB",
             "mag_max": 7.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "W Cas",
@@ -605,8 +869,10 @@
             "dec": 58.56367,
             "type": "M",
             "mag_max": 8.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "WZ Cas",
@@ -614,8 +880,10 @@
             "dec": 60.35528,
             "type": "SRB",
             "mag_max": 6.8,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Cas",
@@ -623,8 +891,10 @@
             "dec": 51.38881,
             "type": "M",
             "mag_max": 4.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T Cas",
@@ -632,8 +902,10 @@
             "dec": 55.79256,
             "type": "M",
             "mag_max": 6.9,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V Cas",
@@ -641,8 +913,10 @@
             "dec": 59.69972,
             "type": "M",
             "mag_max": 6.8,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "miu Cep",
@@ -650,8 +924,10 @@
             "dec": 58.78,
             "type": "SRC",
             "mag_max": 3.43,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "AR Cep",
@@ -659,8 +935,10 @@
             "dec": 85.04639,
             "type": "SRB",
             "mag_max": 7.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "SS Cep",
@@ -668,8 +946,10 @@
             "dec": 80.32247,
             "type": "SRB",
             "mag_max": 6.5,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T Cep",
@@ -677,8 +957,10 @@
             "dec": 68.49089,
             "type": "M",
             "mag_max": 5.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "omi Cet",
@@ -686,8 +968,10 @@
             "dec": -2.97764,
             "type": "M",
             "mag_max": 2.0,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R CMi",
@@ -695,8 +979,10 @@
             "dec": 10.02403,
             "type": "M",
             "mag_max": 7.0,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S CMi",
@@ -704,8 +990,10 @@
             "dec": 8.31811,
             "type": "M",
             "mag_max": 6.5,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RS Cnc",
@@ -713,8 +1001,10 @@
             "dec": 30.96314,
             "type": "SRB",
             "mag_max": 5.33,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "X Cnc",
@@ -722,8 +1012,10 @@
             "dec": 17.23128,
             "type": "SRB",
             "mag_max": 5.69,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S CrB",
@@ -731,8 +1023,10 @@
             "dec": 31.36739,
             "type": "M",
             "mag_max": 5.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R CVn",
@@ -740,8 +1034,10 @@
             "dec": 39.54256,
             "type": "M",
             "mag_max": 6.5,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "Y CVn",
@@ -749,8 +1045,10 @@
             "dec": 45.44025,
             "type": "SRB",
             "mag_max": 4.86,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RU Cyg",
@@ -758,8 +1056,10 @@
             "dec": 54.32469,
             "type": "SRA",
             "mag_max": 9.2,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "TU Cyg",
@@ -767,8 +1067,10 @@
             "dec": 49.07347,
             "type": "M",
             "mag_max": 8.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "Z Cyg",
@@ -776,8 +1078,10 @@
             "dec": 50.04239,
             "type": "M",
             "mag_max": 7.1,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "AF Cyg",
@@ -785,8 +1089,10 @@
             "dec": 46.14781,
             "type": "SRB",
             "mag_max": 6.2,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "khi Cyg",
@@ -794,8 +1100,10 @@
             "dec": 32.91406,
             "type": "M",
             "mag_max": 3.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Cyg",
@@ -803,8 +1111,10 @@
             "dec": 50.19986,
             "type": "M",
             "mag_max": 6.1,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RT Cyg",
@@ -812,8 +1122,10 @@
             "dec": 48.77814,
             "type": "M",
             "mag_max": 6.0,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "U Cyg",
@@ -821,8 +1133,10 @@
             "dec": 47.89419,
             "type": "M",
             "mag_max": 6.5,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V Cyg",
@@ -830,8 +1144,10 @@
             "dec": 48.14133,
             "type": "M",
             "mag_max": 7.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "W Cyg",
@@ -839,8 +1155,10 @@
             "dec": 45.37458,
             "type": "SRB",
             "mag_max": 5.1,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "WX Cyg",
@@ -848,8 +1166,10 @@
             "dec": 37.44975,
             "type": "M",
             "mag_max": 8.8,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S Del",
@@ -857,8 +1177,10 @@
             "dec": 17.08814,
             "type": "M",
             "mag_max": 8.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "EU Del",
@@ -866,8 +1188,10 @@
             "dec": 18.26844,
             "type": "SRB",
             "mag_max": 5.41,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "U Del",
@@ -875,8 +1199,10 @@
             "dec": 18.09003,
             "type": "SRB",
             "mag_max": 6.14,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Dra",
@@ -884,8 +1210,10 @@
             "dec": 66.75497,
             "type": "M",
             "mag_max": 6.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RY Dra",
@@ -893,8 +1221,10 @@
             "dec": 65.99439,
             "type": "SRB",
             "mag_max": 5.88,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "TX Dra",
@@ -902,8 +1232,10 @@
             "dec": 60.46811,
             "type": "SRB",
             "mag_max": 6.8,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "BU Gem",
@@ -911,8 +1243,10 @@
             "dec": 22.90853,
             "type": "SRC",
             "mag_max": 5.74,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "eta Gem",
@@ -920,8 +1254,10 @@
             "dec": 22.50681,
             "type": "EA/GS+SRA",
             "mag_max": 3.1,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "SX Her",
@@ -929,8 +1265,10 @@
             "dec": 24.90831,
             "type": "SRD:",
             "mag_max": 7.9,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "W Her",
@@ -938,8 +1276,10 @@
             "dec": 37.34528,
             "type": "M",
             "mag_max": 7.6,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RS Her",
@@ -947,8 +1287,10 @@
             "dec": 22.92111,
             "type": "M",
             "mag_max": 7.5,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RU Her",
@@ -956,8 +1298,10 @@
             "dec": 25.07067,
             "type": "M",
             "mag_max": 6.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S Her",
@@ -965,8 +1309,10 @@
             "dec": 14.94186,
             "type": "M",
             "mag_max": 6.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T Her",
@@ -974,8 +1320,10 @@
             "dec": 31.02117,
             "type": "M",
             "mag_max": 6.8,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "U Her",
@@ -983,8 +1331,10 @@
             "dec": 18.89247,
             "type": "M",
             "mag_max": 6.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "X Her",
@@ -992,8 +1342,10 @@
             "dec": 47.24036,
             "type": "SRB",
             "mag_max": 5.8,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Leo",
@@ -1001,8 +1353,10 @@
             "dec": 11.42881,
             "type": "M",
             "mag_max": 4.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "W Lyr",
@@ -1010,8 +1364,10 @@
             "dec": 36.67033,
             "type": "M",
             "mag_max": 7.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Lyr",
@@ -1019,8 +1375,10 @@
             "dec": 43.94608,
             "type": "SRB",
             "mag_max": 3.81,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "X Oph",
@@ -1028,8 +1386,10 @@
             "dec": 8.83411,
             "type": "M",
             "mag_max": 5.9,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "U Ori",
@@ -1037,8 +1397,10 @@
             "dec": 20.17519,
             "type": "M",
             "mag_max": 4.8,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "W Ori",
@@ -1046,8 +1408,10 @@
             "dec": 1.17761,
             "type": "SRB",
             "mag_max": 5.5,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "alf Ori",
@@ -1055,8 +1419,10 @@
             "dec": 7.40706,
             "type": "SRC",
             "mag_max": 0.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Peg",
@@ -1064,8 +1430,10 @@
             "dec": 10.54336,
             "type": "M",
             "mag_max": 6.9,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "W Peg",
@@ -1073,8 +1441,10 @@
             "dec": 26.27878,
             "type": "M",
             "mag_max": 7.6,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "U Per",
@@ -1082,8 +1452,10 @@
             "dec": 54.82222,
             "type": "M",
             "mag_max": 7.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "W Per",
@@ -1091,8 +1463,10 @@
             "dec": 56.98342,
             "type": "SRC",
             "mag_max": 8.6,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "Y Per",
@@ -1100,8 +1474,10 @@
             "dec": 44.17681,
             "type": "SRB",
             "mag_max": 8.1,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S Per",
@@ -1109,8 +1485,10 @@
             "dec": 58.5865,
             "type": "SRC",
             "mag_max": 7.9,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Ser",
@@ -1118,8 +1496,10 @@
             "dec": 15.13364,
             "type": "M",
             "mag_max": 5.16,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "Y Tau",
@@ -1127,8 +1507,10 @@
             "dec": 20.69503,
             "type": "SRB",
             "mag_max": 6.4,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Tri",
@@ -1136,8 +1518,10 @@
             "dec": 34.26428,
             "type": "M",
             "mag_max": 5.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RS UMa",
@@ -1145,8 +1529,10 @@
             "dec": 58.48339,
             "type": "M",
             "mag_max": 8.1,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S UMa",
@@ -1154,8 +1540,10 @@
             "dec": 61.09319,
             "type": "M",
             "mag_max": 7.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R UMa",
@@ -1163,8 +1551,10 @@
             "dec": 68.77575,
             "type": "M",
             "mag_max": 6.5,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RY UMa",
@@ -1172,8 +1562,10 @@
             "dec": 61.30964,
             "type": "SRA",
             "mag_max": 6.49,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "ST UMa",
@@ -1181,8 +1573,10 @@
             "dec": 45.18522,
             "type": "SRB",
             "mag_max": 6.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T UMa",
@@ -1190,8 +1584,10 @@
             "dec": 59.48694,
             "type": "M",
             "mag_max": 6.5,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "VW UMa",
@@ -1199,8 +1595,10 @@
             "dec": 69.98906,
             "type": "SRB",
             "mag_max": 6.69,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "VY UMa",
@@ -1208,8 +1606,10 @@
             "dec": 67.41139,
             "type": "SRB",
             "mag_max": 5.73,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "Z UMa",
@@ -1217,8 +1617,10 @@
             "dec": 57.87156,
             "type": "SRB",
             "mag_max": 6.2,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S UMi",
@@ -1226,8 +1628,10 @@
             "dec": 78.63342,
             "type": "M",
             "mag_max": 7.5,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "U UMi",
@@ -1235,8 +1639,10 @@
             "dec": 66.79422,
             "type": "M",
             "mag_max": 7.1,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Vir",
@@ -1244,8 +1650,10 @@
             "dec": 6.98861,
             "type": "M",
             "mag_max": 6.1,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "S Vir",
@@ -1253,8 +1661,10 @@
             "dec": -7.19472,
             "type": "M",
             "mag_max": 6.3,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "R Vul",
@@ -1262,8 +1672,10 @@
             "dec": 23.82169,
             "type": "M",
             "mag_max": 7.0,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "Y Cyg",
@@ -1271,8 +1683,10 @@
             "dec": 34.65764,
             "type": "EA/DM",
             "mag_max": 7.29,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "eps Aur",
@@ -1280,8 +1694,32 @@
             "dec": 43.82331,
             "type": "E-DO/GS+SRD",
             "mag_max": 2.92,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V1239 Her",
+            "ra": 255.55521,
+            "dec": 32.49839,
+            "type": "UGSU+E",
+            "mag_max": 13.7,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "SS Cyg",
+            "ra": 325.67833,
+            "dec": 43.58608,
+            "type": "UGSS",
+            "mag_max": 7.7,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V404 Cyg",
@@ -1289,8 +1727,10 @@
             "dec": 33.86724,
             "type": "LMXB/BHXB/XN",
             "mag_max": 11.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "VV Cep",
@@ -1298,8 +1738,21 @@
             "dec": 63.62556,
             "type": "EA/GS+SRC",
             "mag_max": 4.73,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "CI Aql",
+            "ra": 283.01496,
+            "dec": -1.47758,
+            "type": "NR+E",
+            "mag_max": 8.5,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "CE Tau",
@@ -1307,8 +1760,10 @@
             "dec": 18.59425,
             "type": "SRC",
             "mag_max": 4.22,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "BW Cyg",
@@ -1316,8 +1771,21 @@
             "dec": 58.76486,
             "type": "SRB",
             "mag_max": 13.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "CR Boo",
+            "ra": 207.23008,
+            "dec": 7.95992,
+            "type": "UGSU/IBWD+UGZ",
+            "mag_max": 13.0,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "ASASSN-18ey",
@@ -1325,8 +1793,10 @@
             "dec": 7.18536,
             "type": "LMXB/BHXB:/XN",
             "mag_max": 11.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "MAXI J1820+070",
@@ -1334,8 +1804,32 @@
             "dec": 7.18536,
             "type": "LMXB/BHXB:/XN",
             "mag_max": 11.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V392 Per",
+            "ra": 70.83908,
+            "dec": 47.35719,
+            "type": "NA+UG",
+            "mag_max": 6.3,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "SDSS J141118.31+481257.6",
+            "ra": 212.82633,
+            "dec": 48.21597,
+            "type": "UGWZ/IBWD",
+            "mag_max": 12.4,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "TY Cas",
@@ -1343,8 +1837,10 @@
             "dec": 63.13384,
             "type": "M",
             "mag_max": 10.1,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "FI Per",
@@ -1352,8 +1848,10 @@
             "dec": 48.60053,
             "type": "M",
             "mag_max": 12.9,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "SY Mon",
@@ -1361,8 +1859,10 @@
             "dec": -1.39533,
             "type": "M",
             "mag_max": 7.0,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "FX Mon",
@@ -1370,8 +1870,10 @@
             "dec": 9.03844,
             "type": "M",
             "mag_max": 10.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "CT Lac",
@@ -1379,8 +1881,10 @@
             "dec": 48.45192,
             "type": "SRB",
             "mag_max": 8.6,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "FASTT 1100",
@@ -1388,8 +1892,32 @@
             "dec": -1.12972,
             "type": "MISC",
             "mag_max": 14.04,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V1307 Ori",
+            "ra": 90.49996,
+            "dec": 16.51575,
+            "type": "INA",
+            "mag_max": 9.48,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V1410 Ori",
+            "ra": 82.98854,
+            "dec": 11.29483,
+            "type": "INA",
+            "mag_max": 9.38,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "NSVS 12572573",
@@ -1397,8 +1925,10 @@
             "dec": -2.44314,
             "type": "M",
             "mag_max": 13.5,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V349 Vul",
@@ -1406,8 +1936,10 @@
             "dec": 23.50939,
             "type": "M",
             "mag_max": 11.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RT Aql",
@@ -1415,8 +1947,10 @@
             "dec": 11.72172,
             "type": "M",
             "mag_max": 7.6,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V353 Vul",
@@ -1424,8 +1958,10 @@
             "dec": 22.62772,
             "type": "M",
             "mag_max": 13.0,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "SX Cyg",
@@ -1433,8 +1969,10 @@
             "dec": 31.07225,
             "type": "M",
             "mag_max": 8.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "AU Cyg",
@@ -1442,8 +1980,10 @@
             "dec": 34.38905,
             "type": "M",
             "mag_max": 8.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V1655 Cyg",
@@ -1451,8 +1991,10 @@
             "dec": 38.70989,
             "type": "M",
             "mag_max": 12.0,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V1659 Cyg",
@@ -1460,8 +2002,10 @@
             "dec": 39.71272,
             "type": "M",
             "mag_max": 12.1,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "NSVS J2041274+511326",
@@ -1469,8 +2013,10 @@
             "dec": 51.22497,
             "type": "M",
             "mag_max": 14.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "DR Cyg",
@@ -1478,8 +2024,10 @@
             "dec": 38.16561,
             "type": "M",
             "mag_max": 8.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V750 Cyg",
@@ -1487,8 +2035,10 @@
             "dec": 50.53092,
             "type": "M",
             "mag_max": 11.2,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "W Cep",
@@ -1496,8 +2046,10 @@
             "dec": 58.42608,
             "type": "SRC",
             "mag_max": 7.02,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "AL Cep",
@@ -1505,8 +2057,10 @@
             "dec": 58.58528,
             "type": "M",
             "mag_max": 9.9,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "VX Cep",
@@ -1514,8 +2068,10 @@
             "dec": 64.25133,
             "type": "M",
             "mag_max": 10.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "FY Aql",
@@ -1523,8 +2079,10 @@
             "dec": 3.69958,
             "type": "M",
             "mag_max": 12.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V657 Cas",
@@ -1532,8 +2090,10 @@
             "dec": 61.80347,
             "type": "M",
             "mag_max": 13.9,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V850 Cas",
@@ -1541,8 +2101,10 @@
             "dec": 58.84608,
             "type": "SR",
             "mag_max": 12.9,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "psi 1 Aur",
@@ -1550,8 +2112,10 @@
             "dec": 49.28789,
             "type": "SRC",
             "mag_max": 4.54,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T Peg",
@@ -1559,8 +2123,32 @@
             "dec": 12.54014,
             "type": "M",
             "mag_max": 8.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V386 Ser",
+            "ra": 242.64012,
+            "dec": -1.03978,
+            "type": "UGWZ+ZZ/GWLIB",
+            "mag_max": 10.4,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "N Ori 2019",
+            "ra": 92.48937,
+            "dec": 12.207,
+            "type": "NA+E",
+            "mag_max": 9.4,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "ST LMi",
@@ -1568,8 +2156,10 @@
             "dec": 25.10794,
             "type": "AM",
             "mag_max": 14.4,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V2301 Oph",
@@ -1577,8 +2167,65 @@
             "dec": 8.17053,
             "type": "AM+E",
             "mag_max": 14.7,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "TCP J21040470+4631129",
+            "ra": 316.0195,
+            "dec": 46.52069,
+            "type": "UGWZ",
+            "mag_max": 8.4,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "Nova Del 2013",
+            "ra": 305.87788,
+            "dec": 20.76772,
+            "type": "NA",
+            "mag_max": 4.3,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V339 Del",
+            "ra": 305.87788,
+            "dec": 20.76772,
+            "type": "NA",
+            "mag_max": 4.3,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "N Aql 2020 No. 2",
+            "ra": 288.60958,
+            "dec": 14.7445,
+            "type": "NA",
+            "mag_max": 13.5,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "N Cas 2020",
+            "ra": 2.929,
+            "dec": 66.18911,
+            "type": "NA",
+            "mag_max": 10.6,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V1333 Aql",
@@ -1586,8 +2233,175 @@
             "dec": 0.58494,
             "type": "LMXB/XB",
             "mag_max": 14.82,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "N Per 2020",
+            "ra": 67.32854,
+            "dec": 43.90639,
+            "type": "NA",
+            "mag_max": 8.2,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "N Cas 2021",
+            "ra": 351.19887,
+            "dec": 61.18744,
+            "type": "NB:",
+            "mag_max": 5.2,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V1405 Cas",
+            "ra": 351.19887,
+            "dec": 61.18744,
+            "type": "NB:",
+            "mag_max": 5.2,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V603 Aql",
+            "ra": 282.22767,
+            "dec": 0.58414,
+            "type": "NA",
+            "mag_max": -1.4,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "N Her 2021",
+            "ra": 284.37908,
+            "dec": 16.89433,
+            "type": "NA/DQ",
+            "mag_max": 6.0,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V627 Peg",
+            "ra": 324.52761,
+            "dec": 26.33223,
+            "type": "UGWZ",
+            "mag_max": 8.8,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "N Vul 2021",
+            "ra": 305.28208,
+            "dec": 29.23586,
+            "type": "NA",
+            "mag_max": 9.9,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "DW Cnc",
+            "ra": 119.72129,
+            "dec": 16.27928,
+            "type": "UG/DQ",
+            "mag_max": 11.36,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V794 Aql",
+            "ra": 304.39133,
+            "dec": -3.66417,
+            "type": "UGZ+VY",
+            "mag_max": 13.4,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "LN UMa",
+            "ra": 151.14471,
+            "dec": 66.48747,
+            "type": "UGZ/IW+VY",
+            "mag_max": 14.6,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V493 Gem",
+            "ra": 108.36367,
+            "dec": 20.93147,
+            "type": "UG/IBWD",
+            "mag_max": 11.7,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V485 Aqr",
+            "ra": 311.20383,
+            "dec": -4.99133,
+            "type": "UG",
+            "mag_max": 14.3,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V338 Boo",
+            "ra": 236.60892,
+            "dec": 44.31311,
+            "type": "RRD",
+            "mag_max": 12.49,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V584 Lyr",
+            "ra": 287.74758,
+            "dec": 28.94408,
+            "type": "UG",
+            "mag_max": 14.3,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "XX Oph",
+            "ra": 265.98542,
+            "dec": -6.26911,
+            "type": "EA:+ZAND:",
+            "mag_max": 8.59,
+            "recommended_cadence_days": 5,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "AR UMa",
@@ -1595,8 +2409,21 @@
             "dec": 42.97286,
             "type": "AM",
             "mag_max": 13.9,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V844 Her",
+            "ra": 246.25729,
+            "dec": 39.15733,
+            "type": "UGSU",
+            "mag_max": 12.3,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "mu. Cep",
@@ -1604,8 +2431,10 @@
             "dec": 58.78003,
             "type": "SRC",
             "mag_max": 3.43,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0381 Cep",
@@ -1613,8 +2442,10 @@
             "dec": 58.6235,
             "type": "SRC",
             "mag_max": 5.55,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "NO Aur",
@@ -1622,8 +2453,10 @@
             "dec": 31.92061,
             "type": "SRC",
             "mag_max": 6.05,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "SU Per",
@@ -1631,8 +2464,10 @@
             "dec": 56.60414,
             "type": "SRC",
             "mag_max": 7.2,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "KK Per",
@@ -1640,8 +2475,10 @@
             "dec": 56.55906,
             "type": "SRC",
             "mag_max": 7.49,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "FZ Per",
@@ -1649,8 +2486,10 @@
             "dec": 57.15833,
             "type": "SRC",
             "mag_max": 7.5,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "XX Per",
@@ -1658,8 +2497,10 @@
             "dec": 55.23239,
             "type": "SRC",
             "mag_max": 7.6,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "YZ Per",
@@ -1667,8 +2508,10 @@
             "dec": 57.04617,
             "type": "SRC",
             "mag_max": 7.66,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "AD Per",
@@ -1676,8 +2519,10 @@
             "dec": 56.99314,
             "type": "SRC",
             "mag_max": 7.7,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RW Cyg",
@@ -1685,8 +2530,10 @@
             "dec": 39.98178,
             "type": "SRC",
             "mag_max": 7.7,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0641 Cas",
@@ -1694,8 +2541,10 @@
             "dec": 63.95392,
             "type": "SRC:",
             "mag_max": 7.8,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "AZ Cyg",
@@ -1703,8 +2552,10 @@
             "dec": 46.46683,
             "type": "SRC",
             "mag_max": 7.8,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RS Per",
@@ -1712,8 +2563,10 @@
             "dec": 57.10947,
             "type": "SRC",
             "mag_max": 7.82,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0572 Vul",
@@ -1721,8 +2574,10 @@
             "dec": 25.60089,
             "type": "SRC",
             "mag_max": 7.85,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "IM Cas",
@@ -1730,8 +2585,10 @@
             "dec": 62.32903,
             "type": "SRC",
             "mag_max": 7.97,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "U Lac",
@@ -1739,8 +2596,10 @@
             "dec": 55.15842,
             "type": "SRC",
             "mag_max": 8.1,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0778 Cas",
@@ -1748,8 +2607,10 @@
             "dec": 59.26911,
             "type": "SRC",
             "mag_max": 8.2,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "SW Cep",
@@ -1757,8 +2618,10 @@
             "dec": 62.574,
             "type": "SRC",
             "mag_max": 8.2,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "BU Per",
@@ -1766,8 +2629,10 @@
             "dec": 57.42133,
             "type": "SRC",
             "mag_max": 8.2,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "PZ Cas",
@@ -1775,8 +2640,10 @@
             "dec": 61.7895,
             "type": "SRC",
             "mag_max": 8.2,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "T Per",
@@ -1784,8 +2651,10 @@
             "dec": 58.96119,
             "type": "SRC",
             "mag_max": 8.3,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "NSV 544",
@@ -1793,8 +2662,10 @@
             "dec": 60.64658,
             "type": "SRC",
             "mag_max": 8.34,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0774 Cas",
@@ -1802,8 +2673,10 @@
             "dec": 60.37233,
             "type": "SRC",
             "mag_max": 8.44,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0704 Cas",
@@ -1811,8 +2684,10 @@
             "dec": 60.48947,
             "type": "SRC",
             "mag_max": 8.75,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0550 Per",
@@ -1820,8 +2695,10 @@
             "dec": 58.14231,
             "type": "SRC",
             "mag_max": 8.81,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "BI Cyg",
@@ -1829,8 +2706,10 @@
             "dec": 36.93214,
             "type": "SRC",
             "mag_max": 8.86,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "NSV 693",
@@ -1838,8 +2717,10 @@
             "dec": 64.14388,
             "type": "SR",
             "mag_max": 8.9,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "BC Cyg",
@@ -1847,8 +2728,10 @@
             "dec": 37.53306,
             "type": "SRC",
             "mag_max": 9.0,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0648 Cas",
@@ -1856,8 +2739,10 @@
             "dec": 57.85553,
             "type": "SRC",
             "mag_max": 9.08,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "HD 232766",
@@ -1865,8 +2750,10 @@
             "dec": 54.93578,
             "type": "SRC",
             "mag_max": 9.15,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0411 Per",
@@ -1874,8 +2761,10 @@
             "dec": 54.88417,
             "type": "SRC",
             "mag_max": 9.16,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V0386 Cep",
@@ -1883,8 +2772,10 @@
             "dec": 61.2835,
             "type": "SRC",
             "mag_max": 9.2,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "GU Cep",
@@ -1892,8 +2783,43 @@
             "dec": 61.24161,
             "type": "SRC",
             "mag_max": 9.6,
+            "recommended_cadence_days": 5,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "BF Eri",
+            "ra": 69.87478,
+            "dec": -4.59969,
+            "type": "UG",
+            "mag_max": 12.3,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "KZ Gem",
+            "ra": 103.26021,
+            "dec": 16.66631,
+            "type": "UGSS+ELL",
+            "mag_max": 14.0,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "TW Vul",
+            "ra": 309.89367,
+            "dec": 27.2655,
+            "type": "UG",
+            "mag_max": 12.7,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "bet Aur",
@@ -1901,8 +2827,10 @@
             "dec": 44.94744,
             "type": "EA/DM",
             "mag_max": 1.89,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "RR Lyn",
@@ -1910,8 +2838,10 @@
             "dec": 56.28511,
             "type": "EA/DM",
             "mag_max": 5.52,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
         },
         {
             "name": "V1143 Cyg",
@@ -1919,8 +2849,21 @@
             "dec": 54.97378,
             "type": "EA/DM",
             "mag_max": 5.85,
+            "recommended_cadence_days": 10,
             "priority": 2,
-            "duration": 600
+            "duration": 600,
+            "cadence_skip": false
+        },
+        {
+            "name": "V615 Vul",
+            "ra": 295.78125,
+            "dec": 21.00594,
+            "type": "NA",
+            "mag_max": 9.6,
+            "recommended_cadence_days": 1,
+            "priority": 2,
+            "duration": 600,
+            "cadence_skip": false
         }
     ]
 }

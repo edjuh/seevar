@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/preflight/librarian.py
-Version: 4.2.1
-Objective: The Single Source of Truth. Manages metadata and validates charts for the Nightly Planner.
+Filename: core/preflight/librarian.py
+Version: 4.3.0
+Objective: The Single Source of Truth. Parses raw AAVSO haul, checks for VSP charts, and writes the Federation Catalog.
 """
 import json
 import logging
@@ -13,15 +13,14 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - %(message)s')
 logger = logging.getLogger("Librarian")
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# Fixed Sovereign Path
+PROJECT_ROOT = Path("/home/ed/seevar")
 CATALOG_DIR = PROJECT_ROOT / "catalogs"
-DATA_DIR = PROJECT_ROOT / "data"
 RAW_HARVEST = CATALOG_DIR / "campaign_targets.json"
 REF_DIR = CATALOG_DIR / "reference_stars"
 VALIDATED_CATALOG = CATALOG_DIR / "federation_catalog.json"
 
 def inject_metadata(data, objective):
-    """Standardizes the header for all Sovereign JSON files."""
     return {
         "#objective": objective,
         "metadata": {
@@ -42,6 +41,7 @@ def process_library():
         raw_data = json.load(f)
         targets = raw_data.get("targets", []) if isinstance(raw_data, dict) else raw_data
 
+    # Deduplicate while preserving all fields
     unique_map = {t['name']: t for t in targets if 'name' in t}
     valid_targets = []
     
@@ -50,7 +50,7 @@ def process_library():
         if (REF_DIR / f"{clean_name}.json").exists():
             valid_targets.append(target)
 
-    federated_data = inject_metadata(valid_targets, "Validated and deduplicated target list for nightly planning.")
+    federated_data = inject_metadata(valid_targets, "Validated and deduplicated target list ready for Auditing.")
     
     with open(VALIDATED_CATALOG, 'w') as f:
         json.dump(federated_data, f, indent=4)

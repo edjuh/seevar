@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/flight/mission_chronicle.py
-Version: 4.1.1
-Objective: Orchestrates the Sovereign funnel from Library Purge to Ledger Sync to Flight.
+Filename: core/flight/mission_chronicle.py
+Version: 4.2.0
+Objective: Orchestrates the Preflight Funnel (Janitor -> Librarian -> Auditor -> Planner).
 """
 
 import subprocess
@@ -14,7 +14,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - %(message)s')
 logger = logging.getLogger("Chronicle")
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path("/home/ed/seevar")
 
 def run_step(name, script_path):
     logger.info(f"🚀 Executing {name}...")
@@ -25,19 +25,23 @@ def run_step(name, script_path):
         sys.exit(1)
 
 def main():
+    print("\n" + "="*50)
+    print(" 📡 SEEVAR FEDERATION: PREFLIGHT FUNNEL")
+    print("="*50 + "\n")
+
     # 1. Purge corruption from raw charts
     run_step("Janitor", "utils/comp_purger.py")
 
-    # 2. Synchronize Library and Validate Charts
+    # 2. Synchronize Library (Read AAVSO Haul -> Output Federation Catalog)
     run_step("Librarian", "core/preflight/librarian.py")
 
-    # 3. Filter targets by Horizon/Visibility
-    run_step("Planner", "core/preflight/nightly_planner.py")
+    # 3. Cross-reference Federation Catalog against ledger.json
+    run_step("Cadence Auditor", "core/preflight/audit.py")
 
-    # 4. Filter by Ledger Cadence
-    run_step("Ledger Sync", "core/preflight/ledger_manager.py")
+    # 4. Filter strictly by Horizon/Visibility/Cadence -> Output tonights_plan.json
+    run_step("Nightly Planner", "core/preflight/nightly_planner.py")
 
-    logger.info("🏁 Preflight sequence complete. Mission is ready for injection.")
+    logger.info("🏁 Preflight sequence complete. The Flight Plan is locked.")
 
 if __name__ == "__main__":
     main()

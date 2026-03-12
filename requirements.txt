@@ -1,34 +1,58 @@
-astropy==7.2.0
-astropy-iers-data==0.2026.2.16.0.48.25
-blinker==1.9.0
-certifi==2026.1.4
-charset-normalizer==3.4.4
-click==8.3.1
-dash==4.0.0
-Flask==3.1.3
-idna==3.11
-importlib_metadata==8.7.1
-itsdangerous==2.2.0
-Jinja2==3.1.6
-MarkupSafe==3.0.3
-narwhals==2.16.0
-nest_asyncio==1.6.0
-numpy==2.4.2
-opencv-python==4.13.0.92
-packaging==26.0
-pandas==3.0.1
+# =============================================================================
+# Filename:  requirements.txt
+# Version:   2026.03.12
+# Objective: SeeVar runtime dependencies — delta on top of seestar_alp.
+#            Install after running the seestar_alp bootstrap.
+# =============================================================================
+
+# --- Astronomy & Science -----------------------------------------------------
+astropy==7.1.0
+astroquery==0.4.11.dev10199
 photutils==2.3.0
-plotly==6.5.2
+skyfield==1.53
+ephem==4.2
+sgp4==2.25
+jplephem==2.24
 pyerfa==2.0.1.5
-pyserial==3.5
-python-dateutil==2.9.0.post0
-PyYAML==6.0.3
-requests==2.32.5
-retrying==1.4.2
+
+# --- Image Processing --------------------------------------------------------
+numpy==2.3.2
 scipy==1.17.0
-six==1.17.0
-tomli==2.4.0
-typing_extensions==4.15.0
-urllib3==2.6.3
-Werkzeug==3.1.6
-zipp==3.23.0
+scikit-image==0.25.2
+opencv-python==4.10.0.84
+pillow==11.3.0
+
+# --- Data Handling -----------------------------------------------------------
+pandas==2.3.1
+
+# --- Web / API ---------------------------------------------------------------
+flask==3.1.1
+flask-cors==6.0.1
+waitress==3.0.2
+requests==2.32.5
+
+# --- Configuration -----------------------------------------------------------
+toml==0.10.2
+tomlkit==0.13.3
+python-dotenv==1.2.1
+
+# --- Raspberry Pi Hardware ---------------------------------------------------
+RPi.GPIO==0.7.1
+gps==3.19
+
+# --- Optional: Fog / IR Cloud Sensor (MLX90614) ------------------------------
+# Only required if you have an MLX90614 infrared sensor wired to the Pi.
+# Comment out if not using fog_monitor.py hardware.
+adafruit-circuitpython-mlx90614
+Adafruit-Blinka==8.69.0
+
+# --- Utilities ---------------------------------------------------------------
+sdnotify==0.3.2
+watchdog==6.0.0
+humanize==4.12.3
+pydantic==2.11.7
+pydash==8.0.5
+python-dateutil==2.9.0.post0
+pytz==2022.7.1
+tzlocal==5.3.1
+tzdata==2025.3

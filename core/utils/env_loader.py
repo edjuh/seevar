@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/utils/env_loader.py
-Version: 1.0.0
+Filename: core/utils/env_loader.py
+Version: 1.1.0
 Objective: Single source of truth for SeeVar environment paths and TOML configuration loading.
 """
 
-import os
 import tomllib
 import logging
 from pathlib import Path
@@ -15,11 +14,13 @@ log = logging.getLogger("EnvLoader")
 
 # ---------------------------------------------------------------------------
 # Centralized Sovereign Paths
+# Derived from __file__ — never hardcoded. Works regardless of install location.
+# core/utils/env_loader.py → parents[0]=utils, parents[1]=core, parents[2]=project root
 # ---------------------------------------------------------------------------
-PROJECT_ROOT = Path("/home/ed/seevar")
-CONFIG_PATH = PROJECT_ROOT / "config.toml"
-DATA_DIR = PROJECT_ROOT / "data"
-ENV_STATUS = Path("/dev/shm/env_status.json")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CONFIG_PATH  = PROJECT_ROOT / "config.toml"
+DATA_DIR     = PROJECT_ROOT / "data"
+ENV_STATUS   = Path("/dev/shm/env_status.json")
 
 # ---------------------------------------------------------------------------
 # Centralized Configuration Loader

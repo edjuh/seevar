@@ -96,7 +96,7 @@
     <div class="container">
         <div class="panel">
             <h2>SYSTEM VITALS</h2>
-            <div class="flight-window-row"><span class="label">FLIGHT WINDOW</span> <span class="fw-val">19:55 - 05:10</span></div>
+            <div class="flight-window-row"><span class="label">FLIGHT WINDOW</span> <span class="fw-val">{{ flight_window }}</span></div>
             <div class="row"><span class="label">BRIDGE (5432)</span> <span class="val"></span> <div class="led green"></div></div>
             <div class="row"><span class="label">SEESTAR (LINK)</span> <span id="tel-link-val" class="val">WAITING...</span> <div id="tel-link-led" class="led grey"></div></div>
             <div class="row"><span class="label">GPS (LOCK)</span> <span class="val"></span> <div class="led green"></div></div>
@@ -127,7 +127,6 @@
         <div class="panel">
             <h2>POSTFLIGHT AUDIT</h2>
             <div class="row"><span class="label">LAST AUDIT</span> <span class="val" id="audit-stamp">N/A</span></div>
-            <div class="row"><span class="label">KNVWS REPORT</span> <span class="val" id="r-stamp">AWAITING LIGHT</span></div>
             <div class="row"><span class="label">PHOTOMETRY</span> <div id="led-phot" class="led grey"></div></div>
             <div class="row"><span class="label">AAVSO READY</span> <div id="led-aavso" class="led grey"></div></div>
             <div class="siril-box" id="siril-log-box"></div>
@@ -163,7 +162,6 @@
             countLed.innerText = targetData.length.toString().padStart(2, '0');
             const t = targetData[tickerIndex];
             
-            // FIX: Checking for exactly "name" and "type" first, with original fallbacks
             document.getElementById('t-name').innerText = t.name || t.star_name || "UNKNOWN";
             document.getElementById('t-name').className = (t.priority) ? "val critical" : "val";
             document.getElementById('t-type').innerText = t.type || t.var_type || "N/A";

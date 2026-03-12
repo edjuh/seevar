@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/dashboard/dashboard.py
-Version: 4.4.8
-Objective: Corrected telemetry dashboard — all fatal and soft failures resolved.
+Version: 4.4.9
+Objective: Dynamic Astronomical Twilight (-18.0°) flight window calculations and KNVWS removal.
 """
 import json
 import logging
@@ -11,8 +11,13 @@ import os
 import sys
 import time
 import tomllib
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from flask import Flask, render_template, jsonify
+
+from astropy import units as u
+from astropy.coordinates import AltAz, EarthLocation, get_sun
+from astropy.time import Time
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -112,12 +117,70 @@ def load_plan() -> list:
     return []
 
 # ---------------------------------------------------------------------------
+# Astronomical Twilight Engine (-18.0°)
+# ---------------------------------------------------------------------------
+FLIGHT_WINDOW_CACHE = {"date": None, "text": "CALCULATING..."}
+
+def get_flight_window(lat: float, lon: float, elev: float) -> str:
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    if FLIGHT_WINDOW_CACHE["date"] == today_str:
+        return FLIGHT_WINDOW_CACHE["text"]
+        
+    try:
+        loc = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=elev*u.m)
+        utc_now = datetime.now(timezone.utc)
+        
+        # Start scanning from Noon UTC today
+        start_time = datetime(utc_now.year, utc_now.month, utc_now.day, 12, 0, tzinfo=timezone.utc)
+        if utc_now.hour < 12:
+            start_time -= timedelta(days=1)
+            
+        dusk_str, dawn_str = None, None
+        is_night = False
+        
+        # 5-minute interval scan across 24 hours
+        for m in range(0, 24 * 60, 5):
+            t_dt = start_time + timedelta(minutes=m)
+            t = Time(t_dt)
+            frame = AltAz(obstime=t, location=loc)
+            sun_alt = get_sun(t).transform_to(frame).alt.deg
+            
+            if sun_alt <= -18.0 and not is_night:
+                is_night = True
+                dusk_str = t_dt.astimezone().strftime("%H:%M")
+            elif sun_alt > -18.0 and is_night:
+                is_night = False
+                dawn_str = t_dt.astimezone().strftime("%H:%M")
+                break
+                
+        if dusk_str and dawn_str:
+            res = f"{dusk_str} - {dawn_str}"
+        else:
+            res = "NO ASTRONOMICAL NIGHT"
+            
+        FLIGHT_WINDOW_CACHE["date"] = today_str
+        FLIGHT_WINDOW_CACHE["text"] = res
+        return res
+    except Exception as e:
+        log.error("Flight window calc failed: %s", e)
+        return "ERR - CHECK LOGS"
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 @app.route('/')
 def index():
     target_data = load_plan()
-    return render_template('index.html', target_data=target_data)
+    config = load_config("~/seevar/config.toml")
+    loc    = config.get('location', {})
+    
+    fw_text = get_flight_window(
+        loc.get('lat', 52.3874), 
+        loc.get('lon', 4.6462), 
+        loc.get('elevation', 0.0)
+    )
+    
+    return render_template('index.html', target_data=target_data, flight_window=fw_text)
 
 @app.route('/telemetry')
 def get_telemetry():

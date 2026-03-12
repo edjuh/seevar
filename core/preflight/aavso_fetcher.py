@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/preflight/aavso_fetcher.py
-Version: 12.1.2
-Objective: Step 1 - Haul scientific targets from AAVSO TargetTool and filter by local horizon physics.
+Filename: core/preflight/aavso_fetcher.py
+Version: 12.3.0
+Objective: Step 1 - Haul scientific targets from AAVSO Target Tool API
+           and append strict CADENCE.md sampling rules.
+
+Based on v12.2.0 which worked. Added CV/UG/UGSS/RR/ZAND/Nova types.
 """
 
 import json
@@ -23,7 +26,7 @@ CATALOG_DIR = PROJECT_ROOT / "catalogs"
 MASTER_HAUL_FILE = CATALOG_DIR / "campaign_targets.json"
 
 MAG_LIMIT = 15.0
-MIN_DEC = -7.62  
+MIN_DEC = -7.62
 
 def get_aavso_key():
     try:
@@ -35,56 +38,76 @@ def get_aavso_key():
         sys.exit(1)
 
 def haul_and_filter(api_key):
-    logger.info("📡 STEP 1: Hauling Master Target List from AAVSO...")
+    logger.info("📡 STEP 1: Hauling Master Target List from AAVSO Target Tool...")
     CATALOG_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     url = "https://targettool.aavso.org/TargetTool/api/v1/targets"
-    
+
     try:
         res = requests.get(url, auth=(api_key, "api_token"), params={"obs_section": "all"}, timeout=30)
         res.raise_for_status()
         raw_targets = res.json().get("targets", [])
-        
+        logger.info(f"  → Retrieved {len(raw_targets)} raw targets from Target Tool")
+
         targets = []
-        valid_types = ["M", "SR", "LPV"]
-        
+        valid_types = ["M", "SR", "LPV", "CV", "UG", "UGSS", "RR", "ZAND", "NA", "NB", "NC", "NR"]
+
         for t in raw_targets:
             star_name = t.get("star_name", "").strip()
-            if not star_name: continue
-                
+            if not star_name:
+                continue
+
             star_type = t.get("var_type", "").upper()
-            is_slow = any(vt in star_type for vt in valid_types)
-            
-            try: mag = float(t.get("max_mag", 99.0))
-            except: mag = 99.0
-            
-            try: dec = float(t.get("dec", -90.0))
-            except: dec = -90.0
-                
-            if is_slow and mag <= MAG_LIMIT and dec >= MIN_DEC:
+            is_valid = any(vt in star_type for vt in valid_types)
+
+            try:
+                mag = float(t.get("max_mag", 99.0))
+            except (ValueError, TypeError):
+                mag = 99.0
+
+            try:
+                dec = float(t.get("dec", -90.0))
+            except (ValueError, TypeError):
+                dec = -90.0
+
+            if is_valid and mag <= MAG_LIMIT and dec >= MIN_DEC:
+                vt = star_type
+                if any(x in vt for x in ["CV", "UG", "RR", "NA", "NB", "NC", "NR"]):
+                    rec_cadence = 1
+                elif "SR" in vt:
+                    rec_cadence = 5
+                elif "ZAND" in vt:
+                    rec_cadence = 5
+                elif "M" in vt or "LPV" in vt:
+                    rec_cadence = 10
+                else:
+                    rec_cadence = 3
+
                 targets.append({
                     "name": star_name,
                     "ra": t.get("ra", 0.0),
                     "dec": dec,
                     "type": star_type,
                     "mag_max": mag,
-                    "priority": 2, 
+                    "recommended_cadence_days": rec_cadence,
+                    "priority": 2,
                     "duration": 600
                 })
-                
+
         output_data = {
-            "#objective": "Master haul of AAVSO targets filtered by 30-degree horizon physics.",
+            "#objective": "Master haul of AAVSO targets filtered by local horizon and assigned CADENCE.md rules.",
             "metadata": {
                 "generated": datetime.now().isoformat(),
                 "schema_version": "2026.1",
+                "source": "AAVSO Target Tool API",
                 "target_count": len(targets)
             },
             "targets": targets
         }
-                
+
         with open(MASTER_HAUL_FILE, "w") as f:
             json.dump(output_data, f, indent=4)
-            
+
         logger.info(f"✅ Target Base Secured: {len(targets)} scientifically observable targets locked.")
 
     except Exception as e:

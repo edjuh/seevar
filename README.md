@@ -1,58 +1,216 @@
-# 🔭 SeeVar
+# 🔭 SeeVar — Automated Variable Star Observatory
 
 ![SeeVar Mascot](SeeVar.jpg)
 
-> **Objective:** Primary documentation and entry gate for the automated S30-PRO variable star observation pipeline.
-> **Version:** 1.5.2 (The "We Survived Null Island" Edition)
+> **Objective:** Transform a consumer smart telescope into a fully autonomous scientific instrument for variable star photometry.
 
-Welcome to **SeeVar**, the headless, fully automated orchestration system that firmly but politely asks the Seestar smart telescope to do actual science. 
-Dedicated to the Pickering Clade Clan.
+**SeeVar** is an automated control and data pipeline designed for the **Seestar S30-PRO telescope**.
+Its purpose is simple:
 
-## 🎯 Scientific Mission Profile & Hardware Constraints
-SeeVar is an autonomous photometric pipeline engineered for the IMX585 colour sensor, built to survive proprietary firmware updates and network hiccups.
+**Measure variable stars reliably, every clear night, without human intervention.**
 
-**Target Acquisition Strategy:**
-* **Primary Focus:** Long-Period Variables (Miras, Semi-Regulars) following the strict **1/20th Period Cadence Rule**.
-* **Triggered Observations:** Cataclysmic Variables (CVs) in outburst.
-
-**Photometric Output:**
-Submissions to the AAVSO are strictly reported as **"TG"** or **"CV"** to ensure absolute scientific integrity (and because ASTAP shouldn't have to fix our metadata).
+Instead of using the telescope as a consumer imaging device, SeeVar treats it as a **robotic observatory** that plans observations, captures scientific images, processes the data, and prepares results for submission to the **AAVSO**.
 
 ---
 
-## 🏗️ The Sovereign State Machine
-Unlike standard operation, this system doesn't trust the internal daemon. We use a deterministic logic gate system to bypass internal ZWO stacking locks and babysit every hardware transition.
-* **Phase 1 (Initialization)**: Force-clear UI/App locks via `iscope_stop_view`.
-* **Phase 2 (Navigation)**: `scope_sync` using strict **Keyed Object Dialect** `{"ra": X, "dec": Y}`.
-* **Phase 3 (Science)**: Bypassing the consumer stacker for pure RAW data via `start_exposure`.
-* **Phase 4 (Harvest)**: In-memory metadata stamping (The Sovereign Stamp) and single-frame FITS retrieval with midpoint UTC JDATE logging.
+# 🌌 Mission
+
+SeeVar focuses on **long-term monitoring of variable stars**, with special attention to:
+
+• **Long Period Variables (Mira / Semi-Regular)**
+• **Cataclysmic Variables during outburst**
+
+Observation cadence follows the **1/20th period rule** used in professional variable star monitoring.
+
+Photometric results are reported to the **AAVSO** using the correct **TG** or **CV** reporting format.
 
 ---
 
-## ✨ The Crown Jewel: The Tactical Dashboard
-* **Live Hardware Vitals:** Dynamic polling for sub-second battery and storage updates.
-* **Tri-Source Weather Sentinel:** Aggregates data from Open-Meteo, 7Timer!, and Meteoblue.
-* **Dynamic Target Ticker:** Cycles through flight plans with live altitude and priority scores.
+# 🛰 Hardware Requirements
+
+The system is intentionally built around **robust and inexpensive hardware**.
+
+### Required Components
+
+**Telescope**
+
+* Seestar **S30-PRO**
+
+**Control Computer**
+
+* Raspberry Pi running Debian Bookworm
+
+**Location Source**
+
+* USB **GPS receiver**
+
+The GPS provides:
+
+• precise geographic coordinates
+• accurate UTC time
+• reliable astronomical timing
 
 ---
 
-## 🏰 Architecture: The 5-Block Pipeline
-1. **Block 1: Hardware & OS Foundation** (Debian Bookworm, `ssc-3.13.5`).
-2. **Block 2: Seestar ALP Bridge** (Deterministic hardware mapping via `127.0.0.1:5555`).
-3. **Block 3: Preflight Gatekeeper** (Safety check: Battery >10%, Temp <55C, Level <0.05°).
-4. **Block 4: Flight Acquisition** (AAVSO target sequence and 1/20th Cadence loop).
-5. **Block 5: Postflight Teardown** (Safe parking, RAW FITS transfer, and the Green Squeeze).
+### Storage (Important)
+
+SD cards are **not reliable for continuous scientific operation**.
+
+SeeVar therefore requires **external USB storage**.
+
+Recommended configuration:
+
+• **2 × 256 GB (or larger) USB flash drives**
+
+The drives operate as a **mirrored RAID1 array** for redundancy.
+
+Benefits:
+
+• protects against sudden SD-card failure
+• prevents loss of scientific data
+• allows safe long-term unattended operation
+
+The SD card is used only for the operating system.
+
+All observation data and FITS files are written to the mirrored storage.
 
 ---
 
-## 🚀 Getting Started
-To initialize the environment:
-* **`bootstrap.sh`**: Verify Python OS layer and dependencies.
-* **`core/flight/orchestrator.py`**: Managing the active observatory loop.
+# 🧠 System Architecture
 
-For technical deep-dives into networking, AAVSO handshake protocols, and why we never talk to Port 7624 directly, see **[Logic Directory](./logic/)**.
+SeeVar operates as a deterministic control pipeline consisting of five functional blocks.
+
+### Block 1 — Hardware Foundation
+
+Raspberry Pi running **Debian Bookworm** and the required Python environment.
+
+### Block 2 — Telescope Interface
+
+Communication with the telescope occurs via the **Seestar ALP bridge**, exposing a stable API for telescope control.
+
+### Block 3 — Preflight Gatekeeper
+
+Before observations begin the system verifies:
+
+• battery level
+• internal temperature
+• telescope alignment
+• storage availability
+• weather conditions
+
+If conditions are unsafe, the system waits automatically.
 
 ---
 
-## 🍷 Slotwoord van een Heer van Stand
-"Het is een hele zorg, nietwaar? De sterrenhemel is onmetelijk en de techniek staat voor niets... !"
+### Block 4 — Flight Operations
+
+During astronomical darkness the system executes an observing plan.
+
+For each target the telescope:
+
+1. Slews to the object
+2. Plate-solves to verify pointing
+3. Captures RAW FITS exposures
+4. Records accurate timestamps and metadata
+
+Targets are dynamically scheduled based on:
+
+• altitude above the horizon
+• scientific priority
+• time since last observation
+• telescope slew distance
+
+---
+
+### Block 5 — Postflight Processing
+
+After images are captured the pipeline automatically:
+
+• retrieves RAW FITS frames
+• debayers and calibrates images
+• performs plate solving
+• measures stellar brightness via photometry
+• prepares AAVSO submission reports
+
+---
+
+# 📊 The Observatory Ledger
+
+Every action performed by the telescope is recorded.
+
+This provides:
+
+• full traceability of observations
+• automatic recovery after interruptions
+• accurate scientific logs
+
+If weather interrupts an observation, unfinished targets return to the queue and are attempted again later.
+
+---
+
+# 🌦 Weather Awareness
+
+SeeVar evaluates observing conditions using multiple sources:
+
+• external weather services
+• internal image quality checks
+• plate-solve success monitoring
+
+Future versions may integrate a dedicated **cloud sensor** for local sky detection.
+
+---
+
+# 🖥 Tactical Dashboard
+
+The system includes a live dashboard displaying:
+
+• telescope status
+• storage capacity
+• battery level
+• weather conditions
+• active observing targets
+
+This allows the observatory to be monitored remotely while running autonomously.
+
+---
+
+# 🌍 Scaling the Observatory
+
+SeeVar is designed to control **multiple telescopes simultaneously**.
+
+Possible configurations include:
+
+• parallel photometry using several telescopes
+• coordinated observations from different locations
+• dedicated spectroscopy instruments
+
+The architecture allows remote telescopes to join the network.
+
+---
+
+# 🚀 Getting Started
+
+Initialize the environment:
+
+```
+bootstrap.sh
+```
+
+Start the observatory control loop:
+
+```
+core/flight/orchestrator.py
+```
+
+Detailed implementation notes are available in the **logic** directory.
+
+---
+
+# 🌠 Philosophy
+
+SeeVar exists because good hardware deserves serious use.
+
+A small telescope, a Raspberry Pi, and careful automation can produce **real scientific observations every clear night**.
+
+The sky has always been open to anyone willing to measure it.
+
