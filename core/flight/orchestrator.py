@@ -2,24 +2,22 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/orchestrator.py
-Version: 1.7.0
+Version: 1.7.1
 Objective: Full pipeline state machine wired to the v4.0.0 TCP Diamond
-           Sequence. Authoritative flight daemon — merges session_orchestrator.
+           Sequence. Authoritative flight daemon.
 
-Merged from session_orchestrator.py v1.2.1 (retired):
-  - Per-target postflight handoff to ScienceProcessor
-  - Ledger update: last_success on GOOD, attempts++ on BAD
-  - Notifier alerts on acquisition success and failure
-
-Changes vs 1.6.0:
-  - FIXED: PROJECT_ROOT hardcoded Path -> Path(__file__).resolve().parents[2]
-  - FIXED: SUN_LIMIT_DEG -10 (testing) -> -18.0 (astronomical twilight)
-  - FIXED: _run_preflight() was bypassing all hardware checks -> restored
-  - FIXED: _run_postflight() was empty -> wired to ScienceProcessor + ledger
-  - ADDED: per-target ledger update (last_success / attempts) after each frame
-  - ADDED: notifier.alert() on acquisition failure, notifier.info() on success
-  - ADDED: weather re-check in _run_flight() loop (was absent in v1.6.0)
-  - RETIRED: session_orchestrator.py — functionality absorbed here
+Changes vs 1.7.0:
+  - REPLACED: aperture_grip_score(az, alt) — pure azimuth heuristic
+  - ADDED:    meridian_aware_score(coord, now, location)
+              Uses true hour angle to avoid/manage meridian flips:
+              * Targets in the flip zone (|HA| < MERIDIAN_BUFFER_H) are
+                deprioritised — let other targets go first
+              * Targets west of meridian (HA > 0) get an urgency boost —
+                they are declining, grab them now
+              * Targets well east of meridian score on altitude alone —
+                they have time, no rush
+  - ADDED:    target["_ha"] stored for diagnostics / dashboard
+  - ADDED:    safe_stop() called in _run_preflight() before hardware check
 """
 
 import json
@@ -55,9 +53,6 @@ logging.basicConfig(
 )
 log = logging.getLogger("Orchestrator")
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 PLAN_FILE    = DATA_DIR / "tonights_plan.json"
 STATE_FILE   = DATA_DIR / "system_state.json"
 LEDGER_FILE  = DATA_DIR / "ledger.json"
@@ -66,12 +61,75 @@ MISSION_FILE = DATA_DIR / "tonights_plan.json"
 
 
 # ---------------------------------------------------------------------------
-# Aperture priority scoring
+# Meridian-aware target scoring
 # ---------------------------------------------------------------------------
-def aperture_grip_score(azimuth: float, altitude: float) -> float:
-    if 180 <= azimuth <= 350:
-        return 100.0 - altitude
-    return altitude / 2.0
+
+# Hour angle boundaries (hours)
+MERIDIAN_BUFFER_H = 0.3    # ±18 min around meridian — the flip zone
+WEST_URGENCY_H    = 3.0    # targets west of meridian up to this HA get boosted
+ALT_FLOOR_DEG     = 30.0   # also used as score floor
+
+def meridian_aware_score(coord: SkyCoord,
+                         now:   Time,
+                         location: EarthLocation) -> tuple[float, float]:
+    """
+    Score a target for scheduling priority, taking the meridian into account.
+    Returns (score, hour_angle_hours).
+
+    Hour angle convention (standard):
+      HA < 0  →  target is EAST  of meridian, rising
+      HA = 0  →  target is ON    the meridian (flip point)
+      HA > 0  →  target is WEST  of meridian, setting
+
+    Scoring logic:
+      Flip zone  |HA| < MERIDIAN_BUFFER_H  →  score  0..20   (go last)
+      East side  HA < -MERIDIAN_BUFFER_H   →  score 40..70   (altitude based, no rush)
+      West side  0 < HA < WEST_URGENCY_H   →  score 70..100  (declining, observe now)
+      West side  HA > WEST_URGENCY_H       →  score 30..50   (getting low, normal)
+
+    Altitude still modulates within each band — a higher target always
+    beats a lower one in the same HA zone.
+    """
+    # Altitude for the floor check and modulation
+    altaz   = coord.transform_to(AltAz(obstime=now, location=location))
+    alt_deg = float(altaz.alt.deg)
+
+    if alt_deg < ALT_FLOOR_DEG:
+        return -1.0, 0.0   # caller should skip this target
+
+    # Hour angle — LST minus RA, in hours, wrapped to (-12, +12)
+    lst      = now.sidereal_time("apparent", longitude=location.lon)
+    ha_hours = float((lst - coord.ra).wrap_at(180 * u.deg).hour)
+
+    # Altitude contribution within band: 0..1
+    alt_norm = (alt_deg - ALT_FLOOR_DEG) / (90.0 - ALT_FLOOR_DEG)
+
+    if abs(ha_hours) < MERIDIAN_BUFFER_H:
+        # Flip zone — deprioritise, let other targets go first.
+        # Score 0–20. Still schedulable if nothing else is available.
+        score = alt_norm * 20.0
+
+    elif ha_hours > MERIDIAN_BUFFER_H:
+        # West of meridian — already flipped, target is declining.
+        if ha_hours < WEST_URGENCY_H:
+            # Prime west window: highest priority.
+            # Score 70–100 modulated by altitude and how far west.
+            # Targets further west (more urgent) score slightly higher.
+            urgency = ha_hours / WEST_URGENCY_H          # 0..1
+            score   = 70.0 + alt_norm * 20.0 + urgency * 10.0
+        else:
+            # Getting late west — still observable but normal priority.
+            score = 30.0 + alt_norm * 20.0
+
+    else:
+        # East of meridian — rising, no flip needed, no rush.
+        # Score 40–70 modulated by altitude.
+        # Closer to meridian (HA approaching 0 from east) scores higher
+        # so we naturally sequence east targets late in their window.
+        proximity = 1.0 - (abs(ha_hours) / 12.0)        # 0..1
+        score     = 40.0 + alt_norm * 20.0 + proximity * 10.0
+
+    return round(score, 2), round(ha_hours, 3)
 
 
 # ---------------------------------------------------------------------------
@@ -89,13 +147,13 @@ class PipelineState:
 # ---------------------------------------------------------------------------
 class Orchestrator:
     SUN_LIMIT_DEG  = -18.0     # Astronomical twilight
-    ALT_FLOOR_DEG  = 30.0
+    ALT_FLOOR_DEG  = ALT_FLOOR_DEG
     PANEL_TIME_SEC = 60
     LOOP_SLEEP_SEC = 30
 
     def __init__(self):
-        cfg  = load_config()
-        loc  = cfg.get("location", {})
+        cfg   = load_config()
+        loc   = cfg.get("location", {})
         aavso = cfg.get("aavso", {})
 
         self._obs = {
@@ -122,9 +180,7 @@ class Orchestrator:
             "end_utc":           None,
         }
 
-        self.diamond = DiamondSequence(host=SEESTAR_HOST)
-
-        # Lazy import — ScienceProcessor needs Siril on path
+        self.diamond  = DiamondSequence(host=SEESTAR_HOST)
         self._science = None
 
     def _get_science_processor(self):
@@ -140,7 +196,7 @@ class Orchestrator:
     # Main loop
     # -----------------------------------------------------------------------
     def run(self):
-        log.info("Orchestrator starting — SeeVar v1.7.0 (Sovereign TCP)")
+        log.info("Orchestrator starting — SeeVar v1.7.1 (Meridian-Aware)")
         self._session_stats["start_utc"] = datetime.now(timezone.utc).isoformat()
         self._write_state(sub="Daemon starting", msg="Federation online.")
 
@@ -158,13 +214,13 @@ class Orchestrator:
 
     def _tick(self):
         s = self._state
-        if s == PipelineState.IDLE:       self._run_idle()
-        elif s == PipelineState.PREFLIGHT: self._run_preflight()
-        elif s == PipelineState.PLANNING:  self._run_planning()
-        elif s == PipelineState.FLIGHT:    self._run_flight()
-        elif s == PipelineState.POSTFLIGHT:self._run_postflight()
-        elif s == PipelineState.PARKED:    self._run_parked()
-        elif s == PipelineState.ABORTED:   self._run_aborted()
+        if   s == PipelineState.IDLE:       self._run_idle()
+        elif s == PipelineState.PREFLIGHT:  self._run_preflight()
+        elif s == PipelineState.PLANNING:   self._run_planning()
+        elif s == PipelineState.FLIGHT:     self._run_flight()
+        elif s == PipelineState.POSTFLIGHT: self._run_postflight()
+        elif s == PipelineState.PARKED:     self._run_parked()
+        elif s == PipelineState.ABORTED:    self._run_aborted()
 
     # -----------------------------------------------------------------------
     # States
@@ -192,9 +248,11 @@ class Orchestrator:
             return
         self._log_flight(f"Sun altitude: {sun_alt:.1f}° — GO.")
 
-        # Hardware: get_device_state on port 4700
+        # Hardware: safe_stop then get_device_state on port 4700
         from core.flight.camera_control import CameraControl
         cam = CameraControl()
+        cam.safe_stop()   # clear any lingering session before health check
+        time.sleep(1.0)
         if not cam.get_view_status():
             self._log_flight("Hardware check FAILED — device not responding on port 4700.")
             checks_passed = False
@@ -228,8 +286,7 @@ class Orchestrator:
             self._transition(PipelineState.ABORTED, msg="No mission targets available.")
             return
 
-        now   = Time.now()
-        frame = AltAz(obstime=now, location=self._location)
+        now    = Time.now()
         scored = []
 
         for target in mission:
@@ -238,14 +295,16 @@ class Orchestrator:
                     ra=target.get("ra"), dec=target.get("dec"),
                     unit=(u.hourangle, u.deg)
                 )
-                altaz   = coord.transform_to(frame)
-                alt_deg = float(altaz.alt.deg)
-                az_deg  = float(altaz.az.deg)
-                if alt_deg < self.ALT_FLOOR_DEG:
-                    continue
-                target["_alt"]   = round(alt_deg, 2)
-                target["_az"]    = round(az_deg, 2)
-                target["_score"] = round(aperture_grip_score(az_deg, alt_deg), 2)
+                score, ha = meridian_aware_score(coord, now, self._location)
+                if score < 0:
+                    continue   # below altitude floor
+
+                target["_score"] = score
+                target["_ha"]    = ha
+                # Store alt/az for diagnostics
+                altaz = coord.transform_to(AltAz(obstime=now, location=self._location))
+                target["_alt"] = round(float(altaz.alt.deg), 2)
+                target["_az"]  = round(float(altaz.az.deg),  2)
                 scored.append(target)
             except Exception as e:
                 log.warning("Could not score %s: %s", target.get("name", "?"), e)
@@ -257,8 +316,16 @@ class Orchestrator:
         scored.sort(key=lambda t: t["_score"], reverse=True)
         self._targets = scored
         self._write_plan(scored)
+
+        # Log the flip picture for tonight
+        flip_zone = [t for t in scored if abs(t.get("_ha", 99)) < MERIDIAN_BUFFER_H]
+        west      = [t for t in scored if t.get("_ha", 0) > MERIDIAN_BUFFER_H]
+        east      = [t for t in scored if t.get("_ha", 0) < -MERIDIAN_BUFFER_H]
         self._log_flight(
-            f"Plan built: {len(scored)} targets. Lead: {scored[0].get('name')}"
+            f"Plan: {len(scored)} targets — "
+            f"{len(east)} east, {len(flip_zone)} in flip zone, {len(west)} west. "
+            f"Lead: {scored[0].get('name')} (HA={scored[0].get('_ha'):+.2f}h, "
+            f"score={scored[0].get('_score')})"
         )
         self._transition(
             PipelineState.FLIGHT,
@@ -286,30 +353,29 @@ class Orchestrator:
             self._transition(PipelineState.POSTFLIGHT, msg=f"Weather abort: {weather_msg}")
             return
 
-        # Re-score and cull targets below floor
-        now   = Time.now()
-        frame = AltAz(obstime=now, location=self._location)
-        valid = []
+        # Re-score all targets with current time — meridian moves ~1h per hour
+        now    = Time.now()
+        valid  = []
         for target in self._targets:
             try:
                 coord = SkyCoord(
                     ra=target["ra"], dec=target["dec"],
                     unit=(u.hourangle, u.deg)
                 )
-                altaz = coord.transform_to(frame)
-                alt   = float(altaz.alt.deg)
-                az    = float(altaz.az.deg)
-                if alt < self.ALT_FLOOR_DEG:
+                score, ha = meridian_aware_score(coord, now, self._location)
+                if score < 0:
                     continue
-                target["_alt"]   = round(alt, 2)
-                target["_az"]    = round(az, 2)
-                target["_score"] = round(aperture_grip_score(az, alt), 2)
+                target["_score"] = score
+                target["_ha"]    = ha
+                altaz = coord.transform_to(AltAz(obstime=now, location=self._location))
+                target["_alt"] = round(float(altaz.alt.deg), 2)
+                target["_az"]  = round(float(altaz.az.deg),  2)
                 valid.append(target)
             except Exception:
                 pass
 
         if not valid:
-            self._log_flight("All targets below floor. Moving to postflight.")
+            self._log_flight("All targets below floor or set. Moving to postflight.")
             self._transition(PipelineState.POSTFLIGHT, msg="All targets set.")
             return
 
@@ -318,6 +384,8 @@ class Orchestrator:
         target = valid[0]
 
         name    = target.get("name", "UNKNOWN")
+        ha      = target.get("_ha", 0.0)
+        score   = target.get("_score", 0.0)
         ra_str  = target.get("ra")
         dec_str = target.get("dec")
 
@@ -332,8 +400,13 @@ class Orchestrator:
         )
 
         self._session_stats["targets_attempted"] += 1
-        self._write_state(state="SLEWING", sub=name, msg=f"Diamond Sequence: {name}")
-        self._log_flight(f"Handing {name} to Diamond Sequence (TCP)...")
+        ha_side = "W" if ha > 0 else "E"
+        self._log_flight(
+            f"Target: {name}  HA={ha:+.2f}h ({ha_side})  "
+            f"alt={target.get('_alt')}°  score={score}"
+        )
+        self._write_state(state="SLEWING", sub=name,
+                         msg=f"Diamond Sequence: {name} HA={ha:+.2f}h")
 
         result = self.diamond.acquire(acq)
 
@@ -343,23 +416,16 @@ class Orchestrator:
             self._log_flight(f"Acquisition complete: {result.path.name}")
             notify_info(f"✅ SeeVar acquired {name} → {result.path.name}")
 
-            # Per-target postflight handoff
             self._handoff_to_science(name, result.path)
-
-            # Update ledger — last_success
             self._ledger_update(name, success=True)
 
-            # Rotate target to back of queue
             self._targets.remove(target)
             self._targets.append(target)
             self._write_state(state="TRACKING", sub=name, msg="Observation complete.")
         else:
             self._log_flight(f"TCP Acquisition FAILED for {name}: {result.error}")
             alert(f"❌ SeeVar acquisition failed: {name} — {result.error}")
-
-            # Update ledger — failed attempt
             self._ledger_update(name, success=False)
-
             self._targets.remove(target)
 
     def _run_postflight(self):
@@ -368,8 +434,7 @@ class Orchestrator:
         completed = self._session_stats["targets_completed"]
         attempted = self._session_stats["targets_attempted"]
         notify_info(
-            f"🔭 SeeVar session complete — "
-            f"{completed}/{attempted} targets acquired."
+            f"🔭 SeeVar session complete — {completed}/{attempted} targets acquired."
         )
         self._transition(PipelineState.PARKED, msg="Postflight complete.")
 
@@ -395,17 +460,15 @@ class Orchestrator:
             time.sleep(self.LOOP_SLEEP_SEC * 2)
 
     # -----------------------------------------------------------------------
-    # Per-target postflight handoff (absorbed from session_orchestrator)
+    # Per-target postflight handoff
     # -----------------------------------------------------------------------
     def _handoff_to_science(self, name: str, fits_path: Path):
-        """Hand a fresh FITS to ScienceProcessor for green extraction."""
         processor = self._get_science_processor()
         if processor is None:
             log.warning("ScienceProcessor unavailable — skipping science extraction.")
             return
         try:
-            safe_name = name.replace(" ", "_")
-            processed = processor.process_green_stack(safe_name)
+            processed = processor.process_green_stack(name.replace(" ", "_"))
             if processed:
                 self._log_flight(f"Science extraction complete: {processed}")
             else:
@@ -414,14 +477,9 @@ class Orchestrator:
             log.error(f"ScienceProcessor error for {name}: {e}")
 
     # -----------------------------------------------------------------------
-    # Ledger — per-target update (authoritative write, append-only)
+    # Ledger — per-target append-only update
     # -----------------------------------------------------------------------
     def _ledger_update(self, name: str, success: bool):
-        """
-        Update ledger.json for a single target.
-        Structure: {"entries": {"SS_CYG": {"last_success": ..., "attempts": N}}}
-        Never overwrites the full ledger — only updates the target's entry.
-        """
         try:
             LEDGER_FILE.parent.mkdir(parents=True, exist_ok=True)
             ledger = {}
@@ -445,8 +503,6 @@ class Orchestrator:
 
             with open(LEDGER_FILE, "w") as f:
                 json.dump(ledger, f, indent=2)
-
-            log.debug(f"Ledger updated: {key} success={success}")
         except OSError as e:
             log.error(f"Ledger write failed for {name}: {e}")
 
@@ -472,23 +528,18 @@ class Orchestrator:
         status = data.get("status", "UNKNOWN").upper()
         if status in ("RAIN", "STORM", "SNOW", "OVERCAST", "CLOUDY", "WINDY"):
             return False, f"Weather status: {status}"
-        clouds = data.get("clouds_pct", 0)
-        if clouds > 70:
-            return False, f"Cloud cover {clouds}%"
-        humidity = data.get("humidity_pct", 0)
-        if humidity > 90:
-            return False, f"Humidity {humidity}% — dew risk"
+        if data.get("clouds_pct", 0) > 70:
+            return False, f"Cloud cover {data['clouds_pct']}%"
+        if data.get("humidity_pct", 0) > 90:
+            return False, f"Humidity {data['humidity_pct']}% — dew risk"
         return True, status
 
     def _check_gps(self) -> str:
-        data = _safe_load_json(ENV_STATUS, {})
-        return data.get("gps_status", "NO-DATA")
+        return _safe_load_json(ENV_STATUS, {}).get("gps_status", "NO-DATA")
 
     def _load_mission_targets(self) -> list:
         data = _safe_load_json(MISSION_FILE, [])
-        if isinstance(data, list):
-            return data
-        return data.get("targets", [])
+        return data if isinstance(data, list) else data.get("targets", [])
 
     def _transition(self, new_state: str, sub: str = "", msg: str = ""):
         log.info("STATE: %s → %s", self._state, new_state)
