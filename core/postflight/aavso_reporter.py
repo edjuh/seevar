@@ -24,7 +24,7 @@ class AAVSOReporter:
         
         # Pulling from config.toml via VaultManager
         conf = self.vault.get_observer_config()
-        self.obs_code = conf.get("observer_code", "REDA")
+        self.obs_code = conf.get("observer_code", "")
 
     def finalize_report(self, observations):
         """

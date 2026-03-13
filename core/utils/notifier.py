@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/utils/notifier.py
+core/utils/notifier.py
 Version: 1.4.0
 Objective: Outbound alert management via Telegram and system bell.
            Single authoritative notifier for all SeeVar pipeline components.

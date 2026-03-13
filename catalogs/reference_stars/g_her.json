@@ -1,0 +1,168 @@
+{
+    "#objective": "AAVSO VSP Photometry sequence for g Her",
+    "target": {
+        "name": "g Her"
+    },
+    "comparison_stars": [
+        {
+            "auid": "000-BBX-728",
+            "ra": "16:34:06.18",
+            "dec": "42:26:13.4",
+            "label": "42",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 4.2,
+                    "error": 0.1
+                },
+                {
+                    "band": "U",
+                    "mag": 4.09,
+                    "error": 0.15
+                },
+                {
+                    "band": "B",
+                    "mag": 4.19,
+                    "error": 0.1
+                },
+                {
+                    "band": "Rc",
+                    "mag": 4.196,
+                    "error": 0.15
+                },
+                {
+                    "band": "J",
+                    "mag": 4.425,
+                    "error": 0.278
+                },
+                {
+                    "band": "H",
+                    "mag": 4.344,
+                    "error": 0.22
+                },
+                {
+                    "band": "K",
+                    "mag": 4.047,
+                    "error": 0.033
+                }
+            ],
+            "comments": "    "
+        },
+        {
+            "auid": "000-BJP-884",
+            "ra": "16:21:03.32",
+            "dec": "40:59:27.8",
+            "label": "82",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 8.175,
+                    "error": 0.025
+                },
+                {
+                    "band": "B",
+                    "mag": 9.415,
+                    "error": 0.035
+                },
+                {
+                    "band": "Rc",
+                    "mag": 7.587,
+                    "error": 0.04
+                },
+                {
+                    "band": "Ic",
+                    "mag": 7.089,
+                    "error": 0.049
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BJP-883",
+            "ra": "16:20:52.75",
+            "dec": "40:57:42.2",
+            "label": "89",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 8.949,
+                    "error": 0.023
+                },
+                {
+                    "band": "B",
+                    "mag": 10.303,
+                    "error": 0.038
+                },
+                {
+                    "band": "Rc",
+                    "mag": 8.148,
+                    "error": 0.042
+                },
+                {
+                    "band": "Ic",
+                    "mag": 7.471,
+                    "error": 0.047
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BJP-885",
+            "ra": "16:20:53.50",
+            "dec": "41:07:20.5",
+            "label": "108",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 10.836,
+                    "error": 0.013
+                },
+                {
+                    "band": "B",
+                    "mag": 12.005,
+                    "error": 0.026
+                },
+                {
+                    "band": "Rc",
+                    "mag": 10.233,
+                    "error": 0.028
+                },
+                {
+                    "band": "Ic",
+                    "mag": 9.734,
+                    "error": 0.036
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BJP-886",
+            "ra": "16:20:40.70",
+            "dec": "41:09:21.4",
+            "label": "113",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 11.28,
+                    "error": 0.026
+                },
+                {
+                    "band": "B",
+                    "mag": 11.757,
+                    "error": 0.044
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.028,
+                    "error": 0.051
+                },
+                {
+                    "band": "Ic",
+                    "mag": 10.755,
+                    "error": 0.059
+                }
+            ],
+            "comments": null
+        }
+    ]
+}

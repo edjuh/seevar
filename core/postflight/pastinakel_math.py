@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/postflight/pastinakel_math.py
+core/postflight/pastinakel_math.py
 Version: 1.1.1
 Objective: Logic for saturation detection and dynamic aperture scaling.
 """

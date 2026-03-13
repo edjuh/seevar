@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/preflight/sync_location.py
+core/preflight/sync_location.py
 Version: 1.3.1
 Objective: Synchronize S30 location using dynamic config coordinates to the verified open Port 80.
 """

@@ -23,7 +23,7 @@ from astropy.time import Time
 # Paths
 # ---------------------------------------------------------------------------
 BASE_DIR     = Path(__file__).resolve().parent
-PROJECT_ROOT = Path("/home/ed/seevar")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR     = PROJECT_ROOT / "data"
 PLAN_FILE    = DATA_DIR / "tonights_plan.json"
 STATE_FILE   = DATA_DIR / "system_state.json"
@@ -50,7 +50,7 @@ try:
     from core.utils.observer_math import get_maidenhead_6char
 except ImportError:
     def get_maidenhead_6char(lat, lon):
-        return "JO22hj"
+        return "UNKNOWN"
 
 # ---------------------------------------------------------------------------
 # Flask 
@@ -175,8 +175,8 @@ def index():
     loc    = config.get('location', {})
     
     fw_text = get_flight_window(
-        loc.get('lat', 52.3874), 
-        loc.get('lon', 4.6462), 
+        loc.get('lat', 0.0), 
+        loc.get('lon', 0.0), 
         loc.get('elevation', 0.0)
     )
     

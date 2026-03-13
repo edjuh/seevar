@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - 
 logger = logging.getLogger("CadenceAudit")
 
 def run_audit():
-    PROJECT_ROOT = Path("/home/ed/seevar")
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
     CATALOG_PATH = PROJECT_ROOT / "catalogs" / "federation_catalog.json"
     LEDGER_PATH = PROJECT_ROOT / "data" / "ledger.json"
 

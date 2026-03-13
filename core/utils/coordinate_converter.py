@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/utils/coordinate_converter.py
+core/utils/coordinate_converter.py
 Version: 1.2.1
 Objective: Ensures data validity by converting sexagesimal AAVSO coordinates into decimal degrees, appending #objective to JSON writes.
 """

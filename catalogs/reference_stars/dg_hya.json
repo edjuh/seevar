@@ -1,0 +1,320 @@
+{
+    "#objective": "AAVSO VSP Photometry sequence for DG Hya",
+    "target": {
+        "name": "DG Hya"
+    },
+    "comparison_stars": [
+        {
+            "auid": "000-BBQ-006",
+            "ra": "08:54:17.95",
+            "dec": "-05:26:04.1",
+            "label": "60",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 6.0,
+                    "error": 0.1
+                },
+                {
+                    "band": "U",
+                    "mag": 6.89,
+                    "error": 0.15
+                },
+                {
+                    "band": "B",
+                    "mag": 6.67,
+                    "error": 0.1
+                },
+                {
+                    "band": "Rc",
+                    "mag": 5.63,
+                    "error": 0.15
+                },
+                {
+                    "band": "J",
+                    "mag": 4.871,
+                    "error": 0.033
+                },
+                {
+                    "band": "H",
+                    "mag": 4.625,
+                    "error": 0.276
+                },
+                {
+                    "band": "K",
+                    "mag": 4.456,
+                    "error": 0.017
+                }
+            ],
+            "comments": "    "
+        },
+        {
+            "auid": "000-BBQ-145",
+            "ra": "08:58:56.23",
+            "dec": "-05:28:10.3",
+            "label": "111",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 11.097,
+                    "error": 0.076
+                },
+                {
+                    "band": "B",
+                    "mag": 11.988,
+                    "error": 0.14
+                },
+                {
+                    "band": "Ic",
+                    "mag": 10.202,
+                    "error": 0.121
+                },
+                {
+                    "band": "J",
+                    "mag": 9.591,
+                    "error": 0.021
+                },
+                {
+                    "band": "H",
+                    "mag": 9.152,
+                    "error": 0.022
+                },
+                {
+                    "band": "K",
+                    "mag": 9.056,
+                    "error": 0.023
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BBQ-139",
+            "ra": "08:58:31.91",
+            "dec": "-05:25:59.3",
+            "label": "114",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 11.417,
+                    "error": 0.014
+                },
+                {
+                    "band": "B",
+                    "mag": 12.434,
+                    "error": 0.017
+                },
+                {
+                    "band": "Rc",
+                    "mag": 10.82,
+                    "error": 0.02
+                },
+                {
+                    "band": "Ic",
+                    "mag": 10.334,
+                    "error": 0.023
+                },
+                {
+                    "band": "J",
+                    "mag": 9.617,
+                    "error": 0.021
+                },
+                {
+                    "band": "H",
+                    "mag": 9.123,
+                    "error": 0.022
+                },
+                {
+                    "band": "K",
+                    "mag": 8.972,
+                    "error": 0.023
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BBQ-155",
+            "ra": "08:59:17.10",
+            "dec": "-05:25:40.5",
+            "label": "119",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 11.862,
+                    "error": 0.035
+                },
+                {
+                    "band": "B",
+                    "mag": 12.479,
+                    "error": 0.273
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.306,
+                    "error": 0.126
+                },
+                {
+                    "band": "J",
+                    "mag": 10.927,
+                    "error": 0.017
+                },
+                {
+                    "band": "H",
+                    "mag": 10.72,
+                    "error": 0.022
+                },
+                {
+                    "band": "K",
+                    "mag": 10.635,
+                    "error": 0.018
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BJR-408",
+            "ra": "08:58:41.00",
+            "dec": "-05:25:38.1",
+            "label": "120",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.018,
+                    "error": 0.012
+                },
+                {
+                    "band": "B",
+                    "mag": 12.635,
+                    "error": 0.018
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.67,
+                    "error": 0.018
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.356,
+                    "error": 0.021
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BJR-407",
+            "ra": "08:58:19.85",
+            "dec": "-05:32:09.2",
+            "label": "121",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.131,
+                    "error": 0.007
+                },
+                {
+                    "band": "B",
+                    "mag": 12.629,
+                    "error": 0.011
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.813,
+                    "error": 0.019
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.517,
+                    "error": 0.023
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BBQ-120",
+            "ra": "08:58:06.79",
+            "dec": "-05:16:53.6",
+            "label": "123",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.258,
+                    "error": 0.015
+                },
+                {
+                    "band": "B",
+                    "mag": 13.351,
+                    "error": 0.023
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.695,
+                    "error": 0.023
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.201,
+                    "error": 0.025
+                },
+                {
+                    "band": "J",
+                    "mag": 10.381,
+                    "error": 0.021
+                },
+                {
+                    "band": "H",
+                    "mag": 9.809,
+                    "error": 0.022
+                },
+                {
+                    "band": "K",
+                    "mag": 9.718,
+                    "error": 0.019
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BBQ-115",
+            "ra": "08:58:00.88",
+            "dec": "-05:36:30.1",
+            "label": "124",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.41,
+                    "error": 0.014
+                },
+                {
+                    "band": "B",
+                    "mag": 13.042,
+                    "error": 0.018
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.051,
+                    "error": 0.018
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.735,
+                    "error": 0.022
+                },
+                {
+                    "band": "J",
+                    "mag": 11.248,
+                    "error": 0.021
+                },
+                {
+                    "band": "H",
+                    "mag": 10.947,
+                    "error": 0.025
+                },
+                {
+                    "band": "K",
+                    "mag": 10.911,
+                    "error": 0.023
+                }
+            ],
+            "comments": ""
+        }
+    ]
+}

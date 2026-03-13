@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/preflight/preflight_checklist.py
+core/preflight/preflight_checklist.py
 Version: 1.0.1
 Objective: Verify bridge connectivity, mount orientation, and imaging pipeline status prior to flight.
 """

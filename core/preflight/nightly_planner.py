@@ -13,7 +13,7 @@ from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from astropy.time import Time
 import astropy.units as u
 
-PROJECT_ROOT = Path("/home/ed/seevar")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(PROJECT_ROOT))
 
 # FIX: Drop the broken gps_location and use unified env_loader
@@ -35,8 +35,8 @@ def run_funnel():
     # Pull dynamic horizon and coordinates from config
     cfg = load_config()
     min_alt = cfg.get("location", {}).get("horizon_limit", 30.0)
-    lat = cfg.get("location", {}).get("lat", 52.3874)
-    lon = cfg.get("location", {}).get("lon", 4.6462)
+    lat = cfg.get("location", {}).get("lat", 0.0)
+    lon = cfg.get("location", {}).get("lon", 0.0)
     elev = cfg.get("location", {}).get("elevation", 0.0)
         
     with open(FEDERATION_CATALOG, 'r') as f:

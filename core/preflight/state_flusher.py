@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/preflight/state_flusher.py
+core/preflight/state_flusher.py
 Version: 1.1.1
 Objective: Preflight utility to flush stale system state and reset the dashboard to IDLE before a new flight.
 """

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/postflight/post_to_pre_feedback.py
+core/postflight/post_to_pre_feedback.py
 Version: 1.2.1
 Objective: Updates the master targets.json with successful observation dates extracted from QC reports.
 """

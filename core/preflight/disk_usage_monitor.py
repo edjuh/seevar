@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/preflight/disk_usage_monitor.py
+core/preflight/disk_usage_monitor.py
 Version: 1.1.1
 Objective: Monitor S30 internal storage via SMB mount and update system state with Go/No-Go veto.
 """

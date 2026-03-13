@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/preflight/disk_monitor.py
+core/preflight/disk_monitor.py
 Version: 1.1.2
 Objective: Verifies storage availability. Respects location context: NAS is only audited when on the Home Grid.
 """
@@ -32,7 +32,7 @@ class DiskMonitor:
         self.loc_cfg = self.config.get("location", {})
         
         self.nas_dir = self.storage_cfg.get("primary_dir", "/mnt/astro_nas/organized_fits")
-        self.usb_dir = self.storage_cfg.get("source_dir", "/home/ed/seestar_downloads")
+        self.usb_dir = self.storage_cfg.get("source_dir", "")
         
         # Grid Check (Strictly dynamic fallbacks)
         self.home_grid = self.net_cfg.get("home_grid", "NONE").upper()

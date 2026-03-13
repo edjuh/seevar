@@ -19,11 +19,13 @@ from astropy.coordinates import AltAz, EarthLocation, SkyCoord, get_body
 from astropy.time import Time
 
 import sys
-PROJECT_ROOT = Path("/home/ed/seevar")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config
-from core.flight.pilot import DiamondSequence, AcquisitionTarget, SEESTAR_HOST, FrameResult, write_fits, sovereign_stamp
+from core.flight.pilot import DiamondSequence, AcquisitionTarget, SEESTAR_HOST
+from core.flight.exposure_planner import plan_exposure
+from core.preflight.vsx_catalog import get_target_mag, FrameResult, write_fits, sovereign_stamp
 
 LOG_DIR = PROJECT_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -239,7 +241,7 @@ class Orchestrator:
         coord   = SkyCoord(ra=ra_str, dec=dec_str, unit=(u.hourangle, u.deg))
         acq_target = AcquisitionTarget(
             name=name, ra_hours=float(coord.ra.hour), dec_deg=float(coord.dec.deg),
-            auid=target.get("auid", ""), exp_ms=self.PANEL_TIME_SEC * 1000, observer_code=self._obs["observer_id"]
+            auid=target.get("auid", ""), exp_ms=plan_exposure(get_target_mag(name), sky_bortle=self._sky_bortle()).exp_ms, observer_code=self._obs["observer_id"]
         )
 
         self._session_stats["targets_attempted"] += 1
@@ -297,6 +299,12 @@ class Orchestrator:
         log.info(line)
         self._flight_log.append(line)
         if len(self._flight_log) > 10: self._flight_log.pop(0)
+
+    def _sky_bortle(self) -> int:
+        """Return Bortle class from config, default 7 (Haarlem)."""
+        cfg = load_config()
+        return int(cfg.get("location", {}).get("bortle", 7))
+
 
 def _safe_load_json(path: Path, default):
     if path.exists():

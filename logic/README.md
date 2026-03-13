@@ -2,7 +2,7 @@
 
 > **Objective:** Definitive entry point and table of contents for the foundational
 > rules, schemas, and communication protocols that govern the observatory pipeline.
-> **Version:** 2026.03.12
+> **Version:** 2026.03.13
 > **Path:** `~/seevar/logic/`
 
 ---
@@ -19,12 +19,13 @@
 | [data_dictionary.md](./data_dictionary.md) | Strict JSON schemas and filesystem contracts |
 | [data_mapping.md](./data_mapping.md) | Data flow from AAVSO fetch to FITS acquisition |
 | [DATALOGIC.md](./DATALOGIC.md) | Backend logic for RAID1 writing and data lifecycle |
-| [api_protocol.md](./api_protocol.md) | VSP/AAVSO handshake — includes Pi-Minute (188.4s) throttle |
+| [api_protocol.md](./api_protocol.md) | VSP/AAVSO handshake — includes Pi-Minute (31.4s) throttle |
 | [aavso_logic.md](./aavso_logic.md) | AAVSO authentication — direct apps.aavso.org endpoint |
 | [alpaca_bridge.md](./alpaca_bridge.md) | Alpaca bridge protocol — port 5432, device index /0/ |
 | [discovery_protocol.md](./discovery_protocol.md) | UDP broadcast for S30-Pro network discovery |
 | [SIMULATORLOGIC.md](./SIMULATORLOGIC.md) | Fixed-IP alignment (192.168.178.55) for simulator sync |
 | [core.md](./core.md) | Chain of command and guiding principles |
+| [PHOTOMETRICS.MD](./PHOTOMETRICS.MD) | Differential photometry — decisions, error budget & roadmap |
 | [seestar_dict.psv](./seestar_dict.psv) | PSV hardware key mappings and status codes |
 | [FILE_MANIFEST.md](./FILE_MANIFEST.md) | Auto-generated file manifest (do not edit by hand) |
 
@@ -42,8 +43,8 @@
 3. **Path Awareness** — All scripts resolve paths via `PROJECT_ROOT`
    from `__file__`, never hardcoded. RAID1 symlink at `data/`.
 
-4. **Throttling** — AAVSO VSP API: 188.4s (Pi-Minute) between requests.
-   Non-negotiable.
+4. **Throttling** — AAVSO VSX/VSP API: **31.4s (Pi-Minute)** between requests.
+   Non-negotiable. Pi IP was blocked at 3.14s — do not reduce.
 
 5. **Ledger Authority** — Postflight writes to the ledger. Preflight reads
    from it. No other component modifies `data/ledger.json`.
@@ -53,4 +54,4 @@
 
 ---
 
-*Observer: JO22hj — Haarlem, NL*
+*Observer: REDA — JO22hj — Haarlem, NL*

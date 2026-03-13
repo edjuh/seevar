@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/utils/gps_monitor.py
+core/utils/gps_monitor.py
 Version: 1.5.0
 Objective: Continuous native GPSD socket monitor with full resource safety,
            atomic writes, SIGTERM handling, Null Island guard, and --once mode.

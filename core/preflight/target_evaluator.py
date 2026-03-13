@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/preflight/target_evaluator.py
+core/preflight/target_evaluator.py
 Version: 1.0.1
 Objective: Audits the nightly plan for freshness and quantity to update dashboard UI.
 """

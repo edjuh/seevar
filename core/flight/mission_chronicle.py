@@ -14,7 +14,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - %(message)s')
 logger = logging.getLogger("Chronicle")
 
-PROJECT_ROOT = Path("/home/ed/seevar")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def run_step(name, script_path):
     logger.info(f"🚀 Executing {name}...")

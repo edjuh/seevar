@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/flight/vault_manager.py
+core/flight/vault_manager.py
 Version: 1.4.1
 Objective: Secure metadata access with actual bi-directional tomli_w syncing.
 """
@@ -12,7 +12,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-PROJECT_ROOT = Path("/home/ed/seevar")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.utils.env_loader import ENV_STATUS, CONFIG_PATH, load_config

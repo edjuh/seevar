@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/flight/neutralizer.py
+core/flight/neutralizer.py
 Version: 3.0.0
 Objective: Hardware reset — stops any active S30-Pro session and verifies
            idle state before handing control to the pilot.

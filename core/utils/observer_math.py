@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/utils/observer_math.py
+core/utils/observer_math.py
 Version: 1.0.2
 Objective: Mathematical utilities for observational astronomy, including Maidenhead grid calculations dynamically tested against config.toml.
 """

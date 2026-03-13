@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/preflight/gps.py
+core/preflight/gps.py
 Version: 1.4.1
 Objective: Bi-directional GPS provider with lazy initialization and Null Island protection.
 """
@@ -12,7 +12,7 @@ from pathlib import Path
 from astropy.coordinates import EarthLocation
 import astropy.units as u
 
-PROJECT_ROOT = Path("/home/ed/seevar")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.flight.vault_manager import VaultManager

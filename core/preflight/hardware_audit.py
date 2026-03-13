@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: /home/ed/seevar/core/preflight/hardware_audit.py
+core/preflight/hardware_audit.py
 Version: 1.3.1
 Objective: Deep hardware audit using the get_event_state bus, exporting to hardware_telemetry.json for Dashboard vitals.
 """

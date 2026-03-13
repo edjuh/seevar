@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - 
 logger = logging.getLogger("Librarian")
 
 # Fixed Sovereign Path
-PROJECT_ROOT = Path("/home/ed/seevar")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CATALOG_DIR = PROJECT_ROOT / "catalogs"
 RAW_HARVEST = CATALOG_DIR / "campaign_targets.json"
 REF_DIR = CATALOG_DIR / "reference_stars"

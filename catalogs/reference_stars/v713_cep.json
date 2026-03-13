@@ -1,0 +1,1538 @@
+{
+    "#objective": "AAVSO VSP Photometry sequence for V713 Cep",
+    "target": {
+        "name": "V713 Cep"
+    },
+    "comparison_stars": [
+        {
+            "auid": "000-BCM-382",
+            "ra": "20:45:17.38",
+            "dec": "61:50:19.6",
+            "label": "34",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 3.418,
+                    "error": 0.012
+                },
+                {
+                    "band": "U",
+                    "mag": 4.951,
+                    "error": 0.017
+                },
+                {
+                    "band": "B",
+                    "mag": 4.335,
+                    "error": 0.013
+                },
+                {
+                    "band": "Rc",
+                    "mag": 2.939,
+                    "error": 0.141
+                }
+            ],
+            "comments": "BINO_COMP. Duplicate with 000-BKS-291 (now hidden). eta Cep - ORG - V= 3.41 - 3.42."
+        },
+        {
+            "auid": "000-BKH-727",
+            "ra": "20:38:13.73",
+            "dec": "60:30:42.9",
+            "label": "96",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 9.599,
+                    "error": 0.039
+                },
+                {
+                    "band": "B",
+                    "mag": 10.085,
+                    "error": 0.062
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BCL-924",
+            "ra": "20:34:58.05",
+            "dec": "60:03:21.3",
+            "label": "101",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 10.09,
+                    "error": 0.1
+                },
+                {
+                    "band": "B",
+                    "mag": 10.34,
+                    "error": 0.141
+                },
+                {
+                    "band": "Ic",
+                    "mag": 9.705,
+                    "error": 0.13
+                },
+                {
+                    "band": "J",
+                    "mag": 9.537,
+                    "error": 0.025
+                },
+                {
+                    "band": "H",
+                    "mag": 9.469,
+                    "error": 0.065
+                },
+                {
+                    "band": "K",
+                    "mag": 9.343,
+                    "error": 0.015
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BKH-728",
+            "ra": "20:38:37.91",
+            "dec": "59:54:11.4",
+            "label": "103",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 10.344,
+                    "error": 0.049
+                },
+                {
+                    "band": "B",
+                    "mag": 10.646,
+                    "error": 0.08
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BKV-928",
+            "ra": "20:44:44.44",
+            "dec": "61:10:00.7",
+            "label": "106",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 10.608,
+                    "error": 0.015
+                },
+                {
+                    "band": "B",
+                    "mag": 11.191,
+                    "error": 0.022
+                },
+                {
+                    "band": "Rc",
+                    "mag": 10.185,
+                    "error": 0.075
+                },
+                {
+                    "band": "Ic",
+                    "mag": 9.789,
+                    "error": 0.104
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BKH-729",
+            "ra": "20:37:03.38",
+            "dec": "60:04:45.9",
+            "label": "107",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 10.681,
+                    "error": 0.051
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BLH-100",
+            "ra": "20:55:51.05",
+            "dec": "60:05:24.7",
+            "label": "109",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 10.924,
+                    "error": 0.009
+                },
+                {
+                    "band": "B",
+                    "mag": 11.628,
+                    "error": 0.013
+                },
+                {
+                    "band": "Rc",
+                    "mag": 10.457,
+                    "error": 0.032
+                },
+                {
+                    "band": "Ic",
+                    "mag": 10.021,
+                    "error": 0.045
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BKH-730",
+            "ra": "20:36:39.27",
+            "dec": "59:59:51.6",
+            "label": "110",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 10.973,
+                    "error": 0.056
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BKV-929",
+            "ra": "20:43:33.93",
+            "dec": "61:13:55.2",
+            "label": "112",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 11.229,
+                    "error": 0.016
+                },
+                {
+                    "band": "B",
+                    "mag": 11.965,
+                    "error": 0.029
+                },
+                {
+                    "band": "Rc",
+                    "mag": 10.651,
+                    "error": 0.084
+                },
+                {
+                    "band": "Ic",
+                    "mag": 10.113,
+                    "error": 0.117
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BCL-922",
+            "ra": "20:34:48.83",
+            "dec": "60:05:54.8",
+            "label": "115",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 11.489,
+                    "error": 0.081
+                },
+                {
+                    "band": "B",
+                    "mag": 12.094,
+                    "error": 0.295
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.017,
+                    "error": 0.557
+                },
+                {
+                    "band": "Ic",
+                    "mag": 10.576,
+                    "error": 0.783
+                },
+                {
+                    "band": "J",
+                    "mag": 10.185,
+                    "error": 0.023
+                },
+                {
+                    "band": "H",
+                    "mag": 9.922,
+                    "error": 0.032
+                },
+                {
+                    "band": "K",
+                    "mag": 9.886,
+                    "error": 0.018
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BLH-101",
+            "ra": "20:53:08.96",
+            "dec": "60:22:59.0",
+            "label": "115",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 11.465,
+                    "error": 0.01
+                },
+                {
+                    "band": "B",
+                    "mag": 11.887,
+                    "error": 0.017
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.123,
+                    "error": 0.034
+                },
+                {
+                    "band": "Ic",
+                    "mag": 10.801,
+                    "error": 0.046
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BKV-930",
+            "ra": "20:44:11.12",
+            "dec": "61:05:54.8",
+            "label": "116",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 11.625,
+                    "error": 0.03
+                },
+                {
+                    "band": "B",
+                    "mag": 11.939,
+                    "error": 0.045
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.333,
+                    "error": 0.078
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.057,
+                    "error": 0.106
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BLH-102",
+            "ra": "20:53:55.49",
+            "dec": "60:15:50.8",
+            "label": "117",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 11.734,
+                    "error": 0.012
+                },
+                {
+                    "band": "B",
+                    "mag": 12.328,
+                    "error": 0.019
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.289,
+                    "error": 0.04
+                },
+                {
+                    "band": "Ic",
+                    "mag": 10.873,
+                    "error": 0.055
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BLH-103",
+            "ra": "20:55:33.68",
+            "dec": "60:19:37.4",
+            "label": "120",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 11.965,
+                    "error": 0.01
+                },
+                {
+                    "band": "B",
+                    "mag": 12.546,
+                    "error": 0.015
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.544,
+                    "error": 0.043
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.149,
+                    "error": 0.06
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BMH-312",
+            "ra": "20:36:14.59",
+            "dec": "60:13:10.2",
+            "label": "120",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.047,
+                    "error": 0.05
+                },
+                {
+                    "band": "B",
+                    "mag": 13.102,
+                    "error": 0.071
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.404,
+                    "error": 0.05
+                },
+                {
+                    "band": "Ic",
+                    "mag": 10.806,
+                    "error": 0.05
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BJQ-458",
+            "ra": "20:45:13.99",
+            "dec": "60:43:16.7",
+            "label": "121",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.05,
+                    "error": 0.01
+                },
+                {
+                    "band": "B",
+                    "mag": 12.596,
+                    "error": 0.013
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.708,
+                    "error": 0.013
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.378,
+                    "error": 0.016
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BKV-931",
+            "ra": "20:44:15.27",
+            "dec": "61:08:52.8",
+            "label": "122",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.229,
+                    "error": 0.011
+                },
+                {
+                    "band": "B",
+                    "mag": 12.811,
+                    "error": 0.019
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.792,
+                    "error": 0.072
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.383,
+                    "error": 0.101
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BLH-104",
+            "ra": "20:55:47.79",
+            "dec": "60:24:14.1",
+            "label": "123",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.339,
+                    "error": 0.019
+                },
+                {
+                    "band": "B",
+                    "mag": 13.004,
+                    "error": 0.028
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.784,
+                    "error": 0.055
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.267,
+                    "error": 0.076
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BKV-932",
+            "ra": "20:43:45.83",
+            "dec": "60:57:26.3",
+            "label": "124",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.427,
+                    "error": 0.017
+                },
+                {
+                    "band": "B",
+                    "mag": 12.982,
+                    "error": 0.026
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.986,
+                    "error": 0.057
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.573,
+                    "error": 0.078
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BCL-928",
+            "ra": "20:35:19.61",
+            "dec": "60:02:31.9",
+            "label": "125",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.511,
+                    "error": 0.045
+                },
+                {
+                    "band": "B",
+                    "mag": 13.4,
+                    "error": 0.064
+                },
+                {
+                    "band": "Rc",
+                    "mag": 11.901,
+                    "error": 0.046
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.333,
+                    "error": 0.046
+                },
+                {
+                    "band": "J",
+                    "mag": 10.534,
+                    "error": 0.019
+                },
+                {
+                    "band": "H",
+                    "mag": 10.035,
+                    "error": 0.031
+                },
+                {
+                    "band": "K",
+                    "mag": 9.922,
+                    "error": 0.019
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BKV-933",
+            "ra": "20:44:16.00",
+            "dec": "60:56:18.1",
+            "label": "126",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.613,
+                    "error": 0.008
+                },
+                {
+                    "band": "B",
+                    "mag": 13.154,
+                    "error": 0.014
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.22,
+                    "error": 0.055
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.851,
+                    "error": 0.077
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BKV-934",
+            "ra": "20:43:11.09",
+            "dec": "61:01:13.1",
+            "label": "127",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.712,
+                    "error": 0.026
+                },
+                {
+                    "band": "B",
+                    "mag": 13.422,
+                    "error": 0.038
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.201,
+                    "error": 0.075
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.724,
+                    "error": 0.102
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BKV-935",
+            "ra": "20:43:36.69",
+            "dec": "61:03:16.7",
+            "label": "128",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.834,
+                    "error": 0.021
+                },
+                {
+                    "band": "B",
+                    "mag": 13.626,
+                    "error": 0.041
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.216,
+                    "error": 0.078
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.641,
+                    "error": 0.108
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BLH-105",
+            "ra": "20:52:50.75",
+            "dec": "60:32:01.1",
+            "label": "128",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.794,
+                    "error": 0.011
+                },
+                {
+                    "band": "B",
+                    "mag": 13.476,
+                    "error": 0.022
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.318,
+                    "error": 0.041
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.874,
+                    "error": 0.056
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BLH-106",
+            "ra": "20:53:16.80",
+            "dec": "60:24:58.0",
+            "label": "129",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.943,
+                    "error": 0.012
+                },
+                {
+                    "band": "B",
+                    "mag": 13.666,
+                    "error": 0.025
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.339,
+                    "error": 0.033
+                },
+                {
+                    "band": "Ic",
+                    "mag": 11.777,
+                    "error": 0.045
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BCL-945",
+            "ra": "20:35:43.84",
+            "dec": "60:11:50.1",
+            "label": "130",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 12.959,
+                    "error": 0.039
+                },
+                {
+                    "band": "B",
+                    "mag": 13.482,
+                    "error": 0.055
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.577,
+                    "error": 0.039
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.218,
+                    "error": 0.039
+                },
+                {
+                    "band": "J",
+                    "mag": 11.575,
+                    "error": 0.021
+                },
+                {
+                    "band": "H",
+                    "mag": 11.296,
+                    "error": 0.027
+                },
+                {
+                    "band": "K",
+                    "mag": 11.236,
+                    "error": 0.02
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BLH-107",
+            "ra": "20:55:03.66",
+            "dec": "60:15:01.8",
+            "label": "131",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 13.119,
+                    "error": 0.0
+                },
+                {
+                    "band": "B",
+                    "mag": 13.818,
+                    "error": 0.022
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.639,
+                    "error": 0.034
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.19,
+                    "error": 0.048
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BMJ-030",
+            "ra": "20:53:16.06",
+            "dec": "59:20:31.5",
+            "label": "133",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 13.35,
+                    "error": 0.01
+                },
+                {
+                    "band": "B",
+                    "mag": 14.056,
+                    "error": 0.015
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.807,
+                    "error": 0.05
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.301,
+                    "error": 0.07
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BCL-940",
+            "ra": "20:35:31.18",
+            "dec": "60:10:58.6",
+            "label": "134",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 13.438,
+                    "error": 0.034
+                },
+                {
+                    "band": "B",
+                    "mag": 14.139,
+                    "error": 0.048
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.898,
+                    "error": 0.073
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.395,
+                    "error": 0.098
+                },
+                {
+                    "band": "J",
+                    "mag": 11.642,
+                    "error": 0.017
+                },
+                {
+                    "band": "H",
+                    "mag": 11.178,
+                    "error": 0.025
+                },
+                {
+                    "band": "K",
+                    "mag": 11.057,
+                    "error": 0.018
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BKV-936",
+            "ra": "20:44:18.87",
+            "dec": "61:07:37.4",
+            "label": "134",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 13.418,
+                    "error": 0.035
+                },
+                {
+                    "band": "B",
+                    "mag": 14.107,
+                    "error": 0.052
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.853,
+                    "error": 0.078
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.326,
+                    "error": 0.105
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BLH-108",
+            "ra": "20:56:00.56",
+            "dec": "60:25:06.0",
+            "label": "134",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 13.446,
+                    "error": 0.015
+                },
+                {
+                    "band": "B",
+                    "mag": 14.214,
+                    "error": 0.023
+                },
+                {
+                    "band": "Rc",
+                    "mag": 12.858,
+                    "error": 0.035
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.31,
+                    "error": 0.048
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BJQ-459",
+            "ra": "20:46:33.16",
+            "dec": "60:37:59.2",
+            "label": "136",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 13.621,
+                    "error": 0.014
+                },
+                {
+                    "band": "B",
+                    "mag": 14.387,
+                    "error": 0.03
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.145,
+                    "error": 0.017
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.674,
+                    "error": 0.018
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BCL-941",
+            "ra": "20:35:31.94",
+            "dec": "60:09:02.0",
+            "label": "138",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 13.792,
+                    "error": 0.025
+                },
+                {
+                    "band": "B",
+                    "mag": 14.327,
+                    "error": 0.035
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.398,
+                    "error": 0.033
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.028,
+                    "error": 0.039
+                },
+                {
+                    "band": "J",
+                    "mag": 12.515,
+                    "error": 0.023
+                },
+                {
+                    "band": "H",
+                    "mag": 12.284,
+                    "error": 0.032
+                },
+                {
+                    "band": "K",
+                    "mag": 12.197,
+                    "error": 0.022
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BLH-109",
+            "ra": "20:54:52.95",
+            "dec": "60:29:32.9",
+            "label": "138",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 13.843,
+                    "error": 0.021
+                },
+                {
+                    "band": "B",
+                    "mag": 14.643,
+                    "error": 0.039
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.374,
+                    "error": 0.062
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.936,
+                    "error": 0.085
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BMJ-037",
+            "ra": "20:53:32.31",
+            "dec": "59:21:17.6",
+            "label": "138",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 13.774,
+                    "error": 0.029
+                },
+                {
+                    "band": "B",
+                    "mag": 14.407,
+                    "error": 0.043
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.227,
+                    "error": 0.069
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.717,
+                    "error": 0.094
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BLH-110",
+            "ra": "20:54:46.22",
+            "dec": "60:15:03.8",
+            "label": "140",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.019,
+                    "error": 0.025
+                },
+                {
+                    "band": "B",
+                    "mag": 14.89,
+                    "error": 0.038
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.499,
+                    "error": 0.039
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.014,
+                    "error": 0.049
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BMH-313",
+            "ra": "20:35:04.66",
+            "dec": "60:16:34.7",
+            "label": "141",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.123,
+                    "error": 0.054
+                },
+                {
+                    "band": "B",
+                    "mag": 15.203,
+                    "error": 0.076
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.41,
+                    "error": 0.081
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.748,
+                    "error": 0.102
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BPM-824",
+            "ra": "20:51:52.44",
+            "dec": "62:00:32.9",
+            "label": "141",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.071,
+                    "error": 0.003
+                },
+                {
+                    "band": "B",
+                    "mag": 14.858,
+                    "error": 0.003
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.624,
+                    "error": 0.023
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.204,
+                    "error": 0.023
+                },
+                {
+                    "band": "SG",
+                    "mag": 14.423,
+                    "error": 0.002
+                },
+                {
+                    "band": "SR",
+                    "mag": 13.844,
+                    "error": 0.003
+                },
+                {
+                    "band": "SI",
+                    "mag": 13.635,
+                    "error": 0.023
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BJQ-460",
+            "ra": "20:47:26.69",
+            "dec": "60:39:59.5",
+            "label": "142",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.161,
+                    "error": 0.009
+                },
+                {
+                    "band": "B",
+                    "mag": 15.113,
+                    "error": 0.022
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.589,
+                    "error": 0.013
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.034,
+                    "error": 0.014
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BMJ-032",
+            "ra": "20:52:58.91",
+            "dec": "59:12:45.2",
+            "label": "142",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.21,
+                    "error": 0.024
+                },
+                {
+                    "band": "B",
+                    "mag": 15.226,
+                    "error": 0.043
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.524,
+                    "error": 0.062
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.886,
+                    "error": 0.084
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BJQ-461",
+            "ra": "20:45:45.77",
+            "dec": "60:33:27.4",
+            "label": "144",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.372,
+                    "error": 0.005
+                },
+                {
+                    "band": "B",
+                    "mag": 15.192,
+                    "error": 0.012
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.891,
+                    "error": 0.008
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.413,
+                    "error": 0.009
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BPM-825",
+            "ra": "20:51:13.48",
+            "dec": "62:01:20.3",
+            "label": "144",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.355,
+                    "error": 0.002
+                },
+                {
+                    "band": "B",
+                    "mag": 15.076,
+                    "error": 0.002
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.891,
+                    "error": 0.004
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.458,
+                    "error": 0.004
+                },
+                {
+                    "band": "SG",
+                    "mag": 14.667,
+                    "error": 0.001
+                },
+                {
+                    "band": "SR",
+                    "mag": 14.156,
+                    "error": 0.002
+                },
+                {
+                    "band": "SI",
+                    "mag": 13.932,
+                    "error": 0.003
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BCL-910",
+            "ra": "20:34:24.05",
+            "dec": "60:09:29.7",
+            "label": "145",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.54,
+                    "error": 0.04
+                },
+                {
+                    "band": "B",
+                    "mag": 15.153,
+                    "error": 0.057
+                },
+                {
+                    "band": "Rc",
+                    "mag": 14.082,
+                    "error": 0.105
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.654,
+                    "error": 0.143
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BLH-111",
+            "ra": "20:53:41.90",
+            "dec": "60:06:45.4",
+            "label": "146",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.552,
+                    "error": 0.0
+                },
+                {
+                    "band": "B",
+                    "mag": 15.637,
+                    "error": 0.051
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.643,
+                    "error": 0.058
+                },
+                {
+                    "band": "Ic",
+                    "mag": 12.801,
+                    "error": 0.082
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BMJ-033",
+            "ra": "20:53:10.76",
+            "dec": "59:17:32.9",
+            "label": "146",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.552,
+                    "error": 0.0
+                },
+                {
+                    "band": "B",
+                    "mag": 15.582,
+                    "error": 0.061
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.958,
+                    "error": 0.034
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.405,
+                    "error": 0.048
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BLH-112",
+            "ra": "20:55:35.40",
+            "dec": "60:15:43.1",
+            "label": "147",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.664,
+                    "error": 0.023
+                },
+                {
+                    "band": "B",
+                    "mag": 15.723,
+                    "error": 0.14
+                },
+                {
+                    "band": "Rc",
+                    "mag": 13.934,
+                    "error": 0.042
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.256,
+                    "error": 0.055
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BPM-826",
+            "ra": "20:52:01.75",
+            "dec": "61:57:46.9",
+            "label": "147",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.651,
+                    "error": 0.007
+                },
+                {
+                    "band": "B",
+                    "mag": 15.169,
+                    "error": 0.007
+                },
+                {
+                    "band": "Rc",
+                    "mag": 14.262,
+                    "error": 0.01
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.897,
+                    "error": 0.01
+                },
+                {
+                    "band": "SG",
+                    "mag": 14.84,
+                    "error": 0.003
+                },
+                {
+                    "band": "SR",
+                    "mag": 14.536,
+                    "error": 0.007
+                },
+                {
+                    "band": "SI",
+                    "mag": 14.381,
+                    "error": 0.008
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BCL-934",
+            "ra": "20:35:25.48",
+            "dec": "60:09:06.7",
+            "label": "148",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.793,
+                    "error": 0.106
+                },
+                {
+                    "band": "B",
+                    "mag": 15.397,
+                    "error": 0.15
+                },
+                {
+                    "band": "Rc",
+                    "mag": 14.369,
+                    "error": 0.106
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.972,
+                    "error": 0.106
+                }
+            ],
+            "comments": ""
+        },
+        {
+            "auid": "000-BJQ-462",
+            "ra": "20:46:44.52",
+            "dec": "60:34:56.0",
+            "label": "148",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.786,
+                    "error": 0.012
+                },
+                {
+                    "band": "B",
+                    "mag": 15.569,
+                    "error": 0.013
+                },
+                {
+                    "band": "Rc",
+                    "mag": 14.308,
+                    "error": 0.017
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.829,
+                    "error": 0.019
+                }
+            ],
+            "comments": null
+        },
+        {
+            "auid": "000-BMJ-034",
+            "ra": "20:52:52.32",
+            "dec": "59:17:03.5",
+            "label": "149",
+            "bands": [
+                {
+                    "band": "V",
+                    "mag": 14.941,
+                    "error": 0.038
+                },
+                {
+                    "band": "B",
+                    "mag": 15.838,
+                    "error": 0.07
+                },
+                {
+                    "band": "Rc",
+                    "mag": 14.406,
+                    "error": 0.096
+                },
+                {
+                    "band": "Ic",
+                    "mag": 13.907,
+                    "error": 0.13
+                }
+            ],
+            "comments": ""
+        }
+    ]
+}
