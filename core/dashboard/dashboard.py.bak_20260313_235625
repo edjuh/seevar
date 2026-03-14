@@ -120,34 +120,6 @@ def load_plan() -> list:
 # Astronomical Twilight Engine (-18.0°)
 # ---------------------------------------------------------------------------
 FLIGHT_WINDOW_CACHE = {"date": None, "text": "CALCULATING..."}
-# Dusk datetime cache — used by postflight session filter
-DUSK_CACHE = {"date": None, "dt": None}
-
-def get_dusk_utc(lat: float, lon: float, elev: float):
-    """Return astronomical dusk as UTC datetime for the current night, or None."""
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    if DUSK_CACHE["date"] == today_str:
-        return DUSK_CACHE["dt"]
-    try:
-        loc = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=elev*u.m)
-        utc_now = datetime.now(timezone.utc)
-        start_time = datetime(utc_now.year, utc_now.month, utc_now.day, 12, 0, tzinfo=timezone.utc)
-        if utc_now.hour < 12:
-            start_time -= timedelta(days=1)
-        is_night = False
-        for m in range(0, 24 * 60, 5):
-            t_dt = start_time + timedelta(minutes=m)
-            t = Time(t_dt)
-            frame = AltAz(obstime=t, location=loc)
-            sun_alt = get_sun(t).transform_to(frame).alt.deg
-            if sun_alt <= -18.0 and not is_night:
-                is_night = True
-                DUSK_CACHE["date"] = today_str
-                DUSK_CACHE["dt"]   = t_dt
-                return t_dt
-    except Exception as e:
-        log.error("get_dusk_utc failed: %s", e)
-    return None
 
 def get_flight_window(lat: float, lon: float, elev: float) -> str:
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -192,117 +164,6 @@ def get_flight_window(lat: float, lon: float, elev: float) -> str:
     except Exception as e:
         log.error("Flight window calc failed: %s", e)
         return "ERR - CHECK LOGS"
-
-# ---------------------------------------------------------------------------
-# Postflight session builder
-# ---------------------------------------------------------------------------
-def build_postflight(ledger: dict, dusk_dt) -> dict:
-    """
-    Derives postflight scoreboard + last-5 log from ledger entries.
-    Session boundary = astronomical dusk for current night.
-    """
-    entries = ledger.get("entries", {})
-
-    # plan_file_scheduled — read tonight's plan for scheduled count
-    plan_data  = load_json_file(PLAN_FILE, [])
-    scheduled  = len(plan_data) if isinstance(plan_data, list) else len(plan_data.get("targets", []))
-    attempted  = 0
-    observed   = 0
-    failed     = 0
-    log_rows   = []
-
-    STATUS_FAIL = {"FAILED_QC", "FAILED_QC_LOW_SNR", "FAILED_SATURATED",
-                   "FAILED_NO_WCS", "ERROR"}
-
-    for name, e in entries.items():
-        obs_str = e.get("last_obs_utc")
-        if not obs_str:
-            continue
-        # Parse ISO timestamp — strip trailing Z for fromisoformat compat
-        try:
-            ts = datetime.fromisoformat(obs_str.rstrip("Z")).replace(tzinfo=timezone.utc)
-        except ValueError:
-            continue
-        # Session filter
-        if dusk_dt and ts < dusk_dt:
-            continue
-
-        attempted += 1
-        status = e.get("status", "PENDING")
-
-        if status == "OBSERVED":
-            observed += 1
-            row_class = "ok"
-        elif status in STATUS_FAIL:
-            failed += 1
-            row_class = "fail" if "SNR" in status or status in ("FAILED_NO_WCS","ERROR") else "warn"
-        else:
-            row_class = "warn"
-
-        # ZP scatter colour hint
-        zp_std = e.get("last_zp_std")
-        if zp_std is None:
-            zp_class = "z-bad"
-        elif zp_std < 0.30:
-            zp_class = "z-good"
-        elif zp_std < 0.80:
-            zp_class = "z-ok"
-        else:
-            zp_class = "z-bad"
-
-        mag     = e.get("last_mag")
-        err     = e.get("last_err")
-        snr     = e.get("last_snr")
-        zp      = e.get("last_zp")
-
-        mag_str = f"{mag:.3f} ±{err:.3f}" if mag is not None and err is not None else status.replace("FAILED_","")
-        snr_str = f"{snr:.0f}" if snr is not None else "—"
-        zp_str  = f"{zp:.2f}±{zp_std:.2f}" if zp is not None and zp_std is not None else "—"
-
-        # UTC HH:MM from timestamp
-        time_str = ts.strftime("%H:%M")
-
-        log_rows.append({
-            "time":      time_str,
-            "name":      name,
-            "filter":    e.get("last_filter", "—"),
-            "mag_str":   mag_str,
-            "snr_str":   snr_str,
-            "zp_str":    zp_str,
-            "zp_class":  zp_class,
-            "row_class": row_class,
-            "ts":        ts.isoformat(),
-        })
-
-    # Newest first, cap at 5
-    log_rows.sort(key=lambda r: r["ts"], reverse=True)
-    log_rows = log_rows[:5]
-    # Remove sort key before sending to client
-    for r in log_rows:
-        del r["ts"]
-
-    # Overall status — NAGIOS worst-child
-    if failed > 0:
-        overall = "orange"
-    else:
-        overall = "green" if observed > 0 else "grey"
-
-    phot_led   = "green" if observed > 0 else ("orange" if attempted > 0 else "grey")
-    aavso_led  = "grey"   # reporter not yet wired — placeholder
-
-    return {
-        "scoreboard": {
-            "scheduled": scheduled,
-            "attempted": attempted,
-            "observed":  observed,
-            "failed":    failed,
-        },
-        "overall":   overall,
-        "phot_led":  phot_led,
-        "aavso_led": aavso_led,
-        "log":       log_rows,
-    }
-
 
 # ---------------------------------------------------------------------------
 # Routes
@@ -366,16 +227,10 @@ def get_telemetry():
             "flight_log": state_data.get("flight_log", orchestrator["flight_log"])
         })
         
+    last_audit = "N/A"
     ledger = load_json_file(LEDGER_FILE, {})
-    last_audit = ledger.get("metadata", {}).get("last_updated", "N/A")
-
-    # Build postflight session block
-    dusk_dt = get_dusk_utc(
-        loc.get('lat', 52.3874),
-        loc.get('lon', 4.6462),
-        loc.get('elevation', 0.0)
-    )
-    postflight = build_postflight(ledger, dusk_dt)
+    if ledger:
+        last_audit = ledger.get("last_audit", "N/A")
         
     refresh_hw_cache()
     
@@ -390,7 +245,6 @@ def get_telemetry():
         "orchestrator": orchestrator,
         "hardware":    HW_CACHE["data"],
         "last_audit":  last_audit,
-        "postflight":  postflight,
     })
 
 if __name__ == "__main__":

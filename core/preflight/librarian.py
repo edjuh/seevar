@@ -19,6 +19,7 @@ CATALOG_DIR = PROJECT_ROOT / "catalogs"
 RAW_HARVEST = CATALOG_DIR / "campaign_targets.json"
 REF_DIR = CATALOG_DIR / "reference_stars"
 VALIDATED_CATALOG = CATALOG_DIR / "federation_catalog.json"
+VSX_CATALOG   = PROJECT_ROOT / "data" / "vsx_catalog.json"
 
 def inject_metadata(data, objective):
     return {
@@ -44,11 +45,59 @@ def process_library():
     # Deduplicate while preserving all fields
     unique_map = {t['name']: t for t in targets if 'name' in t}
     valid_targets = []
-    
+
+    # vsx_enrichment — load VSX cache for min_mag + period enrichment
+    vsx_stars = {}
+    if VSX_CATALOG.exists():
+        try:
+            vsx_raw = json.load(open(VSX_CATALOG, 'r'))
+            vsx_stars = vsx_raw.get("stars", {})
+            logger.info(f"📡 VSX cache loaded: {len(vsx_stars)} entries available for enrichment")
+        except Exception as e:
+            logger.warning(f"⚠️  VSX cache load failed: {e} — proceeding without enrichment")
+    else:
+        logger.warning("⚠️  VSX catalog not found — min_mag and period will be null")
+
+    enriched = skipped = 0
+
     for name, target in unique_map.items():
-        clean_name = name.lower().replace(' ', '_').replace('-', '_')
-        if (REF_DIR / f"{clean_name}.json").exists():
-            valid_targets.append(target)
+        # multi_name_match — check all three naming conventions
+        clean_lower = name.lower().replace(' ', '_').replace('-', '_')
+        clean_upper = name.upper().replace(' ', '_').replace('-', '_')
+        has_ref = (
+            (REF_DIR / f"{clean_lower}.json").exists() or
+            (REF_DIR / f"{clean_upper}_comps.json").exists() or
+            (REF_DIR / f"{clean_upper}.json").exists()
+        )
+        if not has_ref:
+            continue
+
+        # Enrich with VSX fields if available
+        vsx = vsx_stars.get(name, {})
+        if vsx:
+            # min_mag
+            raw_min = vsx.get("min_mag")
+            try:
+                target["min_mag"] = float(raw_min) if raw_min is not None else None
+            except (ValueError, TypeError):
+                target["min_mag"] = None
+
+            # period in days
+            raw_period = vsx.get("period")
+            try:
+                target["period_days"] = float(raw_period) if raw_period is not None else None
+            except (ValueError, TypeError):
+                target["period_days"] = None
+
+            enriched += 1
+        else:
+            target["min_mag"]     = None
+            target["period_days"] = None
+            skipped += 1
+
+        valid_targets.append(target)
+
+    logger.info(f"✨ VSX enrichment: {enriched} targets enriched, {skipped} without VSX match")
 
     federated_data = inject_metadata(valid_targets, "Validated and deduplicated target list ready for Auditing.")
     

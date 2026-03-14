@@ -64,6 +64,10 @@ def haul_and_filter(api_key):
                 mag = float(t.get("max_mag", 99.0))
             except (ValueError, TypeError):
                 mag = 99.0
+            try:
+                min_mag = float(t.get("min_mag", 99.0))
+            except (ValueError, TypeError):
+                min_mag = None
 
             try:
                 dec = float(t.get("dec", -90.0))
@@ -89,6 +93,7 @@ def haul_and_filter(api_key):
                     "dec": dec,
                     "type": star_type,
                     "mag_max": mag,
+                    "min_mag": min_mag,
                     "recommended_cadence_days": rec_cadence,
                     "priority": 2,
                     "duration": 600

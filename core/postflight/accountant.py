@@ -270,9 +270,9 @@ def process_buffer():
         except Exception as e:
             log.error("  ❌ Archive failed for %s: %s", fpath.name, e)
 
+        # incremental save — persist after every frame, survives kills
+        save_ledger(ledger)
         processed += 1
-
-    save_ledger(ledger)
     log.info("Audit complete. %d frames processed, %d successful observations stamped.",
              processed, successes)
 

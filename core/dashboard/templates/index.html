@@ -32,7 +32,7 @@
         .label { color: var(--text-muted); width: 45%; }
         .val { color: var(--text-bright); text-align: left; flex: 1; }
         
-        .target-card { border: 1px dashed #444; background: #151515; padding: 15px; margin-top: 15px; }
+        .target-card { border-top: 1px dashed #333; padding-top: 15px; margin-top: 15px; } /* target-card-patched */
         .target-card .row { margin-bottom: 8px; }
         .target-card .label { width: 30%; color: #aaa; }
         
@@ -84,6 +84,44 @@
             .bottom-bar { flex-direction: column; align-items: flex-start; gap: 15px; }
             .flight-log-container { border-left: none; border-top: 1px dashed #333; padding-left: 0; margin-left: 0; padding-top: 10px; width: 100%; height: auto;}
         }
+
+        /* --- Postflight log table --- */
+        .pf-scoreboard { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #333; }
+        .pf-score-cell { text-align: center; }
+        .pf-score-num  { font-size: 1.5em; font-weight: 900; letter-spacing: 1px; line-height: 1; }
+        .pf-score-lbl  { font-size: 0.6em; color: #555; letter-spacing: 2px; margin-top: 4px; }
+        .s-dim    { color: #444; }
+        .s-green  { color: var(--led-green);  text-shadow: 0 0 8px var(--led-green); }
+        .s-orange { color: var(--led-orange); text-shadow: 0 0 8px var(--led-orange); }
+        .s-red    { color: var(--alert-red);  text-shadow: 0 0 8px var(--alert-red); }
+        .pf-led-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; font-weight: bold; margin-bottom: 10px; }
+        .pf-led-label { color: var(--text-muted); }
+        .pf-led-right { display: flex; align-items: center; gap: 8px; }
+        .pf-led-val   { font-size: 0.8em; color: var(--text-muted); }
+        .pf-led-val.v-green  { color: var(--led-green); }
+        .pf-led-val.v-orange { color: var(--led-orange); }
+        .pf-log-head { display: grid; grid-template-columns: 38px 1fr 24px 1fr 54px; gap: 4px; font-size: 0.62em; color: #444; letter-spacing: 1.5px; padding-bottom: 5px; border-bottom: 1px solid #222; margin-bottom: 4px; }
+        .pf-log      { display: flex; flex-direction: column; gap: 1px; }
+        .pf-entry    { display: grid; grid-template-columns: 38px 1fr 24px 1fr 54px; gap: 4px; font-size: 0.72em; padding: 5px 0 5px 6px; border-bottom: 1px solid #1a1a1a; align-items: center; border-left: 2px solid transparent; }
+        .pf-entry.e-ok   { border-left-color: var(--led-green); }
+        .pf-entry.e-warn { border-left-color: var(--led-orange); }
+        .pf-entry.e-fail { border-left-color: var(--alert-red); }
+        .c-time { color: #555; }
+        .c-name { color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .c-flt  { color: #777; }
+        .c-mag  { color: var(--led-green); font-weight: bold; }
+        .c-mag.m-warn { color: var(--led-orange); }
+        .c-mag.m-fail { color: var(--alert-red); }
+        .c-zp         { font-size: 0.9em; }
+        .c-zp.z-good  { color: var(--led-green); }
+        .c-zp.z-ok    { color: var(--led-orange); }
+        .c-zp.z-bad   { color: var(--alert-red); }
+        .pf-footer    { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px solid #333; font-size: 0.72em; }
+        .pf-footer-note { color: #444; }
+        .pf-overall { font-weight: bold; letter-spacing: 2px; padding: 2px 8px; border: 1px solid; }
+        .pf-overall.o-green  { color: var(--led-green);  border-color: #1a3a0a; }
+        .pf-overall.o-orange { color: var(--led-orange); border-color: #3a2a00; }
+        .pf-overall.o-grey   { color: #555; border-color: #333; }
     </style>
 </head>
 <body>
@@ -100,11 +138,11 @@
             <div class="row"><span class="label">BRIDGE (5432)</span> <span class="val"></span> <div class="led green"></div></div>
             <div class="row"><span class="label">SEESTAR (LINK)</span> <span id="tel-link-val" class="val">WAITING...</span> <div id="tel-link-led" class="led grey"></div></div>
             <div class="row"><span class="label">GPS (LOCK)</span> <span class="val"></span> <div class="led green"></div></div>
-            <div class="row"><span class="label">WEATHER (PRED)</span> <span class="val">CLEAR</span> <div class="led weather-icon">⭐</div></div>
+            <div class="row"><span class="label">WEATHER (PRED)</span> <span id="weather-val" class="val">CLEAR</span> <div id="weather-icon-led" class="led weather-icon">⭐</div></div>
             <div class="row"><span class="label">FOG (VIS)</span> <span class="val">DISCONNECTED</span> <div class="led blue-grey"></div></div>
             
             <div class="target-card">
-                <div class="row" style="border-bottom: 1px solid #333; padding-bottom: 5px;">
+                <div class="row" style="padding-bottom: 5px;">
                     <span class="label" style="width: auto;">TARGET TELEMETRY</span>
                     <div id="target-count-led" class="led orange">00</div>
                 </div>
@@ -126,10 +164,54 @@
 
         <div class="panel">
             <h2>POSTFLIGHT AUDIT</h2>
-            <div class="row"><span class="label">LAST AUDIT</span> <span class="val" id="audit-stamp">N/A</span></div>
-            <div class="row"><span class="label">PHOTOMETRY</span> <div id="led-phot" class="led grey"></div></div>
-            <div class="row"><span class="label">AAVSO READY</span> <div id="led-aavso" class="led grey"></div></div>
-            <div class="siril-box" id="siril-log-box"></div>
+
+            <div class="pf-scoreboard">
+                <div class="pf-score-cell">
+                    <div class="pf-score-num s-dim" id="pf-sched">--</div>
+                    <div class="pf-score-lbl">SCHED</div>
+                </div>
+                <div class="pf-score-cell">
+                    <div class="pf-score-num s-dim" id="pf-attempt">--</div>
+                    <div class="pf-score-lbl">ATTEMPT</div>
+                </div>
+                <div class="pf-score-cell">
+                    <div class="pf-score-num s-dim" id="pf-observed">--</div>
+                    <div class="pf-score-lbl">OBSERVED</div>
+                </div>
+                <div class="pf-score-cell">
+                    <div class="pf-score-num s-dim" id="pf-failed">--</div>
+                    <div class="pf-score-lbl">FAILED</div>
+                </div>
+            </div>
+
+            <div class="pf-led-row">
+                <span class="pf-led-label">PHOTOMETRY</span>
+                <div class="pf-led-right">
+                    <span class="pf-led-val" id="pf-phot-val">--</span>
+                    <div id="led-phot" class="led grey"></div>
+                </div>
+            </div>
+            <div class="pf-led-row">
+                <span class="pf-led-label">AAVSO READY</span>
+                <div class="pf-led-right">
+                    <span class="pf-led-val" id="pf-aavso-val">--</span>
+                    <div id="led-aavso" class="led grey"></div>
+                </div>
+            </div>
+
+            <div class="pf-log-head">
+                <span>UTC</span>
+                <span>TARGET</span>
+                <span>FLT</span>
+                <span>MAG ± ERR / SNR</span>
+                <span>ZP ± σ</span>
+            </div>
+            <div class="pf-log" id="pf-log-body"></div>
+
+            <div class="pf-footer">
+                <span class="pf-footer-note" id="pf-footer-note">session since dusk</span>
+                <span class="pf-overall o-grey" id="pf-overall">--</span>
+            </div>
         </div>
     </div>
 
@@ -170,9 +252,14 @@
             const dec = t.dec ? parseFloat(t.dec).toFixed(2) : "--";
             const con = t.constellation || "UNK";
             document.getElementById('t-loc').innerText = `${con} | RA: ${ra} DEC: ${dec}`;
-            const maxM = t.max_mag || "--";
-            const minM = t.min_mag || "--";
-            document.getElementById('t-mag').innerText = `${maxM} - ${minM} (V)`;
+            const maxM = t.max_mag != null ? t.max_mag : "--";
+            const minM = t.min_mag != null ? t.min_mag : "--";
+            const perD = t.period_days != null
+                ? (t.period_days < 1
+                    ? (t.period_days * 24).toFixed(1) + "h"
+                    : t.period_days.toFixed(1) + "d")
+                : "--";
+            document.getElementById('t-mag').innerText = `${maxM} – ${minM} · ${perD} (V)`;
             tickerIndex = (tickerIndex + 1) % targetData.length;
         }
 
@@ -181,18 +268,15 @@
                 .then(res => res.json())
                 .then(data => {
                     if(data.maidenhead) document.getElementById('telemetry-mh').innerText = data.maidenhead;
-                    if(data.last_audit) document.getElementById('audit-stamp').innerText = data.last_audit;
 
                     if(data.weather) {
-                        const rows = document.querySelectorAll('.row');
-                        rows.forEach(row => {
-                            if(row.innerText.includes('WEATHER (PRED)')) {
-                                row.querySelector('.val').innerText = data.weather.status;
-                                const led = row.querySelector('.led');
-                                led.innerText = data.weather.icon;
-                                led.style.color = '#fff';
-                            }
-                        });
+                        const wVal = document.getElementById('weather-val');
+                        const wLed = document.getElementById('weather-icon-led');
+                        if(wVal) wVal.innerText = data.weather.status || 'N/A';
+                        if(wLed) {
+                            wLed.innerText = data.weather.icon || '❓';
+                            wLed.style.color = '#fff';
+                        }
                     }
 
                     if(data.orchestrator) {
@@ -253,15 +337,83 @@
                             battTxt.className = "stat-val batt-crit";
                         }
 
-                        storeTxt.innerText = (data.hardware.storage_mb !== "N/A") ? data.hardware.storage_mb + " MB" : "-- MB";
+                        const rawMb = parseFloat(data.hardware.storage_mb);
+                        storeTxt.innerText = isNaN(rawMb) ? '-- MB' : rawMb >= 1000 ? (rawMb / 1024).toFixed(1) + ' GB' : rawMb + ' MB';
                     }
 
-                    if(data.science) {
-                        document.getElementById('led-phot').className = `led ${data.science.photometry}`;
-                        document.getElementById('led-aavso').className = `led ${data.science.aavso_ready}`;
-                        let logHtml = '';
-                        data.science.siril_tail.forEach(line => { logHtml += `<div class="siril-line">> ${line}</div>`; });
-                        document.getElementById('siril-log-box').innerHTML = logHtml;
+                    if (data.postflight) {
+                        const pf = data.postflight;
+                        const sb = pf.scoreboard || {};
+
+                        // Scoreboard
+                        const sched    = sb.scheduled || 0;
+                        const attempt  = sb.attempted  || 0;
+                        const observed = sb.observed   || 0;
+                        const failed   = sb.failed     || 0;
+
+                        const schedEl = document.getElementById('pf-sched');
+                        schedEl.innerText = sched;
+                        schedEl.className = 'pf-score-num s-dim';
+
+                        const attEl = document.getElementById('pf-attempt');
+                        attEl.innerText = attempt;
+                        attEl.className = attempt > 0 ? 'pf-score-num s-green' : 'pf-score-num s-dim';
+
+                        const obsEl = document.getElementById('pf-observed');
+                        obsEl.innerText = observed;
+                        obsEl.className = observed > 0 ? 'pf-score-num s-green' : 'pf-score-num s-dim';
+
+                        const failEl = document.getElementById('pf-failed');
+                        failEl.innerText = failed;
+                        failEl.className = failed > 0 ? 'pf-score-num s-orange' : 'pf-score-num s-dim';
+
+                        // LED indicators
+                        const photLed = document.getElementById('led-phot');
+                        const photVal = document.getElementById('pf-phot-val');
+                        photLed.className = 'led ' + (pf.phot_led || 'grey');
+                        photVal.className  = 'pf-led-val' + (pf.phot_led === 'green' ? ' v-green' : pf.phot_led === 'orange' ? ' v-orange' : '');
+                        photVal.innerText  = observed > 0 ? observed + ' OBS' : '--';
+
+                        const aavsoLed = document.getElementById('led-aavso');
+                        const aavsoVal = document.getElementById('pf-aavso-val');
+                        aavsoLed.className = 'led ' + (pf.aavso_led || 'grey');
+                        aavsoVal.className  = 'pf-led-val' + (pf.aavso_led === 'green' ? ' v-green' : pf.aavso_led === 'orange' ? ' v-orange' : '');
+                        aavsoVal.innerText  = pf.aavso_led === 'green' ? 'SUBMITTED' : pf.aavso_led === 'orange' ? 'PENDING' : '--';
+
+                        // Overall status badge
+                        const overallEl = document.getElementById('pf-overall');
+                        if (pf.overall === 'green') {
+                            overallEl.className = 'pf-overall o-green';
+                            overallEl.innerText = 'ALL GOOD';
+                        } else if (pf.overall === 'orange') {
+                            overallEl.className = 'pf-overall o-orange';
+                            overallEl.innerText = failed + ' WARN';
+                        } else {
+                            overallEl.className = 'pf-overall o-grey';
+                            overallEl.innerText = 'WAITING';
+                        }
+
+                        // Log rows
+                        const logBody = document.getElementById('pf-log-body');
+                        const rows = pf.log || [];
+                        if (rows.length === 0) {
+                            logBody.innerHTML = '<div style="color:#444;font-size:0.75em;padding:8px 6px;grid-column:1/-1;">no observations this session</div>'; /* cosmetics_patched */
+                        } else {
+                            logBody.innerHTML = rows.map(r => {
+                                const magClass = r.row_class === 'fail' ? ' m-fail' : r.row_class === 'warn' ? ' m-warn' : '';
+                                return `<div class="pf-entry e-${r.row_class}">
+                                    <span class="c-time">${r.time}</span>
+                                    <span class="c-name">${r.name}</span>
+                                    <span class="c-flt">${r.filter}</span>
+                                    <span class="c-mag${magClass}">${r.mag_str} / ${r.snr_str}</span>
+                                    <span class="c-zp ${r.zp_class}">${r.zp_str}</span>
+                                </div>`;
+                            }).join('');
+                        }
+
+                        // Footer note
+                        document.getElementById('pf-footer-note').innerText =
+                            rows.length + ' of ' + attempt + ' · session since dusk';
                     }
                 })
                 .catch(err => console.error("Telemetry error:", err));

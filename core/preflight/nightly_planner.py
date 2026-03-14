@@ -61,15 +61,14 @@ def run_funnel():
         alt = float(altaz.alt.deg)
         az = float(altaz.az.deg)
         
-        if alt < min_alt: continue
-        if is_obstructed(az, alt): continue
+        if is_obstructed(az, alt): continue  # horizon_profile_gate
         
         t['current_alt'] = round(alt, 2)
         tonight.append(t)
     
     print(f"[+] Total targets evaluated: {len(targets)}")
     print(f"[-] Deferred by Cadence Auditor: {skipped_cadence}")
-    print(f"[=] Targets above {min_alt}° clear of obstructions: {len(tonight)}")
+    print(f"[=] Targets above horizon profile — {len(tonight)} targets clear")
 
     plan_out = {
         "#objective": "Final nightly flight plan filtered by cadence, physical horizon, and altitude.",

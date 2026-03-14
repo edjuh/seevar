@@ -1,7 +1,7 @@
 {
     "#objective": "Master haul of AAVSO targets filtered by local horizon and assigned CADENCE.md rules.",
     "metadata": {
-        "generated": "2026-03-12T22:45:21.588053",
+        "generated": "2026-03-14T13:50:52.752909",
         "schema_version": "2026.1",
         "source": "AAVSO Target Tool API",
         "target_count": 723
@@ -13,6 +13,7 @@
             "dec": 37.9426,
             "type": "UGSS",
             "mag_max": 11.0,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -23,6 +24,7 @@
             "dec": 43.75112,
             "type": "UGSS",
             "mag_max": 11.0,
+            "min_mag": 15.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -33,6 +35,7 @@
             "dec": 40.67936,
             "type": "ZAND+E",
             "mag_max": 6.97,
+            "min_mag": 7.8,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -43,6 +46,7 @@
             "dec": 35.29011,
             "type": "UGSS",
             "mag_max": 12.9,
+            "min_mag": 19.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -53,6 +57,7 @@
             "dec": 37.6265,
             "type": "UGSU",
             "mag_max": 13.1,
+            "min_mag": 18.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -63,6 +68,7 @@
             "dec": 41.96989,
             "type": "UGWZ",
             "mag_max": 11.7,
+            "min_mag": 20.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -73,6 +79,7 @@
             "dec": 40.04444,
             "type": "UGWZ+ZZ/GWLIB",
             "mag_max": 10.0,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -83,6 +90,7 @@
             "dec": 41.29939,
             "type": "UGZ",
             "mag_max": 10.3,
+            "min_mag": 14.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -93,6 +101,7 @@
             "dec": 48.81831,
             "type": "ZAND",
             "mag_max": 7.7,
+            "min_mag": 11.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -103,6 +112,7 @@
             "dec": 0.12706,
             "type": "UGSS",
             "mag_max": 13.0,
+            "min_mag": 18.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -113,6 +123,7 @@
             "dec": 14.29661,
             "type": "UGSU",
             "mag_max": 11.5,
+            "min_mag": null,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -123,6 +134,7 @@
             "dec": 0.58414,
             "type": "NA",
             "mag_max": -1.4,
+            "min_mag": 12.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -133,6 +145,7 @@
             "dec": 10.82575,
             "type": "UGSU",
             "mag_max": 13.3,
+            "min_mag": 19.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -143,6 +156,7 @@
             "dec": 16.43808,
             "type": "ZAND+EA",
             "mag_max": 10.4,
+            "min_mag": 15.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -153,6 +167,7 @@
             "dec": -2.98822,
             "type": "UGSS",
             "mag_max": 12.0,
+            "min_mag": 18.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -163,6 +178,7 @@
             "dec": 47.74036,
             "type": "UGSS",
             "mag_max": 10.3,
+            "min_mag": 16.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -173,6 +189,7 @@
             "dec": 40.72803,
             "type": "UGSU",
             "mag_max": 12.8,
+            "min_mag": 19.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -183,6 +200,7 @@
             "dec": 22.01522,
             "type": "UGWZ",
             "mag_max": 11.5,
+            "min_mag": 20.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -193,6 +211,7 @@
             "dec": 58.78947,
             "type": "UGSS",
             "mag_max": 13.0,
+            "min_mag": 18.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -203,6 +222,7 @@
             "dec": 73.11089,
             "type": "UGZ+N",
             "mag_max": 10.0,
+            "min_mag": 14.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -213,6 +233,7 @@
             "dec": 71.30875,
             "type": "UGSS",
             "mag_max": 12.3,
+            "min_mag": 15.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -223,6 +244,7 @@
             "dec": 56.87878,
             "type": "UGSU",
             "mag_max": 13.3,
+            "min_mag": 18.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -233,6 +255,7 @@
             "dec": 60.07675,
             "type": "UGSU+E",
             "mag_max": 12.6,
+            "min_mag": 19.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -243,6 +266,7 @@
             "dec": 57.90344,
             "type": "UGSS",
             "mag_max": 12.5,
+            "min_mag": 19.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -253,6 +277,7 @@
             "dec": 51.46092,
             "type": "UG",
             "mag_max": 13.9,
+            "min_mag": 16.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -263,6 +288,7 @@
             "dec": 5.98011,
             "type": "UGSS",
             "mag_max": 13.0,
+            "min_mag": 17.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -273,6 +299,7 @@
             "dec": 11.30422,
             "type": "UGSU",
             "mag_max": 13.3,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -283,6 +310,7 @@
             "dec": 25.33417,
             "type": "NA+UGZ/DQ:",
             "mag_max": 12.5,
+            "min_mag": 15.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -293,6 +321,7 @@
             "dec": 21.35154,
             "type": "UGSU",
             "mag_max": 13.0,
+            "min_mag": 18.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -303,6 +332,7 @@
             "dec": 27.86383,
             "type": "UGWZ",
             "mag_max": 11.9,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -313,6 +343,7 @@
             "dec": 17.89889,
             "type": "UGZ",
             "mag_max": 11.0,
+            "min_mag": 14.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -323,6 +354,7 @@
             "dec": 28.14256,
             "type": "UGSU",
             "mag_max": 10.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -333,6 +365,7 @@
             "dec": 14.34542,
             "type": "UGWZ",
             "mag_max": 12.9,
+            "min_mag": 19.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -343,6 +376,7 @@
             "dec": 25.92017,
             "type": "NR+ELL",
             "mag_max": 2.0,
+            "min_mag": 10.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -353,6 +387,7 @@
             "dec": 36.76408,
             "type": "ZAND+ELL",
             "mag_max": 9.34,
+            "min_mag": 10.28,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -363,6 +398,7 @@
             "dec": 29.67478,
             "type": "ZAND",
             "mag_max": 9.1,
+            "min_mag": 13.5,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -373,6 +409,7 @@
             "dec": 50.24142,
             "type": "ZAND+SR",
             "mag_max": 5.6,
+            "min_mag": 10.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -383,6 +420,7 @@
             "dec": 30.50789,
             "type": "UGZ+E",
             "mag_max": 11.9,
+            "min_mag": 14.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -393,6 +431,7 @@
             "dec": 32.36531,
             "type": "UGSS",
             "mag_max": 11.4,
+            "min_mag": 15.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -403,6 +442,7 @@
             "dec": 42.84142,
             "type": "NA",
             "mag_max": 3.0,
+            "min_mag": 15.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -413,6 +453,7 @@
             "dec": 33.86728,
             "type": "LMXB/BHXB/XN",
             "mag_max": 11.2,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -423,6 +464,7 @@
             "dec": 53.61853,
             "type": "NA+UG",
             "mag_max": 1.9,
+            "min_mag": 18.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -433,6 +475,7 @@
             "dec": 43.68958,
             "type": "UGSU",
             "mag_max": 13.4,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -443,6 +486,7 @@
             "dec": 41.92411,
             "type": "UGSS",
             "mag_max": 13.4,
+            "min_mag": 17.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -453,6 +497,7 @@
             "dec": 58.53314,
             "type": "UGSS",
             "mag_max": 13.6,
+            "min_mag": 17.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -463,6 +508,7 @@
             "dec": 40.67189,
             "type": "UGSU",
             "mag_max": 13.4,
+            "min_mag": 17.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -473,6 +519,7 @@
             "dec": 40.43869,
             "type": "UGSU",
             "mag_max": 13.0,
+            "min_mag": 18.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -483,6 +530,7 @@
             "dec": 31.53642,
             "type": "UGSS",
             "mag_max": 13.4,
+            "min_mag": null,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -493,6 +541,7 @@
             "dec": 36.43997,
             "type": "UGSS",
             "mag_max": 13.6,
+            "min_mag": 17.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -503,6 +552,7 @@
             "dec": 39.82678,
             "type": "NC+M",
             "mag_max": 10.05,
+            "min_mag": 17.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -513,6 +563,7 @@
             "dec": 56.94361,
             "type": "UGSU",
             "mag_max": 12.7,
+            "min_mag": 19.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -523,6 +574,7 @@
             "dec": 48.66197,
             "type": "UGWZ",
             "mag_max": 12.5,
+            "min_mag": 20.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -533,6 +585,7 @@
             "dec": 35.36261,
             "type": "UGSU",
             "mag_max": 13.9,
+            "min_mag": 20.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -543,6 +596,7 @@
             "dec": 48.15067,
             "type": "NA/AM+E",
             "mag_max": 1.69,
+            "min_mag": 19.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -553,6 +607,7 @@
             "dec": 44.03183,
             "type": "NA",
             "mag_max": 6.0,
+            "min_mag": null,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -563,6 +618,7 @@
             "dec": 35.70447,
             "type": "NB",
             "mag_max": 9.3,
+            "min_mag": 17.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -573,6 +629,7 @@
             "dec": 19.16092,
             "type": "NB",
             "mag_max": 3.6,
+            "min_mag": 12.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -583,6 +640,7 @@
             "dec": 77.73983,
             "type": "UGZ",
             "mag_max": 12.3,
+            "min_mag": 16.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -593,6 +651,7 @@
             "dec": 66.80283,
             "type": "ZAND",
             "mag_max": 7.9,
+            "min_mag": 10.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -603,6 +662,7 @@
             "dec": 71.68906,
             "type": "UG/DQ",
             "mag_max": 10.0,
+            "min_mag": 17.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -613,6 +673,7 @@
             "dec": -4.13536,
             "type": "UGSU",
             "mag_max": 12.5,
+            "min_mag": 17.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -623,6 +684,7 @@
             "dec": 28.50454,
             "type": "UGSU",
             "mag_max": 12.9,
+            "min_mag": 19.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -633,6 +695,7 @@
             "dec": 28.10619,
             "type": "UGSU",
             "mag_max": 11.2,
+            "min_mag": 17.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -643,6 +706,7 @@
             "dec": 22.00133,
             "type": "UGSS+E",
             "mag_max": 8.2,
+            "min_mag": 14.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -653,6 +717,7 @@
             "dec": 25.25056,
             "type": "UGZ/IW",
             "mag_max": 10.8,
+            "min_mag": 14.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -663,6 +728,7 @@
             "dec": 49.86781,
             "type": "AM+E",
             "mag_max": 12.3,
+            "min_mag": 15.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -673,6 +739,7 @@
             "dec": 24.80047,
             "type": "UGSU",
             "mag_max": 14.4,
+            "min_mag": 19.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -683,6 +750,7 @@
             "dec": 45.859,
             "type": "NB/DQ+E",
             "mag_max": 1.3,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -693,6 +761,7 @@
             "dec": 23.45556,
             "type": "ZAND",
             "mag_max": 11.42,
+            "min_mag": 11.72,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -703,6 +772,7 @@
             "dec": 13.24139,
             "type": "NA+UGSS",
             "mag_max": 2.8,
+            "min_mag": 18.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -713,6 +783,7 @@
             "dec": 41.85628,
             "type": "NA+NL/VY",
             "mag_max": 3.0,
+            "min_mag": 16.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -723,6 +794,7 @@
             "dec": 20.98914,
             "type": "ZAND+ELL",
             "mag_max": 11.1,
+            "min_mag": 14.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -733,6 +805,7 @@
             "dec": 55.617,
             "type": "NA/VY",
             "mag_max": 2.1,
+            "min_mag": 20.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -743,6 +816,7 @@
             "dec": 1.81625,
             "type": "UGWZ",
             "mag_max": 11.5,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -753,6 +827,7 @@
             "dec": 11.87535,
             "type": "UGSS",
             "mag_max": 11.8,
+            "min_mag": 17.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -763,6 +838,7 @@
             "dec": 37.99775,
             "type": "UGSU",
             "mag_max": 12.5,
+            "min_mag": 18.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -773,6 +849,7 @@
             "dec": 26.75875,
             "type": "UGSS",
             "mag_max": 12.9,
+            "min_mag": null,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -783,6 +860,7 @@
             "dec": 30.25925,
             "type": "UGSU",
             "mag_max": 13.6,
+            "min_mag": 18.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -793,6 +871,7 @@
             "dec": 38.33453,
             "type": "UG",
             "mag_max": 12.9,
+            "min_mag": 18.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -803,6 +882,7 @@
             "dec": 43.37444,
             "type": "UGSU",
             "mag_max": 13.8,
+            "min_mag": 19.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -813,6 +893,7 @@
             "dec": 0.03811,
             "type": "UGSS+E",
             "mag_max": 11.9,
+            "min_mag": 17.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -823,6 +904,7 @@
             "dec": -6.70794,
             "type": "NR+LB",
             "mag_max": 4.3,
+            "min_mag": 12.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -833,6 +915,7 @@
             "dec": 5.86328,
             "type": "UGZ/DQ:",
             "mag_max": 11.2,
+            "min_mag": 13.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -843,6 +926,7 @@
             "dec": 1.00851,
             "type": "UG",
             "mag_max": 13.9,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -853,6 +937,7 @@
             "dec": -5.41683,
             "type": "UGSS",
             "mag_max": 12.1,
+            "min_mag": 16.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -863,6 +948,7 @@
             "dec": 15.40314,
             "type": "UGSS",
             "mag_max": 12.1,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -873,6 +959,7 @@
             "dec": 15.51647,
             "type": "UG",
             "mag_max": 14.1,
+            "min_mag": 19.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -883,6 +970,7 @@
             "dec": 12.62558,
             "type": "ZAND+R",
             "mag_max": 6.0,
+            "min_mag": 9.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -893,6 +981,7 @@
             "dec": 14.06367,
             "type": "UGSU",
             "mag_max": 10.7,
+            "min_mag": 18.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -903,6 +992,7 @@
             "dec": 18.41656,
             "type": "UG+E",
             "mag_max": 11.7,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -913,6 +1003,7 @@
             "dec": 12.70314,
             "type": "UGSS+ZZ:",
             "mag_max": 9.5,
+            "min_mag": 13.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -923,6 +1014,7 @@
             "dec": 54.25064,
             "type": "ZAND+E",
             "mag_max": 9.5,
+            "min_mag": 12.8,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -933,6 +1025,7 @@
             "dec": 51.24675,
             "type": "UG",
             "mag_max": 11.8,
+            "min_mag": 16.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -943,6 +1036,7 @@
             "dec": 43.90428,
             "type": "NA/DQ+UG",
             "mag_max": 0.2,
+            "min_mag": 14.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -953,6 +1047,7 @@
             "dec": 50.95567,
             "type": "UGSS+ZZ",
             "mag_max": 11.5,
+            "min_mag": 15.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -963,6 +1058,7 @@
             "dec": 58.38119,
             "type": "UGZ",
             "mag_max": 12.0,
+            "min_mag": 15.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -973,6 +1069,7 @@
             "dec": 57.18922,
             "type": "UGSU",
             "mag_max": 11.0,
+            "min_mag": 18.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -983,6 +1080,7 @@
             "dec": 32.38582,
             "type": "UGSU",
             "mag_max": 11.7,
+            "min_mag": 18.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -993,6 +1091,7 @@
             "dec": 16.69122,
             "type": "UGSU",
             "mag_max": 14.0,
+            "min_mag": 19.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1003,6 +1102,7 @@
             "dec": 16.74433,
             "type": "NC+M",
             "mag_max": 11.1,
+            "min_mag": 18.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1013,6 +1113,7 @@
             "dec": 17.04786,
             "type": "UGSU",
             "mag_max": 12.3,
+            "min_mag": null,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1023,6 +1124,7 @@
             "dec": 17.70408,
             "type": "UGWZ+E+ZZ",
             "mag_max": 7.0,
+            "min_mag": 15.53,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1033,6 +1135,7 @@
             "dec": 49.245,
             "type": "UGWZ",
             "mag_max": 10.9,
+            "min_mag": 18.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1043,6 +1146,7 @@
             "dec": 57.81128,
             "type": "UGSU",
             "mag_max": 10.8,
+            "min_mag": 17.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1053,6 +1157,7 @@
             "dec": 67.54653,
             "type": "UG",
             "mag_max": 10.7,
+            "min_mag": 15.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1063,6 +1168,7 @@
             "dec": 71.92889,
             "type": "UGSU",
             "mag_max": 14.1,
+            "min_mag": 19.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1073,6 +1179,7 @@
             "dec": 49.68839,
             "type": "UGSU",
             "mag_max": 11.9,
+            "min_mag": 17.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1083,6 +1190,7 @@
             "dec": 50.89839,
             "type": "UGER",
             "mag_max": 14.6,
+            "min_mag": 18.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1093,6 +1201,7 @@
             "dec": 62.60619,
             "type": "UGSU",
             "mag_max": 10.8,
+            "min_mag": 16.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1103,6 +1212,7 @@
             "dec": 53.47717,
             "type": "UGSU",
             "mag_max": 9.7,
+            "min_mag": 17.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1113,6 +1223,7 @@
             "dec": 71.75331,
             "type": "UGSU",
             "mag_max": 12.6,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1123,6 +1234,7 @@
             "dec": 1.89137,
             "type": "UGWZ",
             "mag_max": 11.5,
+            "min_mag": 19.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1133,6 +1245,7 @@
             "dec": 3.36856,
             "type": "UGSU",
             "mag_max": 9.8,
+            "min_mag": 16.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1143,6 +1256,7 @@
             "dec": -4.43489,
             "type": "UGSS",
             "mag_max": 11.5,
+            "min_mag": 17.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1153,6 +1267,7 @@
             "dec": 27.17211,
             "type": "NA",
             "mag_max": 4.5,
+            "min_mag": 18.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1163,6 +1278,7 @@
             "dec": 20.46661,
             "type": "NB",
             "mag_max": 6.01,
+            "min_mag": 18.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1173,6 +1289,7 @@
             "dec": 21.57186,
             "type": "NC",
             "mag_max": 8.7,
+            "min_mag": 16.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1183,6 +1300,7 @@
             "dec": 27.84536,
             "type": "NA+E",
             "mag_max": 5.3,
+            "min_mag": 18.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1193,6 +1311,7 @@
             "dec": 25.50714,
             "type": "UGZ",
             "mag_max": 13.1,
+            "min_mag": 17.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1203,6 +1322,7 @@
             "dec": 61.91114,
             "type": "INA",
             "mag_max": 10.38,
+            "min_mag": 10.93,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1213,6 +1333,7 @@
             "dec": 40.66769,
             "type": "INA",
             "mag_max": 12.94,
+            "min_mag": 14.24,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1223,6 +1344,7 @@
             "dec": 36.38586,
             "type": "SR",
             "mag_max": 11.9,
+            "min_mag": 13.5,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1233,6 +1355,7 @@
             "dec": 10.44469,
             "type": "INB",
             "mag_max": 13.04,
+            "min_mag": null,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1243,6 +1366,7 @@
             "dec": -1.96819,
             "type": "INA",
             "mag_max": 10.1,
+            "min_mag": 12.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1253,6 +1377,7 @@
             "dec": 25.60453,
             "type": "MISC",
             "mag_max": 12.07,
+            "min_mag": null,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1263,6 +1388,7 @@
             "dec": 29.401,
             "type": "RRAB/BL:",
             "mag_max": 9.14,
+            "min_mag": 10.14,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1273,6 +1399,7 @@
             "dec": 48.78286,
             "type": "RRD",
             "mag_max": 10.7,
+            "min_mag": null,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1283,6 +1410,7 @@
             "dec": 38.95056,
             "type": "RRAB/BL",
             "mag_max": 10.08,
+            "min_mag": 11.13,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1293,6 +1421,7 @@
             "dec": 43.01436,
             "type": "RRAB",
             "mag_max": 10.42,
+            "min_mag": 10.92,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1303,6 +1432,7 @@
             "dec": 0.07636,
             "type": "RRAB",
             "mag_max": 10.438,
+            "min_mag": 11.755,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1313,6 +1443,7 @@
             "dec": 40.77697,
             "type": "RRAB",
             "mag_max": 11.08,
+            "min_mag": 12.45,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1323,6 +1454,7 @@
             "dec": 33.96306,
             "type": "RRAB",
             "mag_max": 11.22,
+            "min_mag": 12.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1333,6 +1465,7 @@
             "dec": 31.75461,
             "type": "RRAB/BL",
             "mag_max": 9.69,
+            "min_mag": 10.84,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1343,6 +1476,7 @@
             "dec": 35.78453,
             "type": "RRAB/BL",
             "mag_max": 10.49,
+            "min_mag": 11.41,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1353,6 +1487,7 @@
             "dec": 36.04558,
             "type": "RRAB",
             "mag_max": 11.76,
+            "min_mag": 12.88,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1363,6 +1498,7 @@
             "dec": 42.35992,
             "type": "RRC/BL",
             "mag_max": 10.57,
+            "min_mag": 11.23,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1373,6 +1509,7 @@
             "dec": 28.20597,
             "type": "RRAB",
             "mag_max": 11.92,
+            "min_mag": 13.05,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1383,6 +1520,7 @@
             "dec": 41.02892,
             "type": "RRAB",
             "mag_max": 10.63,
+            "min_mag": 11.68,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1393,6 +1531,7 @@
             "dec": 35.11569,
             "type": "RRAB",
             "mag_max": 11.5,
+            "min_mag": 12.81,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1403,6 +1542,7 @@
             "dec": 12.95181,
             "type": "RRAB/BL",
             "mag_max": 10.486,
+            "min_mag": 11.276,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1413,6 +1553,7 @@
             "dec": 29.06548,
             "type": "RRAB",
             "mag_max": 11.4,
+            "min_mag": 12.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1423,6 +1564,7 @@
             "dec": 13.1911,
             "type": "RRAB/BL",
             "mag_max": 10.931,
+            "min_mag": 11.572,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1433,6 +1575,7 @@
             "dec": 1.34175,
             "type": "RRAB",
             "mag_max": 9.15,
+            "min_mag": 10.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1443,6 +1586,7 @@
             "dec": 56.38819,
             "type": "RRAB/BL",
             "mag_max": 8.9,
+            "min_mag": 10.16,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1453,6 +1597,7 @@
             "dec": 32.19131,
             "type": "RRAB/BL",
             "mag_max": 10.93,
+            "min_mag": 11.99,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1463,6 +1608,7 @@
             "dec": 57.83978,
             "type": "RRAB/BL",
             "mag_max": 11.05,
+            "min_mag": 12.08,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1473,6 +1619,7 @@
             "dec": 64.85892,
             "type": "RRAB/BL",
             "mag_max": 9.59,
+            "min_mag": 10.65,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1483,6 +1630,7 @@
             "dec": 30.88319,
             "type": "RRAB/BL",
             "mag_max": 10.62,
+            "min_mag": 11.99,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1493,6 +1641,7 @@
             "dec": 46.92381,
             "type": "RRAB/BL",
             "mag_max": 10.59,
+            "min_mag": 11.63,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1503,6 +1652,7 @@
             "dec": 14.51075,
             "type": "RRAB/BL",
             "mag_max": 11.718,
+            "min_mag": 12.631,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1513,6 +1663,7 @@
             "dec": 30.41047,
             "type": "RRAB",
             "mag_max": 10.52,
+            "min_mag": 11.83,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1523,6 +1674,7 @@
             "dec": 18.36671,
             "type": "RRAB",
             "mag_max": 9.89,
+            "min_mag": 11.18,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1533,6 +1685,7 @@
             "dec": 4.11119,
             "type": "RRAB/BL",
             "mag_max": 11.727,
+            "min_mag": 12.728,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1543,6 +1696,7 @@
             "dec": -5.44032,
             "type": "RRAB/BL",
             "mag_max": 11.567,
+            "min_mag": 12.585,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1553,6 +1707,7 @@
             "dec": 23.99173,
             "type": "RRAB",
             "mag_max": 9.92,
+            "min_mag": 11.25,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1563,6 +1718,7 @@
             "dec": -0.03333,
             "type": "RRAB",
             "mag_max": 10.42,
+            "min_mag": 11.584,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1573,6 +1729,7 @@
             "dec": -5.89243,
             "type": "RRAB",
             "mag_max": 11.531,
+            "min_mag": 12.578,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1583,6 +1740,7 @@
             "dec": 7.20586,
             "type": "RRAB",
             "mag_max": 12.089,
+            "min_mag": 12.902,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1593,6 +1751,7 @@
             "dec": 32.79833,
             "type": "RRAB/BL",
             "mag_max": 10.6,
+            "min_mag": 12.03,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1603,6 +1762,7 @@
             "dec": 22.57483,
             "type": "RRAB",
             "mag_max": 9.93,
+            "min_mag": 10.99,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1613,6 +1773,7 @@
             "dec": 53.98739,
             "type": "RRAB/BL",
             "mag_max": 9.81,
+            "min_mag": 11.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1623,6 +1784,7 @@
             "dec": 16.20097,
             "type": "RRAB/BL",
             "mag_max": 13.0,
+            "min_mag": 14.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -1633,6 +1795,7 @@
             "dec": 38.67042,
             "type": "SRA",
             "mag_max": 9.9,
+            "min_mag": 14.5,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1643,6 +1806,7 @@
             "dec": 35.77256,
             "type": "SRA",
             "mag_max": 7.7,
+            "min_mag": 11.8,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1653,6 +1817,7 @@
             "dec": 8.23,
             "type": "M",
             "mag_max": 5.5,
+            "min_mag": 12.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1663,6 +1828,7 @@
             "dec": -1.88647,
             "type": "M",
             "mag_max": 7.8,
+            "min_mag": 15.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1673,6 +1839,7 @@
             "dec": -4.02781,
             "type": "M",
             "mag_max": 9.3,
+            "min_mag": 15.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1683,6 +1850,7 @@
             "dec": 34.14981,
             "type": "SR",
             "mag_max": 8.2,
+            "min_mag": 13.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1693,6 +1861,7 @@
             "dec": 53.30553,
             "type": "SRD",
             "mag_max": 9.3,
+            "min_mag": 11.5,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1703,6 +1872,7 @@
             "dec": 38.86128,
             "type": "SRB",
             "mag_max": 7.0,
+            "min_mag": 11.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1713,6 +1883,7 @@
             "dec": 11.72625,
             "type": "M",
             "mag_max": 6.07,
+            "min_mag": 12.3,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1723,6 +1894,7 @@
             "dec": 11.73533,
             "type": "M",
             "mag_max": 9.4,
+            "min_mag": 15.9,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1733,6 +1905,7 @@
             "dec": 8.87689,
             "type": "M",
             "mag_max": 7.4,
+            "min_mag": 15.1,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1743,6 +1916,7 @@
             "dec": 31.50333,
             "type": "SRA",
             "mag_max": 8.9,
+            "min_mag": 11.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1753,6 +1927,7 @@
             "dec": 45.52714,
             "type": "SRA",
             "mag_max": 6.52,
+            "min_mag": 8.56,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1763,6 +1938,7 @@
             "dec": 72.61131,
             "type": "M",
             "mag_max": 7.9,
+            "min_mag": 17.3,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1773,6 +1949,7 @@
             "dec": 56.58122,
             "type": "M",
             "mag_max": 8.2,
+            "min_mag": 15.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1783,6 +1960,7 @@
             "dec": 52.26247,
             "type": "SRA",
             "mag_max": 6.8,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1793,6 +1971,7 @@
             "dec": 78.6245,
             "type": "M",
             "mag_max": 6.3,
+            "min_mag": 12.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1803,6 +1982,7 @@
             "dec": 39.57164,
             "type": "M",
             "mag_max": 6.9,
+            "min_mag": 11.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1813,6 +1993,7 @@
             "dec": 38.72903,
             "type": "SRA",
             "mag_max": 6.5,
+            "min_mag": 9.5,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1823,6 +2004,7 @@
             "dec": 47.35567,
             "type": "SRA",
             "mag_max": 9.8,
+            "min_mag": 14.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1833,6 +2015,7 @@
             "dec": 48.34792,
             "type": "M",
             "mag_max": 9.1,
+            "min_mag": 16.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1843,6 +2026,7 @@
             "dec": 11.87731,
             "type": "M",
             "mag_max": 8.8,
+            "min_mag": 18.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1853,6 +2037,7 @@
             "dec": 58.21839,
             "type": "M",
             "mag_max": 7.2,
+            "min_mag": 13.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1863,6 +2048,7 @@
             "dec": 65.95608,
             "type": "M",
             "mag_max": 8.9,
+            "min_mag": 15.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1873,6 +2059,7 @@
             "dec": 22.70353,
             "type": "M",
             "mag_max": 6.0,
+            "min_mag": 14.1,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1883,6 +2070,7 @@
             "dec": -6.31878,
             "type": "SRB",
             "mag_max": 7.0,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1893,6 +2081,7 @@
             "dec": 43.75022,
             "type": "SRD",
             "mag_max": 9.6,
+            "min_mag": 12.5,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1903,6 +2092,7 @@
             "dec": 13.98269,
             "type": "SRB",
             "mag_max": 9.0,
+            "min_mag": 11.8,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1913,6 +2103,7 @@
             "dec": 34.51189,
             "type": "M",
             "mag_max": 6.3,
+            "min_mag": 13.3,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1923,6 +2114,7 @@
             "dec": 36.08997,
             "type": "SRA",
             "mag_max": 10.0,
+            "min_mag": 13.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1933,6 +2125,7 @@
             "dec": 26.00781,
             "type": "M",
             "mag_max": 9.3,
+            "min_mag": 16.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1943,6 +2136,7 @@
             "dec": 37.87669,
             "type": "M",
             "mag_max": 8.3,
+            "min_mag": 13.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1953,6 +2147,7 @@
             "dec": 41.30375,
             "type": "M",
             "mag_max": 9.5,
+            "min_mag": 15.9,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1963,6 +2158,7 @@
             "dec": -4.69244,
             "type": "M",
             "mag_max": 7.2,
+            "min_mag": 13.1,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1973,6 +2169,7 @@
             "dec": 30.47261,
             "type": "M",
             "mag_max": 8.6,
+            "min_mag": 15.9,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -1983,6 +2180,7 @@
             "dec": 16.04339,
             "type": "SRB",
             "mag_max": 8.6,
+            "min_mag": 12.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -1993,6 +2191,7 @@
             "dec": 15.7955,
             "type": "M",
             "mag_max": 9.5,
+            "min_mag": 18.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2003,6 +2202,7 @@
             "dec": 67.26064,
             "type": "SRB",
             "mag_max": 9.7,
+            "min_mag": 12.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2013,6 +2213,7 @@
             "dec": 73.43136,
             "type": "SR",
             "mag_max": 7.8,
+            "min_mag": 15.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2023,6 +2224,7 @@
             "dec": 4.14483,
             "type": "M",
             "mag_max": 8.1,
+            "min_mag": 14.2,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2033,6 +2235,7 @@
             "dec": 0.76972,
             "type": "SRA",
             "mag_max": 6.0,
+            "min_mag": 9.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2043,6 +2246,7 @@
             "dec": 23.25867,
             "type": "SRB",
             "mag_max": 8.3,
+            "min_mag": 11.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2053,6 +2257,7 @@
             "dec": 38.57703,
             "type": "M",
             "mag_max": 5.8,
+            "min_mag": 15.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2063,6 +2268,7 @@
             "dec": 44.30494,
             "type": "M",
             "mag_max": 6.3,
+            "min_mag": 15.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2073,6 +2279,7 @@
             "dec": 15.62072,
             "type": "SRA",
             "mag_max": 8.9,
+            "min_mag": 12.8,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2083,6 +2290,7 @@
             "dec": -5.68483,
             "type": "SRB",
             "mag_max": 6.67,
+            "min_mag": 7.22,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2093,6 +2301,7 @@
             "dec": 25.05656,
             "type": "M",
             "mag_max": 7.1,
+            "min_mag": 14.3,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2103,6 +2312,7 @@
             "dec": 17.50939,
             "type": "SR",
             "mag_max": 7.3,
+            "min_mag": 10.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2113,6 +2323,7 @@
             "dec": 50.22789,
             "type": "M",
             "mag_max": 7.7,
+            "min_mag": 13.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2123,6 +2334,7 @@
             "dec": 53.58614,
             "type": "M",
             "mag_max": 6.7,
+            "min_mag": 13.9,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2133,6 +2345,7 @@
             "dec": 38.4455,
             "type": "SRB",
             "mag_max": 5.1,
+            "min_mag": 6.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2143,6 +2356,7 @@
             "dec": 53.81036,
             "type": "M",
             "mag_max": 7.4,
+            "min_mag": 14.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2153,6 +2367,7 @@
             "dec": 26.73658,
             "type": "M",
             "mag_max": 6.0,
+            "min_mag": 13.3,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2163,6 +2378,7 @@
             "dec": 25.70372,
             "type": "SRB",
             "mag_max": 7.0,
+            "min_mag": 8.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2173,6 +2389,7 @@
             "dec": 75.10097,
             "type": "M",
             "mag_max": 7.1,
+            "min_mag": 14.3,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2183,6 +2400,7 @@
             "dec": 83.83161,
             "type": "M",
             "mag_max": 6.97,
+            "min_mag": 14.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2193,6 +2411,7 @@
             "dec": 66.14683,
             "type": "M",
             "mag_max": 7.2,
+            "min_mag": 14.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2203,6 +2422,7 @@
             "dec": 62.64844,
             "type": "SRB",
             "mag_max": 7.0,
+            "min_mag": 9.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2213,6 +2433,7 @@
             "dec": 58.56367,
             "type": "M",
             "mag_max": 8.2,
+            "min_mag": 13.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2223,6 +2444,7 @@
             "dec": 60.35528,
             "type": "SRB",
             "mag_max": 6.8,
+            "min_mag": 7.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2233,6 +2455,7 @@
             "dec": 51.38881,
             "type": "M",
             "mag_max": 4.7,
+            "min_mag": 13.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2243,6 +2466,7 @@
             "dec": 55.79256,
             "type": "M",
             "mag_max": 6.9,
+            "min_mag": 12.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2253,6 +2477,7 @@
             "dec": 59.69972,
             "type": "M",
             "mag_max": 6.8,
+            "min_mag": 13.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2263,6 +2488,7 @@
             "dec": 58.78,
             "type": "SRC",
             "mag_max": 3.43,
+            "min_mag": 5.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2273,6 +2499,7 @@
             "dec": 85.04639,
             "type": "SRB",
             "mag_max": 7.0,
+            "min_mag": 7.9,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2283,6 +2510,7 @@
             "dec": 80.32247,
             "type": "SRB",
             "mag_max": 6.5,
+            "min_mag": 7.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2293,6 +2521,7 @@
             "dec": 68.49089,
             "type": "M",
             "mag_max": 5.2,
+            "min_mag": 11.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2303,6 +2532,7 @@
             "dec": -2.97764,
             "type": "M",
             "mag_max": 2.0,
+            "min_mag": 10.1,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2313,6 +2543,7 @@
             "dec": 10.02403,
             "type": "M",
             "mag_max": 7.0,
+            "min_mag": 11.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2323,6 +2554,7 @@
             "dec": 8.31811,
             "type": "M",
             "mag_max": 6.5,
+            "min_mag": 13.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2333,6 +2565,7 @@
             "dec": 30.96314,
             "type": "SRB",
             "mag_max": 5.33,
+            "min_mag": 6.94,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2343,6 +2576,7 @@
             "dec": 17.23128,
             "type": "SRB",
             "mag_max": 5.69,
+            "min_mag": 6.94,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2353,6 +2587,7 @@
             "dec": 31.36739,
             "type": "M",
             "mag_max": 5.3,
+            "min_mag": 13.6,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2363,6 +2598,7 @@
             "dec": 39.54256,
             "type": "M",
             "mag_max": 6.5,
+            "min_mag": 12.9,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2373,6 +2609,7 @@
             "dec": 45.44025,
             "type": "SRB",
             "mag_max": 4.86,
+            "min_mag": 5.88,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2383,6 +2620,7 @@
             "dec": 54.32469,
             "type": "SRA",
             "mag_max": 9.2,
+            "min_mag": 11.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2393,6 +2631,7 @@
             "dec": 49.07347,
             "type": "M",
             "mag_max": 8.7,
+            "min_mag": 15.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2403,6 +2642,7 @@
             "dec": 50.04239,
             "type": "M",
             "mag_max": 7.1,
+            "min_mag": 14.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2413,6 +2653,7 @@
             "dec": 46.14781,
             "type": "SRB",
             "mag_max": 6.2,
+            "min_mag": 7.9,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2423,6 +2664,7 @@
             "dec": 32.91406,
             "type": "M",
             "mag_max": 3.3,
+            "min_mag": 14.2,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2433,6 +2675,7 @@
             "dec": 50.19986,
             "type": "M",
             "mag_max": 6.1,
+            "min_mag": 15.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2443,6 +2686,7 @@
             "dec": 48.77814,
             "type": "M",
             "mag_max": 6.0,
+            "min_mag": 13.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2453,6 +2697,7 @@
             "dec": 47.89419,
             "type": "M",
             "mag_max": 6.5,
+            "min_mag": 11.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2463,6 +2708,7 @@
             "dec": 48.14133,
             "type": "M",
             "mag_max": 7.7,
+            "min_mag": 13.9,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2473,6 +2719,7 @@
             "dec": 45.37458,
             "type": "SRB",
             "mag_max": 5.1,
+            "min_mag": 6.83,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2483,6 +2730,7 @@
             "dec": 37.44975,
             "type": "M",
             "mag_max": 8.8,
+            "min_mag": 13.2,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2493,6 +2741,7 @@
             "dec": 17.08814,
             "type": "M",
             "mag_max": 8.3,
+            "min_mag": 12.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2503,6 +2752,7 @@
             "dec": 18.26844,
             "type": "SRB",
             "mag_max": 5.41,
+            "min_mag": 6.72,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2513,6 +2763,7 @@
             "dec": 18.09003,
             "type": "SRB",
             "mag_max": 6.14,
+            "min_mag": 7.61,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2523,6 +2774,7 @@
             "dec": 66.75497,
             "type": "M",
             "mag_max": 6.7,
+            "min_mag": 13.2,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2533,6 +2785,7 @@
             "dec": 65.99439,
             "type": "SRB",
             "mag_max": 5.88,
+            "min_mag": 8.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2543,6 +2796,7 @@
             "dec": 60.46811,
             "type": "SRB",
             "mag_max": 6.8,
+            "min_mag": 8.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2553,6 +2807,7 @@
             "dec": 22.90853,
             "type": "SRC",
             "mag_max": 5.74,
+            "min_mag": 7.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2563,6 +2818,7 @@
             "dec": 22.50681,
             "type": "EA/GS+SRA",
             "mag_max": 3.1,
+            "min_mag": 3.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2573,6 +2829,7 @@
             "dec": 24.90831,
             "type": "SRD:",
             "mag_max": 7.9,
+            "min_mag": 9.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2583,6 +2840,7 @@
             "dec": 37.34528,
             "type": "M",
             "mag_max": 7.6,
+            "min_mag": 14.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2593,6 +2851,7 @@
             "dec": 14.39033,
             "type": "SRB",
             "mag_max": 2.73,
+            "min_mag": 3.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2603,6 +2862,7 @@
             "dec": 41.88167,
             "type": "SRB",
             "mag_max": 4.3,
+            "min_mag": 5.5,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2613,6 +2873,7 @@
             "dec": 22.92111,
             "type": "M",
             "mag_max": 7.5,
+            "min_mag": 13.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2623,6 +2884,7 @@
             "dec": 25.07067,
             "type": "M",
             "mag_max": 6.7,
+            "min_mag": 14.3,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2633,6 +2895,7 @@
             "dec": 14.94186,
             "type": "M",
             "mag_max": 6.4,
+            "min_mag": 13.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2643,6 +2906,7 @@
             "dec": 31.02117,
             "type": "M",
             "mag_max": 6.8,
+            "min_mag": 13.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2653,6 +2917,7 @@
             "dec": 18.89247,
             "type": "M",
             "mag_max": 6.4,
+            "min_mag": 13.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2663,6 +2928,7 @@
             "dec": 47.24036,
             "type": "SRB",
             "mag_max": 5.8,
+            "min_mag": 7.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2673,6 +2939,7 @@
             "dec": 11.42881,
             "type": "M",
             "mag_max": 4.4,
+            "min_mag": 11.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2683,6 +2950,7 @@
             "dec": 36.67033,
             "type": "M",
             "mag_max": 7.3,
+            "min_mag": 13.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2693,6 +2961,7 @@
             "dec": 43.94608,
             "type": "SRB",
             "mag_max": 3.81,
+            "min_mag": 4.44,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2703,6 +2972,7 @@
             "dec": 8.83411,
             "type": "M",
             "mag_max": 5.9,
+            "min_mag": 8.6,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2713,6 +2983,7 @@
             "dec": 20.17519,
             "type": "M",
             "mag_max": 4.8,
+            "min_mag": 13.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2723,6 +2994,7 @@
             "dec": 1.17761,
             "type": "SRB",
             "mag_max": 5.5,
+            "min_mag": 6.9,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2733,6 +3005,7 @@
             "dec": 7.40706,
             "type": "SRC",
             "mag_max": 0.0,
+            "min_mag": 1.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2743,6 +3016,7 @@
             "dec": 10.54336,
             "type": "M",
             "mag_max": 6.9,
+            "min_mag": 13.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2753,6 +3027,7 @@
             "dec": 26.27878,
             "type": "M",
             "mag_max": 7.6,
+            "min_mag": 13.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2763,6 +3038,7 @@
             "dec": 38.84028,
             "type": "SRB",
             "mag_max": 3.13,
+            "min_mag": 3.77,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2773,6 +3049,7 @@
             "dec": 54.82222,
             "type": "M",
             "mag_max": 7.4,
+            "min_mag": 12.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2783,6 +3060,7 @@
             "dec": 56.98342,
             "type": "SRC",
             "mag_max": 8.6,
+            "min_mag": 11.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2793,6 +3071,7 @@
             "dec": 44.17681,
             "type": "SRB",
             "mag_max": 8.1,
+            "min_mag": 11.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2803,6 +3082,7 @@
             "dec": 58.5865,
             "type": "SRC",
             "mag_max": 7.9,
+            "min_mag": 12.8,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2813,6 +3093,7 @@
             "dec": 15.13364,
             "type": "M",
             "mag_max": 5.16,
+            "min_mag": 13.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2823,6 +3104,7 @@
             "dec": 20.69503,
             "type": "SRB",
             "mag_max": 6.4,
+            "min_mag": 7.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2833,6 +3115,7 @@
             "dec": 34.26428,
             "type": "M",
             "mag_max": 5.4,
+            "min_mag": 12.6,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2843,6 +3126,7 @@
             "dec": 58.48339,
             "type": "M",
             "mag_max": 8.1,
+            "min_mag": 15.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2853,6 +3137,7 @@
             "dec": 61.09319,
             "type": "M",
             "mag_max": 7.3,
+            "min_mag": 12.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2863,6 +3148,7 @@
             "dec": 68.77575,
             "type": "M",
             "mag_max": 6.5,
+            "min_mag": 13.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2873,6 +3159,7 @@
             "dec": 61.30964,
             "type": "SRA",
             "mag_max": 6.49,
+            "min_mag": 7.94,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2883,6 +3170,7 @@
             "dec": 45.18522,
             "type": "SRB",
             "mag_max": 6.0,
+            "min_mag": 7.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2893,6 +3181,7 @@
             "dec": 59.48694,
             "type": "M",
             "mag_max": 6.5,
+            "min_mag": 13.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2903,6 +3192,7 @@
             "dec": 69.98906,
             "type": "SRB",
             "mag_max": 6.69,
+            "min_mag": 7.71,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2913,6 +3203,7 @@
             "dec": 67.41139,
             "type": "SRB",
             "mag_max": 5.73,
+            "min_mag": 6.32,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2923,6 +3214,7 @@
             "dec": 57.87156,
             "type": "SRB",
             "mag_max": 6.2,
+            "min_mag": 9.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -2933,6 +3225,7 @@
             "dec": 78.63342,
             "type": "M",
             "mag_max": 7.5,
+            "min_mag": 13.2,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2943,6 +3236,7 @@
             "dec": 66.79422,
             "type": "M",
             "mag_max": 7.1,
+            "min_mag": 13.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2953,6 +3247,7 @@
             "dec": 6.98861,
             "type": "M",
             "mag_max": 6.1,
+            "min_mag": 12.1,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2963,6 +3258,7 @@
             "dec": -7.19472,
             "type": "M",
             "mag_max": 6.3,
+            "min_mag": 13.2,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2973,6 +3269,7 @@
             "dec": 23.82169,
             "type": "M",
             "mag_max": 7.0,
+            "min_mag": 14.3,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2983,6 +3280,7 @@
             "dec": 34.65764,
             "type": "EA/DM",
             "mag_max": 7.29,
+            "min_mag": 7.9,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -2993,6 +3291,7 @@
             "dec": 42.78436,
             "type": "RRAB/BL",
             "mag_max": 7.17,
+            "min_mag": 8.14,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3003,6 +3302,7 @@
             "dec": 43.82331,
             "type": "E-DO/GS+SRD",
             "mag_max": 2.92,
+            "min_mag": 3.83,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3013,6 +3313,7 @@
             "dec": 12.62558,
             "type": "ZAND+R",
             "mag_max": 6.0,
+            "min_mag": 9.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3023,6 +3324,7 @@
             "dec": 66.80283,
             "type": "ZAND",
             "mag_max": 7.9,
+            "min_mag": 10.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3033,6 +3335,7 @@
             "dec": 50.24142,
             "type": "ZAND+SR",
             "mag_max": 5.6,
+            "min_mag": 10.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3043,6 +3346,7 @@
             "dec": 66.80283,
             "type": "ZAND",
             "mag_max": 7.9,
+            "min_mag": 10.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3053,6 +3357,7 @@
             "dec": 66.80283,
             "type": "ZAND",
             "mag_max": 7.9,
+            "min_mag": 10.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3063,6 +3368,7 @@
             "dec": 66.80283,
             "type": "ZAND",
             "mag_max": 7.9,
+            "min_mag": 10.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3073,6 +3379,7 @@
             "dec": 66.80283,
             "type": "ZAND",
             "mag_max": 7.9,
+            "min_mag": 10.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3083,6 +3390,7 @@
             "dec": 50.24142,
             "type": "ZAND+SR",
             "mag_max": 5.6,
+            "min_mag": 10.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3093,6 +3401,7 @@
             "dec": 50.24142,
             "type": "ZAND+SR",
             "mag_max": 5.6,
+            "min_mag": 10.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3103,6 +3412,7 @@
             "dec": 50.24142,
             "type": "ZAND+SR",
             "mag_max": 5.6,
+            "min_mag": 10.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3113,6 +3423,7 @@
             "dec": 12.62558,
             "type": "ZAND+R",
             "mag_max": 6.0,
+            "min_mag": 9.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3123,6 +3434,7 @@
             "dec": 12.62558,
             "type": "ZAND+R",
             "mag_max": 6.0,
+            "min_mag": 9.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3133,6 +3445,7 @@
             "dec": 12.62558,
             "type": "ZAND+R",
             "mag_max": 6.0,
+            "min_mag": 9.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3143,6 +3456,7 @@
             "dec": 12.62558,
             "type": "ZAND+R",
             "mag_max": 6.0,
+            "min_mag": 9.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3153,6 +3467,7 @@
             "dec": 43.82331,
             "type": "E-DO/GS+SRD",
             "mag_max": 2.92,
+            "min_mag": 3.83,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3163,6 +3478,7 @@
             "dec": 43.82331,
             "type": "E-DO/GS+SRD",
             "mag_max": 2.92,
+            "min_mag": 3.83,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3173,6 +3489,7 @@
             "dec": 43.82331,
             "type": "E-DO/GS+SRD",
             "mag_max": 2.92,
+            "min_mag": 3.83,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3183,6 +3500,7 @@
             "dec": 43.82331,
             "type": "E-DO/GS+SRD",
             "mag_max": 2.92,
+            "min_mag": 3.83,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3193,6 +3511,7 @@
             "dec": 50.24142,
             "type": "ZAND+SR",
             "mag_max": 5.6,
+            "min_mag": 10.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3203,6 +3522,7 @@
             "dec": 20.16973,
             "type": "UGSU+E",
             "mag_max": 14.5,
+            "min_mag": 19.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3213,6 +3533,7 @@
             "dec": 32.49842,
             "type": "UGSU+E",
             "mag_max": 13.7,
+            "min_mag": 19.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3223,6 +3544,7 @@
             "dec": 67.90339,
             "type": "UG+E",
             "mag_max": 12.7,
+            "min_mag": 17.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3233,6 +3555,7 @@
             "dec": 71.52189,
             "type": "UG+E",
             "mag_max": 12.7,
+            "min_mag": 17.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3243,6 +3566,7 @@
             "dec": 52.97447,
             "type": "UG+E",
             "mag_max": 15.0,
+            "min_mag": 17.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3253,6 +3577,7 @@
             "dec": 30.50789,
             "type": "UGZ+E",
             "mag_max": 11.9,
+            "min_mag": 14.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3263,6 +3588,7 @@
             "dec": 17.70408,
             "type": "UGWZ+E+ZZ",
             "mag_max": 7.0,
+            "min_mag": 15.53,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3273,6 +3599,7 @@
             "dec": 60.63431,
             "type": "UGSU+E",
             "mag_max": 15.0,
+            "min_mag": null,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3283,6 +3610,7 @@
             "dec": -2.66467,
             "type": "UGSU+E",
             "mag_max": 13.1,
+            "min_mag": 18.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3293,6 +3621,7 @@
             "dec": -3.84218,
             "type": "UGSS+E",
             "mag_max": 14.9,
+            "min_mag": 19.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3303,6 +3632,7 @@
             "dec": 43.58608,
             "type": "UGSS",
             "mag_max": 7.7,
+            "min_mag": 12.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3313,6 +3643,7 @@
             "dec": 16.92036,
             "type": "UG+E",
             "mag_max": 14.7,
+            "min_mag": 18.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3323,6 +3654,7 @@
             "dec": 18.41656,
             "type": "UG+E",
             "mag_max": 11.7,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3333,6 +3665,7 @@
             "dec": 33.86724,
             "type": "LMXB/BHXB/XN",
             "mag_max": 11.2,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3343,6 +3676,7 @@
             "dec": 63.62556,
             "type": "EA/GS+SRC",
             "mag_max": 4.73,
+            "min_mag": 5.55,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3353,6 +3687,7 @@
             "dec": 63.62556,
             "type": "EA/GS+SRC",
             "mag_max": 4.73,
+            "min_mag": 5.55,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3363,6 +3698,7 @@
             "dec": 63.62556,
             "type": "EA/GS+SRC",
             "mag_max": 4.73,
+            "min_mag": 5.55,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3373,6 +3709,7 @@
             "dec": -1.47758,
             "type": "NR+E",
             "mag_max": 8.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3383,6 +3720,7 @@
             "dec": -1.47758,
             "type": "NR+E",
             "mag_max": 8.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3393,6 +3731,7 @@
             "dec": -1.47758,
             "type": "NR+E",
             "mag_max": 8.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3403,6 +3742,7 @@
             "dec": 18.59425,
             "type": "SRC",
             "mag_max": 4.22,
+            "min_mag": 4.63,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3413,6 +3753,7 @@
             "dec": 18.59425,
             "type": "SRC",
             "mag_max": 4.22,
+            "min_mag": 4.63,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3423,6 +3764,7 @@
             "dec": 18.59425,
             "type": "SRC",
             "mag_max": 4.22,
+            "min_mag": 4.63,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3433,6 +3775,7 @@
             "dec": 58.76486,
             "type": "SRB",
             "mag_max": 13.0,
+            "min_mag": 15.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -3443,6 +3786,7 @@
             "dec": 28.14256,
             "type": "UGSU",
             "mag_max": 10.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3453,6 +3797,7 @@
             "dec": 28.14256,
             "type": "UGSU",
             "mag_max": 10.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3463,6 +3808,7 @@
             "dec": 28.14256,
             "type": "UGSU",
             "mag_max": 10.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3473,6 +3819,7 @@
             "dec": 28.14256,
             "type": "UGSU",
             "mag_max": 10.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3483,6 +3830,7 @@
             "dec": 28.14256,
             "type": "UGSU",
             "mag_max": 10.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3493,6 +3841,7 @@
             "dec": 28.14256,
             "type": "UGSU",
             "mag_max": 10.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3503,6 +3852,7 @@
             "dec": 28.14256,
             "type": "UGSU",
             "mag_max": 10.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3513,6 +3863,7 @@
             "dec": 28.14256,
             "type": "UGSU",
             "mag_max": 10.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3523,6 +3874,7 @@
             "dec": 28.14256,
             "type": "UGSU",
             "mag_max": 10.5,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3533,6 +3885,7 @@
             "dec": 62.60623,
             "type": "UGSU",
             "mag_max": 10.8,
+            "min_mag": 16.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3543,6 +3896,7 @@
             "dec": 62.60623,
             "type": "UGSU",
             "mag_max": 10.8,
+            "min_mag": 16.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3553,6 +3907,7 @@
             "dec": 62.60623,
             "type": "UGSU",
             "mag_max": 10.8,
+            "min_mag": 16.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3563,6 +3918,7 @@
             "dec": 62.60623,
             "type": "UGSU",
             "mag_max": 10.8,
+            "min_mag": 16.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3573,6 +3929,7 @@
             "dec": 62.60623,
             "type": "UGSU",
             "mag_max": 10.8,
+            "min_mag": 16.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3583,6 +3940,7 @@
             "dec": 62.60623,
             "type": "UGSU",
             "mag_max": 10.8,
+            "min_mag": 16.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3593,6 +3951,7 @@
             "dec": 62.60623,
             "type": "UGSU",
             "mag_max": 10.8,
+            "min_mag": 16.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3603,6 +3962,7 @@
             "dec": 62.60623,
             "type": "UGSU",
             "mag_max": 10.8,
+            "min_mag": 16.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3613,6 +3973,7 @@
             "dec": 7.95992,
             "type": "UGSU/IBWD+UGZ",
             "mag_max": 13.0,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3623,6 +3984,7 @@
             "dec": 7.95992,
             "type": "UGSU/IBWD+UGZ",
             "mag_max": 13.0,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3633,6 +3995,7 @@
             "dec": 7.95992,
             "type": "UGSU/IBWD+UGZ",
             "mag_max": 13.0,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3643,6 +4006,7 @@
             "dec": 7.95992,
             "type": "UGSU/IBWD+UGZ",
             "mag_max": 13.0,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3653,6 +4017,7 @@
             "dec": 7.95992,
             "type": "UGSU/IBWD+UGZ",
             "mag_max": 13.0,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3663,6 +4028,7 @@
             "dec": 7.95992,
             "type": "UGSU/IBWD+UGZ",
             "mag_max": 13.0,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3673,6 +4039,7 @@
             "dec": 7.95992,
             "type": "UGSU/IBWD+UGZ",
             "mag_max": 13.0,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3683,6 +4050,7 @@
             "dec": 7.95992,
             "type": "UGSU/IBWD+UGZ",
             "mag_max": 13.0,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3693,6 +4061,7 @@
             "dec": 7.18536,
             "type": "LMXB/BHXB:/XN",
             "mag_max": 11.7,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3703,6 +4072,7 @@
             "dec": 7.18536,
             "type": "LMXB/BHXB:/XN",
             "mag_max": 11.7,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3713,6 +4083,7 @@
             "dec": 7.18536,
             "type": "LMXB/BHXB:/XN",
             "mag_max": 11.7,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3723,6 +4094,7 @@
             "dec": 7.18536,
             "type": "LMXB/BHXB:/XN",
             "mag_max": 11.7,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3733,6 +4105,7 @@
             "dec": 7.18536,
             "type": "LMXB/BHXB:/XN",
             "mag_max": 11.7,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3743,6 +4116,7 @@
             "dec": 7.18536,
             "type": "LMXB/BHXB:/XN",
             "mag_max": 11.7,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3753,6 +4127,7 @@
             "dec": 7.18536,
             "type": "LMXB/BHXB:/XN",
             "mag_max": 11.7,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3763,6 +4138,7 @@
             "dec": 7.18536,
             "type": "LMXB/BHXB:/XN",
             "mag_max": 11.7,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3773,6 +4149,7 @@
             "dec": 7.18536,
             "type": "LMXB/BHXB:/XN",
             "mag_max": 11.7,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3783,6 +4160,7 @@
             "dec": 47.35719,
             "type": "NA+UG",
             "mag_max": 6.3,
+            "min_mag": 16.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3793,6 +4171,7 @@
             "dec": 47.35719,
             "type": "NA+UG",
             "mag_max": 6.3,
+            "min_mag": 16.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3803,6 +4182,7 @@
             "dec": 47.35719,
             "type": "NA+UG",
             "mag_max": 6.3,
+            "min_mag": 16.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3813,6 +4193,7 @@
             "dec": 47.35719,
             "type": "NA+UG",
             "mag_max": 6.3,
+            "min_mag": 16.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3823,6 +4204,7 @@
             "dec": 47.35719,
             "type": "NA+UG",
             "mag_max": 6.3,
+            "min_mag": 16.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3833,6 +4215,7 @@
             "dec": 48.21597,
             "type": "UGWZ/IBWD",
             "mag_max": 12.4,
+            "min_mag": 19.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3843,6 +4226,7 @@
             "dec": 48.21597,
             "type": "UGWZ/IBWD",
             "mag_max": 12.4,
+            "min_mag": 19.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3853,6 +4237,7 @@
             "dec": 48.21597,
             "type": "UGWZ/IBWD",
             "mag_max": 12.4,
+            "min_mag": 19.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3863,6 +4248,7 @@
             "dec": 48.21597,
             "type": "UGWZ/IBWD",
             "mag_max": 12.4,
+            "min_mag": 19.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3873,6 +4259,7 @@
             "dec": 48.21597,
             "type": "UGWZ/IBWD",
             "mag_max": 12.4,
+            "min_mag": 19.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3883,6 +4270,7 @@
             "dec": 48.21597,
             "type": "UGWZ/IBWD",
             "mag_max": 12.4,
+            "min_mag": 19.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3893,6 +4281,7 @@
             "dec": 6.00786,
             "type": "UG",
             "mag_max": 13.9,
+            "min_mag": 18.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3903,6 +4292,7 @@
             "dec": 6.00786,
             "type": "UG",
             "mag_max": 13.9,
+            "min_mag": 18.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3913,6 +4303,7 @@
             "dec": 6.00786,
             "type": "UG",
             "mag_max": 13.9,
+            "min_mag": 18.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3923,6 +4314,7 @@
             "dec": 6.00786,
             "type": "UG",
             "mag_max": 13.9,
+            "min_mag": 18.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3933,6 +4325,7 @@
             "dec": 6.00786,
             "type": "UG",
             "mag_max": 13.9,
+            "min_mag": 18.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -3943,6 +4336,7 @@
             "dec": 63.13384,
             "type": "M",
             "mag_max": 10.1,
+            "min_mag": 19.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3953,6 +4347,7 @@
             "dec": 63.13384,
             "type": "M",
             "mag_max": 10.1,
+            "min_mag": 19.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3963,6 +4358,7 @@
             "dec": 48.60053,
             "type": "M",
             "mag_max": 12.9,
+            "min_mag": 17.6,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3973,6 +4369,7 @@
             "dec": 48.60053,
             "type": "M",
             "mag_max": 12.9,
+            "min_mag": 17.6,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3983,6 +4380,7 @@
             "dec": -1.39533,
             "type": "M",
             "mag_max": 7.0,
+            "min_mag": 14.6,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -3993,6 +4391,7 @@
             "dec": -1.39533,
             "type": "M",
             "mag_max": 7.0,
+            "min_mag": 14.6,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4003,6 +4402,7 @@
             "dec": 9.03844,
             "type": "M",
             "mag_max": 10.2,
+            "min_mag": 16.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4013,6 +4413,7 @@
             "dec": 9.03844,
             "type": "M",
             "mag_max": 10.2,
+            "min_mag": 16.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4023,6 +4424,7 @@
             "dec": 35.68417,
             "type": "ZAND+E",
             "mag_max": 9.0,
+            "min_mag": 12.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4033,6 +4435,7 @@
             "dec": 48.45192,
             "type": "SRB",
             "mag_max": 8.6,
+            "min_mag": 13.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4043,6 +4446,7 @@
             "dec": 17.37019,
             "type": "ZAND+NC:",
             "mag_max": 10.7,
+            "min_mag": 13.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4053,6 +4457,7 @@
             "dec": 17.37019,
             "type": "ZAND+NC:",
             "mag_max": 10.7,
+            "min_mag": 13.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4063,6 +4468,7 @@
             "dec": 17.37019,
             "type": "ZAND+NC:",
             "mag_max": 10.7,
+            "min_mag": 13.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4073,6 +4479,7 @@
             "dec": 17.37019,
             "type": "ZAND+NC:",
             "mag_max": 10.7,
+            "min_mag": 13.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4083,6 +4490,7 @@
             "dec": 17.37019,
             "type": "ZAND+NC:",
             "mag_max": 10.7,
+            "min_mag": 13.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4093,6 +4501,7 @@
             "dec": 17.37019,
             "type": "ZAND+NC:",
             "mag_max": 10.7,
+            "min_mag": 13.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4103,6 +4512,7 @@
             "dec": 43.90431,
             "type": "NA/DQ+UG",
             "mag_max": 0.2,
+            "min_mag": 14.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4113,6 +4523,7 @@
             "dec": 43.90431,
             "type": "NA/DQ+UG",
             "mag_max": 0.2,
+            "min_mag": 14.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4123,6 +4534,7 @@
             "dec": 43.90431,
             "type": "NA/DQ+UG",
             "mag_max": 0.2,
+            "min_mag": 14.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4133,6 +4545,7 @@
             "dec": 43.90431,
             "type": "NA/DQ+UG",
             "mag_max": 0.2,
+            "min_mag": 14.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4143,6 +4556,7 @@
             "dec": 43.90431,
             "type": "NA/DQ+UG",
             "mag_max": 0.2,
+            "min_mag": 14.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4153,6 +4567,7 @@
             "dec": -1.12972,
             "type": "MISC",
             "mag_max": 14.04,
+            "min_mag": null,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4163,6 +4578,7 @@
             "dec": -1.12972,
             "type": "MISC",
             "mag_max": 14.04,
+            "min_mag": null,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4173,6 +4589,7 @@
             "dec": 16.51575,
             "type": "INA",
             "mag_max": 9.48,
+            "min_mag": null,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4183,6 +4600,7 @@
             "dec": 16.51575,
             "type": "INA",
             "mag_max": 9.48,
+            "min_mag": null,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4193,6 +4611,7 @@
             "dec": 11.29483,
             "type": "INA",
             "mag_max": 9.38,
+            "min_mag": 9.73,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4203,6 +4622,7 @@
             "dec": 11.29483,
             "type": "INA",
             "mag_max": 9.38,
+            "min_mag": 9.73,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4213,6 +4633,7 @@
             "dec": -2.44314,
             "type": "M",
             "mag_max": 13.5,
+            "min_mag": 17.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4223,6 +4644,7 @@
             "dec": -2.44314,
             "type": "M",
             "mag_max": 13.5,
+            "min_mag": 17.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4233,6 +4655,7 @@
             "dec": 23.50939,
             "type": "M",
             "mag_max": 11.4,
+            "min_mag": 15.2,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4243,6 +4666,7 @@
             "dec": 23.50939,
             "type": "M",
             "mag_max": 11.4,
+            "min_mag": 15.2,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4253,6 +4677,7 @@
             "dec": 11.72172,
             "type": "M",
             "mag_max": 7.6,
+            "min_mag": 14.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4263,6 +4688,7 @@
             "dec": 11.72172,
             "type": "M",
             "mag_max": 7.6,
+            "min_mag": 14.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4273,6 +4699,7 @@
             "dec": 22.62772,
             "type": "M",
             "mag_max": 13.0,
+            "min_mag": 15.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4283,6 +4710,7 @@
             "dec": 22.62772,
             "type": "M",
             "mag_max": 13.0,
+            "min_mag": 15.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4293,6 +4721,7 @@
             "dec": 31.07225,
             "type": "M",
             "mag_max": 8.2,
+            "min_mag": 15.2,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4303,6 +4732,7 @@
             "dec": 31.07225,
             "type": "M",
             "mag_max": 8.2,
+            "min_mag": 15.2,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4313,6 +4743,7 @@
             "dec": 34.38905,
             "type": "M",
             "mag_max": 8.2,
+            "min_mag": 15.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4323,6 +4754,7 @@
             "dec": 34.38905,
             "type": "M",
             "mag_max": 8.2,
+            "min_mag": 15.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4333,6 +4765,7 @@
             "dec": 38.70989,
             "type": "M",
             "mag_max": 12.0,
+            "min_mag": 14.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4343,6 +4776,7 @@
             "dec": 38.70989,
             "type": "M",
             "mag_max": 12.0,
+            "min_mag": 14.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4353,6 +4787,7 @@
             "dec": 39.71272,
             "type": "M",
             "mag_max": 12.1,
+            "min_mag": 15.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4363,6 +4798,7 @@
             "dec": 39.71272,
             "type": "M",
             "mag_max": 12.1,
+            "min_mag": 15.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4373,6 +4809,7 @@
             "dec": 51.22497,
             "type": "M",
             "mag_max": 14.2,
+            "min_mag": 19.3,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4383,6 +4820,7 @@
             "dec": 51.22497,
             "type": "M",
             "mag_max": 14.2,
+            "min_mag": 19.3,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4393,6 +4831,7 @@
             "dec": 38.16561,
             "type": "M",
             "mag_max": 8.7,
+            "min_mag": 14.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4403,6 +4842,7 @@
             "dec": 38.16561,
             "type": "M",
             "mag_max": 8.7,
+            "min_mag": 14.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4413,6 +4853,7 @@
             "dec": 50.53092,
             "type": "M",
             "mag_max": 11.2,
+            "min_mag": 16.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4423,6 +4864,7 @@
             "dec": 50.53092,
             "type": "M",
             "mag_max": 11.2,
+            "min_mag": 16.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4433,6 +4875,7 @@
             "dec": 58.42608,
             "type": "SRC",
             "mag_max": 7.02,
+            "min_mag": 8.5,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4443,6 +4886,7 @@
             "dec": 58.42608,
             "type": "SRC",
             "mag_max": 7.02,
+            "min_mag": 8.5,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4453,6 +4897,7 @@
             "dec": 58.58528,
             "type": "M",
             "mag_max": 9.9,
+            "min_mag": 15.6,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4463,6 +4908,7 @@
             "dec": 58.58528,
             "type": "M",
             "mag_max": 9.9,
+            "min_mag": 15.6,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4473,6 +4919,7 @@
             "dec": 64.25133,
             "type": "M",
             "mag_max": 10.4,
+            "min_mag": 16.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4483,6 +4930,7 @@
             "dec": 64.25133,
             "type": "M",
             "mag_max": 10.4,
+            "min_mag": 16.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4493,6 +4941,7 @@
             "dec": 3.69958,
             "type": "M",
             "mag_max": 12.7,
+            "min_mag": 17.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4503,6 +4952,7 @@
             "dec": 61.80347,
             "type": "M",
             "mag_max": 13.9,
+            "min_mag": 19.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4513,6 +4963,7 @@
             "dec": 61.80347,
             "type": "M",
             "mag_max": 13.9,
+            "min_mag": 19.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4523,6 +4974,7 @@
             "dec": 58.84608,
             "type": "SR",
             "mag_max": 12.9,
+            "min_mag": 15.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4533,6 +4985,7 @@
             "dec": 58.84608,
             "type": "SR",
             "mag_max": 12.9,
+            "min_mag": 15.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4543,6 +4996,7 @@
             "dec": 49.28789,
             "type": "SRC",
             "mag_max": 4.54,
+            "min_mag": 5.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4553,6 +5007,7 @@
             "dec": 12.54014,
             "type": "M",
             "mag_max": 8.4,
+            "min_mag": 15.6,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4563,6 +5018,7 @@
             "dec": -1.03978,
             "type": "UGWZ+ZZ/GWLIB",
             "mag_max": 10.4,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4573,6 +5029,7 @@
             "dec": -1.03978,
             "type": "UGWZ+ZZ/GWLIB",
             "mag_max": 10.4,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4583,6 +5040,7 @@
             "dec": 43.58608,
             "type": "UGSS",
             "mag_max": 7.7,
+            "min_mag": 12.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4593,6 +5051,7 @@
             "dec": 43.58608,
             "type": "UGSS",
             "mag_max": 7.7,
+            "min_mag": 12.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4603,6 +5062,7 @@
             "dec": 43.58608,
             "type": "UGSS",
             "mag_max": 7.7,
+            "min_mag": 12.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4613,6 +5073,7 @@
             "dec": 43.58608,
             "type": "UGSS",
             "mag_max": 7.7,
+            "min_mag": 12.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4623,6 +5084,7 @@
             "dec": 43.58608,
             "type": "UGSS",
             "mag_max": 7.7,
+            "min_mag": 12.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4633,6 +5095,7 @@
             "dec": 43.58608,
             "type": "UGSS",
             "mag_max": 7.7,
+            "min_mag": 12.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4643,6 +5106,7 @@
             "dec": 12.207,
             "type": "NA+E",
             "mag_max": 9.4,
+            "min_mag": 19.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4653,6 +5117,7 @@
             "dec": 12.207,
             "type": "NA+E",
             "mag_max": 9.4,
+            "min_mag": 19.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4663,6 +5128,7 @@
             "dec": 12.207,
             "type": "NA+E",
             "mag_max": 9.4,
+            "min_mag": 19.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4673,6 +5139,7 @@
             "dec": 12.207,
             "type": "NA+E",
             "mag_max": 9.4,
+            "min_mag": 19.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4683,6 +5150,7 @@
             "dec": 12.207,
             "type": "NA+E",
             "mag_max": 9.4,
+            "min_mag": 19.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4693,6 +5161,7 @@
             "dec": 12.207,
             "type": "NA+E",
             "mag_max": 9.4,
+            "min_mag": 19.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4703,6 +5172,7 @@
             "dec": 25.10794,
             "type": "AM",
             "mag_max": 14.4,
+            "min_mag": 18.5,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4713,6 +5183,7 @@
             "dec": 8.17053,
             "type": "AM+E",
             "mag_max": 14.7,
+            "min_mag": 22.0,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4723,6 +5194,7 @@
             "dec": 30.50789,
             "type": "UGZ+E",
             "mag_max": 11.9,
+            "min_mag": 14.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4733,6 +5205,7 @@
             "dec": 30.50789,
             "type": "UGZ+E",
             "mag_max": 11.9,
+            "min_mag": 14.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4743,6 +5216,7 @@
             "dec": 59.69972,
             "type": "M",
             "mag_max": 6.8,
+            "min_mag": 13.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4753,6 +5227,7 @@
             "dec": 59.69972,
             "type": "M",
             "mag_max": 6.8,
+            "min_mag": 13.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -4763,6 +5238,7 @@
             "dec": 7.40706,
             "type": "SRC",
             "mag_max": 0.0,
+            "min_mag": 1.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4773,6 +5249,7 @@
             "dec": 7.40706,
             "type": "SRC",
             "mag_max": 0.0,
+            "min_mag": 1.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4783,6 +5260,7 @@
             "dec": 7.40706,
             "type": "SRC",
             "mag_max": 0.0,
+            "min_mag": 1.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4793,6 +5271,7 @@
             "dec": 7.40706,
             "type": "SRC",
             "mag_max": 0.0,
+            "min_mag": 1.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4803,6 +5282,7 @@
             "dec": 7.40706,
             "type": "SRC",
             "mag_max": 0.0,
+            "min_mag": 1.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4813,6 +5293,7 @@
             "dec": 7.40706,
             "type": "SRC",
             "mag_max": 0.0,
+            "min_mag": 1.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4823,6 +5304,7 @@
             "dec": 7.40706,
             "type": "SRC",
             "mag_max": 0.0,
+            "min_mag": 1.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -4833,6 +5315,7 @@
             "dec": 46.52069,
             "type": "UGWZ",
             "mag_max": 8.4,
+            "min_mag": 18.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4843,6 +5326,7 @@
             "dec": 46.52069,
             "type": "UGWZ",
             "mag_max": 8.4,
+            "min_mag": 18.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4853,6 +5337,7 @@
             "dec": 46.52069,
             "type": "UGWZ",
             "mag_max": 8.4,
+            "min_mag": 18.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4863,6 +5348,7 @@
             "dec": 20.76772,
             "type": "NA",
             "mag_max": 4.3,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4873,6 +5359,7 @@
             "dec": 20.76772,
             "type": "NA",
             "mag_max": 4.3,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4883,6 +5370,7 @@
             "dec": 20.76772,
             "type": "NA",
             "mag_max": 4.3,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4893,6 +5381,7 @@
             "dec": 20.76772,
             "type": "NA",
             "mag_max": 4.3,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4903,6 +5392,7 @@
             "dec": 20.76772,
             "type": "NA",
             "mag_max": 4.3,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4913,6 +5403,7 @@
             "dec": 20.76772,
             "type": "NA",
             "mag_max": 4.3,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4923,6 +5414,7 @@
             "dec": 20.76772,
             "type": "NA",
             "mag_max": 4.3,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4933,6 +5425,7 @@
             "dec": 20.76772,
             "type": "NA",
             "mag_max": 4.3,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4943,6 +5436,7 @@
             "dec": 20.76772,
             "type": "NA",
             "mag_max": 4.3,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4953,6 +5447,7 @@
             "dec": 20.76772,
             "type": "NA",
             "mag_max": 4.3,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4963,6 +5458,7 @@
             "dec": 40.04439,
             "type": "UGWZ+ZZ/GWLIB",
             "mag_max": 10.0,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4973,6 +5469,7 @@
             "dec": 40.04439,
             "type": "UGWZ+ZZ/GWLIB",
             "mag_max": 10.0,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4983,6 +5480,7 @@
             "dec": 40.04439,
             "type": "UGWZ+ZZ/GWLIB",
             "mag_max": 10.0,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -4993,6 +5491,7 @@
             "dec": 40.04439,
             "type": "UGWZ+ZZ/GWLIB",
             "mag_max": 10.0,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5003,6 +5502,7 @@
             "dec": 40.04439,
             "type": "UGWZ+ZZ/GWLIB",
             "mag_max": 10.0,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5013,6 +5513,7 @@
             "dec": 40.04439,
             "type": "UGWZ+ZZ/GWLIB",
             "mag_max": 10.0,
+            "min_mag": 19.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5023,6 +5524,7 @@
             "dec": -6.09708,
             "type": "L:+ZAND",
             "mag_max": 13.5,
+            "min_mag": 15.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -5033,6 +5535,7 @@
             "dec": -6.09708,
             "type": "L:+ZAND",
             "mag_max": 13.5,
+            "min_mag": 15.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -5043,6 +5546,7 @@
             "dec": -6.09708,
             "type": "L:+ZAND",
             "mag_max": 13.5,
+            "min_mag": 15.3,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -5053,6 +5557,7 @@
             "dec": 14.7445,
             "type": "NA",
             "mag_max": 13.5,
+            "min_mag": 22.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5063,6 +5568,7 @@
             "dec": 14.7445,
             "type": "NA",
             "mag_max": 13.5,
+            "min_mag": 22.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5073,6 +5579,7 @@
             "dec": 14.7445,
             "type": "NA",
             "mag_max": 13.5,
+            "min_mag": 22.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5083,6 +5590,7 @@
             "dec": 14.7445,
             "type": "NA",
             "mag_max": 13.5,
+            "min_mag": 22.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5093,6 +5601,7 @@
             "dec": 14.7445,
             "type": "NA",
             "mag_max": 13.5,
+            "min_mag": 22.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5103,6 +5612,7 @@
             "dec": 14.7445,
             "type": "NA",
             "mag_max": 13.5,
+            "min_mag": 22.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5113,6 +5623,7 @@
             "dec": 66.18911,
             "type": "NA",
             "mag_max": 10.6,
+            "min_mag": 21.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5123,6 +5634,7 @@
             "dec": 66.18911,
             "type": "NA",
             "mag_max": 10.6,
+            "min_mag": 21.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5133,6 +5645,7 @@
             "dec": 66.18911,
             "type": "NA",
             "mag_max": 10.6,
+            "min_mag": 21.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5143,6 +5656,7 @@
             "dec": 66.18911,
             "type": "NA",
             "mag_max": 10.6,
+            "min_mag": 21.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5153,6 +5667,7 @@
             "dec": 66.18911,
             "type": "NA",
             "mag_max": 10.6,
+            "min_mag": 21.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5163,6 +5678,7 @@
             "dec": 66.18911,
             "type": "NA",
             "mag_max": 10.6,
+            "min_mag": 21.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5173,6 +5689,7 @@
             "dec": 0.58494,
             "type": "LMXB/XB",
             "mag_max": 14.82,
+            "min_mag": 19.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -5183,6 +5700,7 @@
             "dec": 0.58494,
             "type": "LMXB/XB",
             "mag_max": 14.82,
+            "min_mag": 19.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -5193,6 +5711,7 @@
             "dec": 0.58494,
             "type": "LMXB/XB",
             "mag_max": 14.82,
+            "min_mag": 19.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -5203,6 +5722,7 @@
             "dec": 0.58494,
             "type": "LMXB/XB",
             "mag_max": 14.82,
+            "min_mag": 19.4,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -5213,6 +5733,7 @@
             "dec": 43.90639,
             "type": "NA",
             "mag_max": 8.2,
+            "min_mag": 20.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5223,6 +5744,7 @@
             "dec": 43.90639,
             "type": "NA",
             "mag_max": 8.2,
+            "min_mag": 20.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5233,6 +5755,7 @@
             "dec": 43.90639,
             "type": "NA",
             "mag_max": 8.2,
+            "min_mag": 20.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5243,6 +5766,7 @@
             "dec": 43.90639,
             "type": "NA",
             "mag_max": 8.2,
+            "min_mag": 20.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5253,6 +5777,7 @@
             "dec": 43.90639,
             "type": "NA",
             "mag_max": 8.2,
+            "min_mag": 20.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5263,6 +5788,7 @@
             "dec": 43.90639,
             "type": "NA",
             "mag_max": 8.2,
+            "min_mag": 20.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5273,6 +5799,7 @@
             "dec": 16.74433,
             "type": "NC+M",
             "mag_max": 11.1,
+            "min_mag": 18.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5283,6 +5810,7 @@
             "dec": 16.74433,
             "type": "NC+M",
             "mag_max": 11.1,
+            "min_mag": 18.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5293,6 +5821,7 @@
             "dec": 16.74433,
             "type": "NC+M",
             "mag_max": 11.1,
+            "min_mag": 18.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5303,6 +5832,7 @@
             "dec": 16.74433,
             "type": "NC+M",
             "mag_max": 11.1,
+            "min_mag": 18.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5313,6 +5843,7 @@
             "dec": 61.18744,
             "type": "NB:",
             "mag_max": 5.2,
+            "min_mag": 15.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5323,6 +5854,7 @@
             "dec": 61.18744,
             "type": "NB:",
             "mag_max": 5.2,
+            "min_mag": 15.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5333,6 +5865,7 @@
             "dec": 61.18744,
             "type": "NB:",
             "mag_max": 5.2,
+            "min_mag": 15.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5343,6 +5876,7 @@
             "dec": 61.18744,
             "type": "NB:",
             "mag_max": 5.2,
+            "min_mag": 15.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5353,6 +5887,7 @@
             "dec": 61.18744,
             "type": "NB:",
             "mag_max": 5.2,
+            "min_mag": 15.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5363,6 +5898,7 @@
             "dec": 61.18744,
             "type": "NB:",
             "mag_max": 5.2,
+            "min_mag": 15.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5373,6 +5909,7 @@
             "dec": 61.18744,
             "type": "NB:",
             "mag_max": 5.2,
+            "min_mag": 15.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5383,6 +5920,7 @@
             "dec": 0.58414,
             "type": "NA",
             "mag_max": -1.4,
+            "min_mag": 12.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5393,6 +5931,7 @@
             "dec": 0.58414,
             "type": "NA",
             "mag_max": -1.4,
+            "min_mag": 12.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5403,6 +5942,7 @@
             "dec": 0.58414,
             "type": "NA",
             "mag_max": -1.4,
+            "min_mag": 12.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5413,6 +5953,7 @@
             "dec": 16.89433,
             "type": "NA/DQ",
             "mag_max": 6.0,
+            "min_mag": 20.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5423,6 +5964,7 @@
             "dec": 16.89433,
             "type": "NA/DQ",
             "mag_max": 6.0,
+            "min_mag": 20.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5433,6 +5975,7 @@
             "dec": 16.89433,
             "type": "NA/DQ",
             "mag_max": 6.0,
+            "min_mag": 20.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5443,6 +5986,7 @@
             "dec": 16.89433,
             "type": "NA/DQ",
             "mag_max": 6.0,
+            "min_mag": 20.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5453,6 +5997,7 @@
             "dec": 16.89433,
             "type": "NA/DQ",
             "mag_max": 6.0,
+            "min_mag": 20.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5463,6 +6008,7 @@
             "dec": 16.89433,
             "type": "NA/DQ",
             "mag_max": 6.0,
+            "min_mag": 20.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5473,6 +6019,7 @@
             "dec": 26.33223,
             "type": "UGWZ",
             "mag_max": 8.8,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5483,6 +6030,7 @@
             "dec": 26.33223,
             "type": "UGWZ",
             "mag_max": 8.8,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5493,6 +6041,7 @@
             "dec": 26.33223,
             "type": "UGWZ",
             "mag_max": 8.8,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5503,6 +6052,7 @@
             "dec": 26.33223,
             "type": "UGWZ",
             "mag_max": 8.8,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5513,6 +6063,7 @@
             "dec": 26.33223,
             "type": "UGWZ",
             "mag_max": 8.8,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5523,6 +6074,7 @@
             "dec": 26.33223,
             "type": "UGWZ",
             "mag_max": 8.8,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5533,6 +6085,7 @@
             "dec": 26.33223,
             "type": "UGWZ",
             "mag_max": 8.8,
+            "min_mag": 16.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5543,6 +6096,7 @@
             "dec": 29.23586,
             "type": "NA",
             "mag_max": 9.9,
+            "min_mag": 21.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5553,6 +6107,7 @@
             "dec": 29.23586,
             "type": "NA",
             "mag_max": 9.9,
+            "min_mag": 21.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5563,6 +6118,7 @@
             "dec": 29.23586,
             "type": "NA",
             "mag_max": 9.9,
+            "min_mag": 21.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5573,6 +6129,7 @@
             "dec": 29.23586,
             "type": "NA",
             "mag_max": 9.9,
+            "min_mag": 21.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5583,6 +6140,7 @@
             "dec": 29.23586,
             "type": "NA",
             "mag_max": 9.9,
+            "min_mag": 21.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5593,6 +6151,7 @@
             "dec": 29.23586,
             "type": "NA",
             "mag_max": 9.9,
+            "min_mag": 21.9,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5603,6 +6162,7 @@
             "dec": 25.92017,
             "type": "NR+ELL",
             "mag_max": 2.0,
+            "min_mag": 10.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5613,6 +6173,7 @@
             "dec": 25.92017,
             "type": "NR+ELL",
             "mag_max": 2.0,
+            "min_mag": 10.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5623,6 +6184,7 @@
             "dec": 25.92017,
             "type": "NR+ELL",
             "mag_max": 2.0,
+            "min_mag": 10.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5633,6 +6195,7 @@
             "dec": 25.92017,
             "type": "NR+ELL",
             "mag_max": 2.0,
+            "min_mag": 10.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5643,6 +6206,7 @@
             "dec": 25.92017,
             "type": "NR+ELL",
             "mag_max": 2.0,
+            "min_mag": 10.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5653,6 +6217,7 @@
             "dec": 25.92017,
             "type": "NR+ELL",
             "mag_max": 2.0,
+            "min_mag": 10.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5663,6 +6228,7 @@
             "dec": -6.70794,
             "type": "NR+LB",
             "mag_max": 4.3,
+            "min_mag": 12.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5673,6 +6239,7 @@
             "dec": -6.70794,
             "type": "NR+LB",
             "mag_max": 4.3,
+            "min_mag": 12.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5683,6 +6250,7 @@
             "dec": -6.70794,
             "type": "NR+LB",
             "mag_max": 4.3,
+            "min_mag": 12.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5693,6 +6261,7 @@
             "dec": -6.70794,
             "type": "NR+LB",
             "mag_max": 4.3,
+            "min_mag": 12.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5703,6 +6272,7 @@
             "dec": -6.70794,
             "type": "NR+LB",
             "mag_max": 4.3,
+            "min_mag": 12.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5713,6 +6283,7 @@
             "dec": -6.70794,
             "type": "NR+LB",
             "mag_max": 4.3,
+            "min_mag": 12.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5723,6 +6294,7 @@
             "dec": 71.68904,
             "type": "UG/DQ",
             "mag_max": 10.0,
+            "min_mag": 17.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5733,6 +6305,7 @@
             "dec": 71.68904,
             "type": "UG/DQ",
             "mag_max": 10.0,
+            "min_mag": 17.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5743,6 +6316,7 @@
             "dec": 16.27928,
             "type": "UG/DQ",
             "mag_max": 11.36,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5753,6 +6327,7 @@
             "dec": 16.27928,
             "type": "UG/DQ",
             "mag_max": 11.36,
+            "min_mag": 17.7,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5763,6 +6338,7 @@
             "dec": -3.66417,
             "type": "UGZ+VY",
             "mag_max": 13.4,
+            "min_mag": 18.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5773,6 +6349,7 @@
             "dec": -3.66417,
             "type": "UGZ+VY",
             "mag_max": 13.4,
+            "min_mag": 18.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5783,6 +6360,7 @@
             "dec": -3.66417,
             "type": "UGZ+VY",
             "mag_max": 13.4,
+            "min_mag": 18.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5793,6 +6371,7 @@
             "dec": -3.66417,
             "type": "UGZ+VY",
             "mag_max": 13.4,
+            "min_mag": 18.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5803,6 +6382,7 @@
             "dec": 66.48747,
             "type": "UGZ/IW+VY",
             "mag_max": 14.6,
+            "min_mag": 18.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5813,6 +6393,7 @@
             "dec": 66.48747,
             "type": "UGZ/IW+VY",
             "mag_max": 14.6,
+            "min_mag": 18.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5823,6 +6404,7 @@
             "dec": 66.48747,
             "type": "UGZ/IW+VY",
             "mag_max": 14.6,
+            "min_mag": 18.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5833,6 +6415,7 @@
             "dec": 67.54653,
             "type": "UG",
             "mag_max": 10.7,
+            "min_mag": 15.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5843,6 +6426,7 @@
             "dec": 67.54653,
             "type": "UG",
             "mag_max": 10.7,
+            "min_mag": 15.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5853,6 +6437,7 @@
             "dec": 67.54653,
             "type": "UG",
             "mag_max": 10.7,
+            "min_mag": 15.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5863,6 +6448,7 @@
             "dec": 32.49839,
             "type": "UGSU+E",
             "mag_max": 13.7,
+            "min_mag": 19.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5873,6 +6459,7 @@
             "dec": 32.49839,
             "type": "UGSU+E",
             "mag_max": 13.7,
+            "min_mag": 19.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5883,6 +6470,7 @@
             "dec": 32.49839,
             "type": "UGSU+E",
             "mag_max": 13.7,
+            "min_mag": 19.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5893,6 +6481,7 @@
             "dec": 20.93147,
             "type": "UG/IBWD",
             "mag_max": 11.7,
+            "min_mag": 18.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5903,6 +6492,7 @@
             "dec": 20.93147,
             "type": "UG/IBWD",
             "mag_max": 11.7,
+            "min_mag": 18.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5913,6 +6503,7 @@
             "dec": 20.93147,
             "type": "UG/IBWD",
             "mag_max": 11.7,
+            "min_mag": 18.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5923,6 +6514,7 @@
             "dec": -4.99133,
             "type": "UG",
             "mag_max": 14.3,
+            "min_mag": 17.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5933,6 +6525,7 @@
             "dec": -4.99133,
             "type": "UG",
             "mag_max": 14.3,
+            "min_mag": 17.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5943,6 +6536,7 @@
             "dec": -4.99133,
             "type": "UG",
             "mag_max": 14.3,
+            "min_mag": 17.1,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5953,6 +6547,7 @@
             "dec": 63.14219,
             "type": "UG/IBWD+E",
             "mag_max": 13.6,
+            "min_mag": 21.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5963,6 +6558,7 @@
             "dec": 63.14219,
             "type": "UG/IBWD+E",
             "mag_max": 13.6,
+            "min_mag": 21.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5973,6 +6569,7 @@
             "dec": 63.14219,
             "type": "UG/IBWD+E",
             "mag_max": 13.6,
+            "min_mag": 21.3,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5983,6 +6580,7 @@
             "dec": 44.31311,
             "type": "RRD",
             "mag_max": 12.49,
+            "min_mag": 13.22,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -5993,6 +6591,7 @@
             "dec": 44.31311,
             "type": "RRD",
             "mag_max": 12.49,
+            "min_mag": 13.22,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -6003,6 +6602,7 @@
             "dec": 28.94408,
             "type": "UG",
             "mag_max": 14.3,
+            "min_mag": 19.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -6013,6 +6613,7 @@
             "dec": 38.33454,
             "type": "UG",
             "mag_max": 12.9,
+            "min_mag": 18.5,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -6023,6 +6624,7 @@
             "dec": -6.26911,
             "type": "EA:+ZAND:",
             "mag_max": 8.59,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6033,6 +6635,7 @@
             "dec": -6.26911,
             "type": "EA:+ZAND:",
             "mag_max": 8.59,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6043,6 +6646,7 @@
             "dec": -6.26911,
             "type": "EA:+ZAND:",
             "mag_max": 8.59,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6053,6 +6657,7 @@
             "dec": -6.26911,
             "type": "EA:+ZAND:",
             "mag_max": 8.59,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6063,6 +6668,7 @@
             "dec": -6.26911,
             "type": "EA:+ZAND:",
             "mag_max": 8.59,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6073,6 +6679,7 @@
             "dec": 42.97286,
             "type": "AM",
             "mag_max": 13.9,
+            "min_mag": 16.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -6083,6 +6690,7 @@
             "dec": 42.97286,
             "type": "AM",
             "mag_max": 13.9,
+            "min_mag": 16.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -6093,6 +6701,7 @@
             "dec": 42.97286,
             "type": "AM",
             "mag_max": 13.9,
+            "min_mag": 16.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -6103,6 +6712,7 @@
             "dec": 42.97286,
             "type": "AM",
             "mag_max": 13.9,
+            "min_mag": 16.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -6113,6 +6723,7 @@
             "dec": 39.15733,
             "type": "UGSU",
             "mag_max": 12.3,
+            "min_mag": 18.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -6123,6 +6734,7 @@
             "dec": 39.15733,
             "type": "UGSU",
             "mag_max": 12.3,
+            "min_mag": 18.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -6133,6 +6745,7 @@
             "dec": 7.40706,
             "type": "SRC",
             "mag_max": 0.0,
+            "min_mag": 1.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6143,6 +6756,7 @@
             "dec": 58.78003,
             "type": "SRC",
             "mag_max": 3.43,
+            "min_mag": 5.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6153,6 +6767,7 @@
             "dec": 49.28789,
             "type": "SRC",
             "mag_max": 4.54,
+            "min_mag": 5.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6163,6 +6778,7 @@
             "dec": 63.62556,
             "type": "EA/GS+SRC",
             "mag_max": 4.73,
+            "min_mag": 5.55,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6173,6 +6789,7 @@
             "dec": 58.6235,
             "type": "SRC",
             "mag_max": 5.55,
+            "min_mag": 5.76,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6183,6 +6800,7 @@
             "dec": 22.90853,
             "type": "SRC",
             "mag_max": 5.74,
+            "min_mag": 7.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6193,6 +6811,7 @@
             "dec": 31.92061,
             "type": "SRC",
             "mag_max": 6.05,
+            "min_mag": 6.5,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6203,6 +6822,7 @@
             "dec": 56.60414,
             "type": "SRC",
             "mag_max": 7.2,
+            "min_mag": 8.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6213,6 +6833,7 @@
             "dec": 56.55906,
             "type": "SRC",
             "mag_max": 7.49,
+            "min_mag": 7.99,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6223,6 +6844,7 @@
             "dec": 57.15833,
             "type": "SRC",
             "mag_max": 7.5,
+            "min_mag": 8.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6233,6 +6855,7 @@
             "dec": 55.23239,
             "type": "SRC",
             "mag_max": 7.6,
+            "min_mag": 9.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6243,6 +6866,7 @@
             "dec": 57.04617,
             "type": "SRC",
             "mag_max": 7.66,
+            "min_mag": 8.73,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6253,6 +6877,7 @@
             "dec": 56.99314,
             "type": "SRC",
             "mag_max": 7.7,
+            "min_mag": 8.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6263,6 +6888,7 @@
             "dec": 39.98178,
             "type": "SRC",
             "mag_max": 7.7,
+            "min_mag": 9.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6273,6 +6899,7 @@
             "dec": 63.95392,
             "type": "SRC:",
             "mag_max": 7.8,
+            "min_mag": 9.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6283,6 +6910,7 @@
             "dec": 46.46683,
             "type": "SRC",
             "mag_max": 7.8,
+            "min_mag": 9.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6293,6 +6921,7 @@
             "dec": 57.10947,
             "type": "SRC",
             "mag_max": 7.82,
+            "min_mag": 9.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6303,6 +6932,7 @@
             "dec": 25.60089,
             "type": "SRC",
             "mag_max": 7.85,
+            "min_mag": 8.12,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6313,6 +6943,7 @@
             "dec": 58.5865,
             "type": "SRC",
             "mag_max": 7.9,
+            "min_mag": 12.8,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6323,6 +6954,7 @@
             "dec": 62.32903,
             "type": "SRC",
             "mag_max": 7.97,
+            "min_mag": 8.68,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6333,6 +6965,7 @@
             "dec": 55.15842,
             "type": "SRC",
             "mag_max": 8.1,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6343,6 +6976,7 @@
             "dec": 59.26911,
             "type": "SRC",
             "mag_max": 8.2,
+            "min_mag": 8.46,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6353,6 +6987,7 @@
             "dec": 62.574,
             "type": "SRC",
             "mag_max": 8.2,
+            "min_mag": 9.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6363,6 +6998,7 @@
             "dec": 57.42133,
             "type": "SRC",
             "mag_max": 8.2,
+            "min_mag": 10.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6373,6 +7009,7 @@
             "dec": 61.7895,
             "type": "SRC",
             "mag_max": 8.2,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6383,6 +7020,7 @@
             "dec": 58.96119,
             "type": "SRC",
             "mag_max": 8.3,
+            "min_mag": 9.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6393,6 +7031,7 @@
             "dec": 60.64658,
             "type": "SRC",
             "mag_max": 8.34,
+            "min_mag": 8.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6403,6 +7042,7 @@
             "dec": 60.37233,
             "type": "SRC",
             "mag_max": 8.44,
+            "min_mag": 8.89,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6413,6 +7053,7 @@
             "dec": 56.98342,
             "type": "SRC",
             "mag_max": 8.6,
+            "min_mag": 11.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6423,6 +7064,7 @@
             "dec": 60.48947,
             "type": "SRC",
             "mag_max": 8.75,
+            "min_mag": 9.9,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6433,6 +7075,7 @@
             "dec": 58.14231,
             "type": "SRC",
             "mag_max": 8.81,
+            "min_mag": 9.02,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6443,6 +7086,7 @@
             "dec": 36.93214,
             "type": "SRC",
             "mag_max": 8.86,
+            "min_mag": 10.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6453,6 +7097,7 @@
             "dec": 64.14388,
             "type": "SR",
             "mag_max": 8.9,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6463,6 +7108,7 @@
             "dec": 37.53306,
             "type": "SRC",
             "mag_max": 9.0,
+            "min_mag": 10.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6473,6 +7119,7 @@
             "dec": 57.85553,
             "type": "SRC",
             "mag_max": 9.08,
+            "min_mag": 9.97,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6483,6 +7130,7 @@
             "dec": 54.93578,
             "type": "SRC",
             "mag_max": 9.15,
+            "min_mag": 9.39,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6493,6 +7141,7 @@
             "dec": 54.88417,
             "type": "SRC",
             "mag_max": 9.16,
+            "min_mag": 10.38,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6503,6 +7152,7 @@
             "dec": 61.2835,
             "type": "SRC",
             "mag_max": 9.2,
+            "min_mag": 12.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6513,6 +7163,7 @@
             "dec": 61.24161,
             "type": "SRC",
             "mag_max": 9.6,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6523,6 +7174,7 @@
             "dec": 7.40706,
             "type": "SRC",
             "mag_max": 0.0,
+            "min_mag": 1.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6533,6 +7185,7 @@
             "dec": 58.78003,
             "type": "SRC",
             "mag_max": 3.43,
+            "min_mag": 5.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6543,6 +7196,7 @@
             "dec": 18.59425,
             "type": "SRC",
             "mag_max": 4.22,
+            "min_mag": 4.63,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6553,6 +7207,7 @@
             "dec": 49.28789,
             "type": "SRC",
             "mag_max": 4.54,
+            "min_mag": 5.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6563,6 +7218,7 @@
             "dec": 63.62556,
             "type": "EA/GS+SRC",
             "mag_max": 4.73,
+            "min_mag": 5.55,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6573,6 +7229,7 @@
             "dec": 58.6235,
             "type": "SRC",
             "mag_max": 5.55,
+            "min_mag": 5.76,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6583,6 +7240,7 @@
             "dec": 22.90853,
             "type": "SRC",
             "mag_max": 5.74,
+            "min_mag": 7.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6593,6 +7251,7 @@
             "dec": 31.92061,
             "type": "SRC",
             "mag_max": 6.05,
+            "min_mag": 6.5,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6603,6 +7262,7 @@
             "dec": 56.60414,
             "type": "SRC",
             "mag_max": 7.2,
+            "min_mag": 8.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6613,6 +7273,7 @@
             "dec": 56.55906,
             "type": "SRC",
             "mag_max": 7.49,
+            "min_mag": 7.99,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6623,6 +7284,7 @@
             "dec": 57.15833,
             "type": "SRC",
             "mag_max": 7.5,
+            "min_mag": 8.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6633,6 +7295,7 @@
             "dec": 55.23239,
             "type": "SRC",
             "mag_max": 7.6,
+            "min_mag": 9.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6643,6 +7306,7 @@
             "dec": 57.04617,
             "type": "SRC",
             "mag_max": 7.66,
+            "min_mag": 8.73,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6653,6 +7317,7 @@
             "dec": 56.99314,
             "type": "SRC",
             "mag_max": 7.7,
+            "min_mag": 8.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6663,6 +7328,7 @@
             "dec": 39.98178,
             "type": "SRC",
             "mag_max": 7.7,
+            "min_mag": 9.4,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6673,6 +7339,7 @@
             "dec": 63.95392,
             "type": "SRC:",
             "mag_max": 7.8,
+            "min_mag": 9.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6683,6 +7350,7 @@
             "dec": 46.46683,
             "type": "SRC",
             "mag_max": 7.8,
+            "min_mag": 9.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6693,6 +7361,7 @@
             "dec": 57.10947,
             "type": "SRC",
             "mag_max": 7.82,
+            "min_mag": 9.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6703,6 +7372,7 @@
             "dec": 25.60089,
             "type": "SRC",
             "mag_max": 7.85,
+            "min_mag": 8.12,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6713,6 +7383,7 @@
             "dec": 58.5865,
             "type": "SRC",
             "mag_max": 7.9,
+            "min_mag": 12.8,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6723,6 +7394,7 @@
             "dec": 62.32903,
             "type": "SRC",
             "mag_max": 7.97,
+            "min_mag": 8.68,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6733,6 +7405,7 @@
             "dec": 55.15842,
             "type": "SRC",
             "mag_max": 8.1,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6743,6 +7416,7 @@
             "dec": 59.26911,
             "type": "SRC",
             "mag_max": 8.2,
+            "min_mag": 8.46,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6753,6 +7427,7 @@
             "dec": 62.574,
             "type": "SRC",
             "mag_max": 8.2,
+            "min_mag": 9.7,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6763,6 +7438,7 @@
             "dec": 57.42133,
             "type": "SRC",
             "mag_max": 8.2,
+            "min_mag": 10.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6773,6 +7449,7 @@
             "dec": 61.7895,
             "type": "SRC",
             "mag_max": 8.2,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6783,6 +7460,7 @@
             "dec": 58.96119,
             "type": "SRC",
             "mag_max": 8.3,
+            "min_mag": 9.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6793,6 +7471,7 @@
             "dec": 60.64658,
             "type": "SRC",
             "mag_max": 8.34,
+            "min_mag": 8.6,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6803,6 +7482,7 @@
             "dec": 60.37233,
             "type": "SRC",
             "mag_max": 8.44,
+            "min_mag": 8.89,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6813,6 +7493,7 @@
             "dec": 56.98342,
             "type": "SRC",
             "mag_max": 8.6,
+            "min_mag": 11.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6823,6 +7504,7 @@
             "dec": 60.48947,
             "type": "SRC",
             "mag_max": 8.75,
+            "min_mag": 9.9,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6833,6 +7515,7 @@
             "dec": 58.14231,
             "type": "SRC",
             "mag_max": 8.81,
+            "min_mag": 9.02,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6843,6 +7526,7 @@
             "dec": 36.93214,
             "type": "SRC",
             "mag_max": 8.86,
+            "min_mag": 10.0,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6853,6 +7537,7 @@
             "dec": 64.14388,
             "type": "SR",
             "mag_max": 8.9,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6863,6 +7548,7 @@
             "dec": 37.53306,
             "type": "SRC",
             "mag_max": 9.0,
+            "min_mag": 10.1,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6873,6 +7559,7 @@
             "dec": 57.85553,
             "type": "SRC",
             "mag_max": 9.08,
+            "min_mag": 9.97,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6883,6 +7570,7 @@
             "dec": 54.93578,
             "type": "SRC",
             "mag_max": 9.15,
+            "min_mag": 9.39,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6893,6 +7581,7 @@
             "dec": 54.88417,
             "type": "SRC",
             "mag_max": 9.16,
+            "min_mag": 10.38,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6903,6 +7592,7 @@
             "dec": 61.2835,
             "type": "SRC",
             "mag_max": 9.2,
+            "min_mag": 12.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6913,6 +7603,7 @@
             "dec": 61.24161,
             "type": "SRC",
             "mag_max": 9.6,
+            "min_mag": 10.2,
             "recommended_cadence_days": 5,
             "priority": 2,
             "duration": 600
@@ -6923,6 +7614,7 @@
             "dec": 33.86724,
             "type": "LMXB/BHXB/XN",
             "mag_max": 11.2,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -6933,6 +7625,7 @@
             "dec": 33.86724,
             "type": "LMXB/BHXB/XN",
             "mag_max": 11.2,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -6943,6 +7636,7 @@
             "dec": 33.86724,
             "type": "LMXB/BHXB/XN",
             "mag_max": 11.2,
+            "min_mag": 18.8,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -6953,6 +7647,7 @@
             "dec": -4.59969,
             "type": "UG",
             "mag_max": 12.3,
+            "min_mag": 15.2,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -6963,6 +7658,7 @@
             "dec": 16.66631,
             "type": "UGSS+ELL",
             "mag_max": 14.0,
+            "min_mag": 17.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -6973,6 +7669,7 @@
             "dec": 31.51833,
             "type": "UG",
             "mag_max": 14.1,
+            "min_mag": 20.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -6983,6 +7680,7 @@
             "dec": 27.2655,
             "type": "UG",
             "mag_max": 12.7,
+            "min_mag": 18.4,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -6993,6 +7691,7 @@
             "dec": 36.01519,
             "type": "UG/IBWD",
             "mag_max": 13.4,
+            "min_mag": 20.0,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -7003,6 +7702,7 @@
             "dec": 44.94744,
             "type": "EA/DM",
             "mag_max": 1.89,
+            "min_mag": 1.98,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7013,6 +7713,7 @@
             "dec": 44.94744,
             "type": "EA/DM",
             "mag_max": 1.89,
+            "min_mag": 1.98,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7023,6 +7724,7 @@
             "dec": 44.94744,
             "type": "EA/DM",
             "mag_max": 1.89,
+            "min_mag": 1.98,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7033,6 +7735,7 @@
             "dec": 44.94744,
             "type": "EA/DM",
             "mag_max": 1.89,
+            "min_mag": 1.98,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7043,6 +7746,7 @@
             "dec": 44.94744,
             "type": "EA/DM",
             "mag_max": 1.89,
+            "min_mag": 1.98,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7053,6 +7757,7 @@
             "dec": 56.28511,
             "type": "EA/DM",
             "mag_max": 5.52,
+            "min_mag": 6.03,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7063,6 +7768,7 @@
             "dec": 56.28511,
             "type": "EA/DM",
             "mag_max": 5.52,
+            "min_mag": 6.03,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7073,6 +7779,7 @@
             "dec": 56.28511,
             "type": "EA/DM",
             "mag_max": 5.52,
+            "min_mag": 6.03,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7083,6 +7790,7 @@
             "dec": 56.28511,
             "type": "EA/DM",
             "mag_max": 5.52,
+            "min_mag": 6.03,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7093,6 +7801,7 @@
             "dec": 56.28511,
             "type": "EA/DM",
             "mag_max": 5.52,
+            "min_mag": 6.03,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7103,6 +7812,7 @@
             "dec": 54.97378,
             "type": "EA/DM",
             "mag_max": 5.85,
+            "min_mag": 6.37,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7113,6 +7823,7 @@
             "dec": 54.97378,
             "type": "EA/DM",
             "mag_max": 5.85,
+            "min_mag": 6.37,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7123,6 +7834,7 @@
             "dec": 54.97378,
             "type": "EA/DM",
             "mag_max": 5.85,
+            "min_mag": 6.37,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7133,6 +7845,7 @@
             "dec": 54.97378,
             "type": "EA/DM",
             "mag_max": 5.85,
+            "min_mag": 6.37,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7143,6 +7856,7 @@
             "dec": 54.97378,
             "type": "EA/DM",
             "mag_max": 5.85,
+            "min_mag": 6.37,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7153,6 +7867,7 @@
             "dec": 21.00594,
             "type": "NA",
             "mag_max": 9.6,
+            "min_mag": 20.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -7163,6 +7878,7 @@
             "dec": 21.00594,
             "type": "NA",
             "mag_max": 9.6,
+            "min_mag": 20.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -7173,6 +7889,7 @@
             "dec": 21.00594,
             "type": "NA",
             "mag_max": 9.6,
+            "min_mag": 20.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -7183,6 +7900,7 @@
             "dec": 21.00594,
             "type": "NA",
             "mag_max": 9.6,
+            "min_mag": 20.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -7193,6 +7911,7 @@
             "dec": 21.00594,
             "type": "NA",
             "mag_max": 9.6,
+            "min_mag": 20.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -7203,6 +7922,7 @@
             "dec": 21.00594,
             "type": "NA",
             "mag_max": 9.6,
+            "min_mag": 20.8,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
@@ -7213,6 +7933,7 @@
             "dec": 49.868,
             "type": "AM+E",
             "mag_max": 12.3,
+            "min_mag": 15.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7223,6 +7944,7 @@
             "dec": 49.868,
             "type": "AM+E",
             "mag_max": 12.3,
+            "min_mag": 15.7,
             "recommended_cadence_days": 10,
             "priority": 2,
             "duration": 600
@@ -7233,6 +7955,7 @@
             "dec": 59.60689,
             "type": "UGWZ",
             "mag_max": 13.1,
+            "min_mag": 21.6,
             "recommended_cadence_days": 1,
             "priority": 2,
             "duration": 600
