@@ -33,20 +33,20 @@ fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%
 
 ch = logging.StreamHandler(sys.stdout)
 ch.setFormatter(fmt)
-log.addHandler(ch)
 
 fh = logging.FileHandler(SIM_LOG, mode="w")
 fh.setFormatter(fmt)
-log.addHandler(fh)
 
-# SeeVar-sim-dedup-logging: propagate orchestrator/ledger output to
-# sim log by attaching handler to root, but only if not already present.
+# SeeVar-sim-logging-v2: attach file handler to root logger only.
+# Set propagate=False on sim logger to avoid double-writing the banner.
+# All other loggers (Orchestrator, Ledger etc) propagate to root → file.
 root = logging.getLogger()
 root.setLevel(logging.DEBUG)
-if not any(isinstance(h, logging.FileHandler) and
-           getattr(h, 'baseFilename', None) == str(SIM_LOG)
-           for h in root.handlers):
-    root.addHandler(fh)
+root.addHandler(fh)
+root.addHandler(ch)
+
+# Prevent sim logger from double-firing through root
+log.propagate = False
 
 # ---------------------------------------------------------------------------
 # Parse optional --targets N argument (default: all)

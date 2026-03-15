@@ -284,18 +284,51 @@
                         document.getElementById('orch-main').innerText = state;
                         document.getElementById('orch-sub').innerText = data.orchestrator.sub || 'OFF-DUTY';
                         document.getElementById('orch-msg').innerText = data.orchestrator.msg || '';
+
+                        // SeeVar-current-target-lock: freeze ticker on active target
+                        const ct = data.current_target;
+                        if(ct && ct.name) {
+                            document.getElementById('t-name').innerText = ct.name;
+                            document.getElementById('t-name').className = 'val critical';
+                            document.getElementById('t-type').innerText = ct.type || 'N/A';
+                            const ra  = ct.ra  != null ? parseFloat(ct.ra).toFixed(2)  : '--';
+                            const dec = ct.dec != null ? parseFloat(ct.dec).toFixed(2) : '--';
+                            document.getElementById('t-loc').innerText = 'ACQ | RA: ' + ra + ' DEC: ' + dec;
+                            const maxM = ct.mag_max != null ? ct.mag_max : '--';
+                            const minM = ct.min_mag != null ? ct.min_mag : '--';
+                            const perD = ct.period_days != null
+                                ? (ct.period_days < 1
+                                    ? (ct.period_days * 24).toFixed(1) + 'h'
+                                    : ct.period_days.toFixed(1) + 'd')
+                                : '--';
+                            document.getElementById('t-mag').innerText = maxM + ' – ' + minM + ' · ' + perD + ' (V)';
+                        }
                         
                         const icon = document.getElementById('orch-icon');
                         const mainText = document.getElementById('orch-main');
                         
+                        // SeeVar-state-icons-v2
                         if(state === 'PARKED') {
                             icon.innerText = 'P'; icon.className = 'icon-p state-parked'; mainText.style.color = '#1e90ff';
+                        } else if(state === 'IDLE') {
+                            icon.innerText = 'I'; icon.className = 'icon-p state-parked'; mainText.style.color = '#555555';
+                        } else if(state === 'PREFLIGHT') {
+                            icon.innerText = '✓'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
+                        } else if(state === 'PLANNING') {
+                            icon.innerText = '⊞'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
+                        } else if(state === 'FLIGHT') {
+                            icon.innerText = '◈'; icon.className = 'icon-p state-tracking'; mainText.style.color = '#39ff14';
                         } else if(state === 'SLEWING') {
                             icon.innerText = 'S'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
                         } else if(state === 'TRACKING') {
                             icon.innerText = 'T'; icon.className = 'icon-p state-tracking'; mainText.style.color = '#39ff14';
                         } else if(state === 'EXPOSING') {
                             icon.innerText = 'E'; icon.className = 'icon-p state-exposing'; mainText.style.color = '#5dade2';
+                        } else if(state === 'POSTFLIGHT') {
+                            icon.innerText = '↓'; icon.className = 'icon-p state-exposing'; mainText.style.color = '#5dade2';
+                        } else if(state === 'ABORTED') {
+                            icon.innerText = '✕'; icon.className = 'icon-p'; mainText.style.color = '#ff3333';
+                            icon.style.background = 'linear-gradient(135deg, #ff3333, #8b0000)';
                         }
 
                         if(data.orchestrator.flight_log && Array.isArray(data.orchestrator.flight_log)) {

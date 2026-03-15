@@ -17,20 +17,20 @@ The application stack is a strict, linear 3-Phase State Machine.
 * **Phase 1: Pre-Flight (The Funnel)**
   * **Harvest & Refine:** `targets.json` (Master) is filtered by `nightly_planner.py` to generate `tonights_plan.json`.
   * **Cadence Logic:** Target priority is calculated using the **1/20th Period Rule** (Miras 5-10d, SRs 3-5d).
-  * **AAVSO Throttling:** API calls must respect a strict **31.4s (Pi-Minute) delay**. Pi IP was hard-blocked by AAVSO at 3.14s on 2026-03-13. Do not reduce below 31.4s.
+  * **AAVSO Throttling:** API calls must respect a strict **188.4s (Pi-Minute) delay**. Pi IP was hard-blocked by AAVSO at 3.14s on 2026-03-13. Corrected to 188.4s on 2026-03-15. Do not reduce. <!-- SeeVar-context-v1.6.0 -->
   * **Exposure Planning:** Per-target exposure via `exposure_planner.plan_exposure(get_target_mag(name))`. No hardcoded exposure times.
   * **Horizon Veto:** All targets gated against `data/horizon_mask.json` — 360° per-degree profile derived from site photos. West (240°–300°) blocked by own building.
 * **Phase 2: The Handover (The Gatekeeper)**
   * **System Audit:** 5-minute loop validating weather, disk vitals, and plan integrity. Passes control (GREEN) or scrubs mission (RED).
 * **Phase 3: Flight (The Acquisition Loop)**
-  * **Control Path:** Direct TCP port 4700 (JSON-RPC) for all science acquisition.
+  * **Control Path:** Sovereign TCP port 4700 (JSON-RPC) for all science acquisition. No Alpaca bridge. seestar_alp used for simulation only.
   * **Action:** Orchestrator commands slew, plate solve, and expose. FITS stream to Active Storage Path.
 
 ## 📡 3. Hardware & Network Logic
 * **Seestar S30-Pro:**
   * **Science TCP:** Port 4700 (JSON-RPC), port 4801 (binary frame stream)
   * **RTSP stream:** `rtsp://192.168.178.55:4554/stream`
-  * **Fixed IP:** 192.168.178.55 (DHCP reservation by MAC)
+  * **IP:** Read from `config.toml [[seestars]] ip` — never hardcoded. Current lab value: 192.168.178.55 (DHCP reservation by MAC)
   * **IMX585 sensor:** GRBG Bayer, 3840×2160, 16-bit unsigned (>u2), 3.75"/px
   * **Science channel:** G → AAVSO filter TG
   * **Saturation ceiling:** 60000 ADU

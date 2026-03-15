@@ -20,7 +20,7 @@ SeeVar focuses on **long-term monitoring of variable stars**, with special atten
 • **Long Period Variables (Mira / Semi-Regular)**
 • **Cataclysmic Variables during outburst**
 
-Observation cadence follows the **1/20th period rule** used in professional variable star monitoring.
+Observation cadence follows the **5% of period rule** — confirmed against AAVSO STWG recommendations for OSC CMOS robotic telescopes.
 
 Photometric results are reported to the **AAVSO** using the correct **TG** or **CV** reporting format.
 
@@ -86,7 +86,7 @@ Raspberry Pi running **Debian Bookworm** and the required Python environment.
 
 ### Block 2 — Telescope Interface
 
-Communication with the telescope occurs via the **Seestar ALP bridge**, exposing a stable API for telescope control.
+Communication with the telescope occurs via **direct TCP** to the S30-Pro on port 4700 (JSON-RPC commands) and port 4801 (raw frame stream). No Alpaca bridge. No intermediate layer. <!-- SeeVar-readme-v1.6.0 -->
 
 ### Block 3 — Preflight Gatekeeper
 
@@ -127,7 +127,7 @@ Targets are dynamically scheduled based on:
 After images are captured the pipeline automatically:
 
 • retrieves RAW FITS frames
-• debayers and calibrates images
+• extracts G/R/B/L channels directly from raw Bayer data (no debayering)
 • performs plate solving
 • measures stellar brightness via photometry
 • prepares AAVSO submission reports

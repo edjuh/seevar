@@ -158,9 +158,10 @@ class Orchestrator:
             lat=self._obs["lat"] * u.deg, lon=self._obs["lon"] * u.deg, height=self._obs["elevation"] * u.m,
         )
 
-        self._state      = PipelineState.IDLE
-        self._targets    = []
-        self._flight_log = []
+        self._state          = PipelineState.IDLE
+        self._targets        = []
+        self._flight_log     = []
+        self._current_target = None  # SeeVar-current-target
         self._session_stats = {
             "targets_attempted": 0, "targets_completed": 0, "exposures_total": 0,
         }
@@ -308,6 +309,16 @@ class Orchestrator:
         )
 
         self._session_stats["targets_attempted"] += 1
+        self._current_target = {
+            "name":        name,
+            "ra":          round(ra_deg_val, 4),
+            "dec":         round(dec_deg_val, 4),
+            "type":        target.get("type", ""),
+            "mag_max":     target.get("mag_max"),
+            "min_mag":     target.get("min_mag"),
+            "period_days": target.get("period_days"),
+            "auid":        target.get("auid", ""),
+        }
         self._write_state(state="SLEWING", sub=name, msg=f"Diamond Sequence executing: {name}")
         self._log_flight(f"[T1-T2] {name} RA={acq_target.ra_hours:.2f}h")
 
@@ -364,9 +375,11 @@ class Orchestrator:
         self._transition(PipelineState.PARKED, msg="Mission Complete.")
 
     def _run_parked(self):
+        self._current_target = None
         time.sleep(self.LOOP_SLEEP_SEC)
 
     def _run_aborted(self):
+        self._current_target = None
         time.sleep(self.LOOP_SLEEP_SEC)
 
     def _sun_altitude(self) -> float:
@@ -398,12 +411,13 @@ class Orchestrator:
             }
 
         payload = {
-            "state":      state or self._state,
-            "sub":        sub,
-            "msg":        msg,
-            "timestamp":  datetime.now(timezone.utc).isoformat(),
-            "flight_log": list(self._flight_log),
-            "telemetry":  tel,
+            "state":          state or self._state,
+            "sub":            sub,
+            "msg":            msg,
+            "timestamp":      datetime.now(timezone.utc).isoformat(),
+            "flight_log":     list(self._flight_log),
+            "telemetry":      tel,
+            "current_target": getattr(self, "_current_target", None),
         }
         try:
             STATE_FILE.parent.mkdir(parents=True, exist_ok=True)

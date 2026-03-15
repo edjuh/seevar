@@ -93,6 +93,23 @@ def refresh_hw_cache():
         except (json.JSONDecodeError, OSError) as e:
             log.warning("HW_CACHE env_status refresh failed: %s", e)
 
+    # Source 1b: storage_mb fallback — measure local_buffer if not in env_status
+    # SeeVar-stor-fallback
+    if HW_CACHE["data"]["storage_mb"] in ("N/A", None):
+        try:
+            local_buffer = DATA_DIR / "local_buffer"
+            if local_buffer.exists():
+                total_bytes = sum(
+                    f.stat().st_size
+                    for f in local_buffer.rglob("*")
+                    if f.is_file()
+                )
+                HW_CACHE["data"]["storage_mb"] = round(total_bytes / (1024 * 1024), 1)
+            else:
+                HW_CACHE["data"]["storage_mb"] = 0.0
+        except OSError:
+            pass
+
     # Source 2: TelemetryBlock from orchestrator via system_state.json
     if STATE_FILE.exists():
         try:

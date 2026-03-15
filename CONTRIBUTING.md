@@ -14,12 +14,12 @@ Every Python file (`.py`) MUST begin with a PEP 257 docstring. No exceptions. Th
 ## 🛰️ 2. Architectural Pillars
 All new logic must be categorized into one of the three established pillars:
 1.  **🛫 PREFLIGHT**: Data harvesting, vetting, and scheduling (Hardware remains OFF).
-2.  **🚀 FLIGHT**: Hardware orchestration, slewing, and integration via the Alpaca Bridge.
+2.  **🚀 FLIGHT**: Hardware orchestration, slewing, and integration via sovereign TCP port 4700 (JSON-RPC). No Alpaca bridge. <!-- SeeVar-contrib-v1.6.0 -->
 3.  **🧪 POSTFLIGHT**: Data syncing, photometry, and AAVSO reporting.
 
 ## 🏮 3. Core Logic Constraints
 * **The Aperture Grip**: New selectors must respect the Westward Priority (Azimuth 180°-350°) to ensure science-grade photons are captured before targets set.
-* **Throttling**: Any script hitting the AAVSO VSP API must implement the mandatory 188.4s (Pi-Minute) sleep to prevent IP throttling.
+* **Throttling**: Any script hitting the AAVSO VSP API must implement the mandatory **188.4s (Pi-Minute)** sleep to prevent IP throttling. Pi IP was hard-blocked by AAVSO at 3.14s on 2026-03-13.
 * **Path Integrity**: Never hardcode paths. Resolve all directories via `config.toml` to support the Lifeboat/RAID1 storage model.
 
 ## 🛠️ 4. The Pull Request (Git) Protocol
