@@ -28,7 +28,7 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
 *The invisible, tireless workers in the background. Focuses on system resilience and background magic.*
 * **v1.1 Pee Pastinakel:** "Talks to the plants" (environmental sensor tuning).
 * **v1.2 Garmt:** A down-to-earth, stable baseline update. Standardized project-metadata and objective clarity.
-* [x] **v1.3 Monkel:** *"Een mens kan ook nooit eens rustig..."* **The Discovery Phase.** Fixing daemon interruption bugs and implementing the Ziggo-subnet home/field detection.
+* **v1.3 Monkel:** *"Een mens kan ook nooit eens rustig..."* **The Discovery Phase.** Fixing daemon interruption bugs and implementing the Ziggo-subnet home/field detection.
 * **v1.4 Kriel:** Integration of `gpsd` for dynamic 6-char Maidenhead updates in-memory.
      -  Alpaca Communication Centralization (Revision v1.4.x)
      -  Objective: Eliminate Alpaca bridge desynchronization and "Action Rejected" errors caused by inconsistent connection parameters.
@@ -39,8 +39,9 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
     - The App & Data: Lives on the RAID1 USB Array (/mnt/federation_data).
     - The Temporary "Live" State: Stays in RAM (/dev/shm).
     - The Failover: If the NAS is reachable and has >15% free space, the "Accountant" (Post-flight) rsyncs the FITS files there at the end of the night.
-* **v1.6 Jochem:** Giving the background workers a bigger role.
-* **v1.7 Oene:** **The Clean Slate Milestone (March 5).** Full reinstallation on a fresh SD card to verify dependency and systemd integrity.
+* [x] **v1.6 Jochem:** Giving the background workers a bigger role.
+* **v1.7 Oene:** **The Clean Slate Milestone (March 15).** Full reinstallation on a fresh SD card to verify dependency and systemd integrity.
+    - core/preflight/catalog_localiser.py ( checks latitude and pulls extra object and reference-charts )
 * **v1.8 Snotolf:** An authentic, slightly spicy underlying system change.
 * **v1.9 Fliep:** **The Deployment Master.** Goal: Seamless installation via `git clone` and a finalized `setup_wizard.py`.
 

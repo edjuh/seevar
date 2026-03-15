@@ -9,7 +9,7 @@
 
 set -e
 
-SEEVAR_REPO="https://github.com/smart-underworld/seevar.git"
+SEEVAR_REPO="https://github.com/edjuh/seevar.git"  # SeeVar-bootstrap-v1.6.0
 PYTHON_VERSION="3.13.5"
 VENV_NAME="ssc-${PYTHON_VERSION}"
 SEEVAR_DIR="$HOME/seevar"
@@ -309,6 +309,34 @@ function config_setup {
     sed -i "s|^home_grid = .*|home_grid = \"${GRID}\"|" "$TOML"
   fi
 
+  # Telescope setup → [[seestars]] entry
+  echo ""
+  echo -e "${GREEN}━━━ Telescope ━━━${NC}"
+  echo "  Your Seestar joins the local network and gets an IP address."
+  echo "  Find it in your router's DHCP client list, or via the ZWO app."
+  echo ""
+  read -rp "  Telescope name (e.g. Wilhelmina)      : " TEL_NAME
+  read -rp "  Model (S30-Pro / S30 / S50)           : " TEL_MODEL
+  read -rp "  IP address (e.g. 192.168.1.55)        : " TEL_IP
+
+  TEL_NAME="${TEL_NAME:-Wilhelmina}"
+  TEL_MODEL="${TEL_MODEL:-S30-Pro}"
+  TEL_IP="${TEL_IP:-TBD}"
+
+  # Append [[seestars]] section to config.toml
+  cat >> "$TOML" << _TOML
+
+[[seestars]]
+name  = "${TEL_NAME}"
+model = "${TEL_MODEL}"
+ip    = "${TEL_IP}"
+mount = "altaz"
+_TOML
+
+  # Set simulation_mode = false — testers have real hardware
+  sed -i "s|^simulation_mode = .*|simulation_mode = false|" "$TOML"
+
+  info "Telescope '${TEL_NAME}' (${TEL_MODEL} @ ${TEL_IP}) added to config.toml"
   info "config.toml written."
 }
 
