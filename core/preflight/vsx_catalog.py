@@ -36,7 +36,7 @@ DATA_DIR     = PROJECT_ROOT / "data"
 MASTER_FILE  = CATALOG_DIR / "campaign_targets.json"
 VSX_CACHE    = DATA_DIR / "vsx_catalog.json"
 
-POLL_DELAY_S = 31.4
+POLL_DELAY_S = 188.4  # SeeVar-vsx-throttle-188: Pi-Minute per CONTRIBUTING.md
 VSX_URL      = "https://www.aavso.org/vsx/index.php"
 TIMEOUT_S    = 15
 DEFAULT_MAG  = 12.0

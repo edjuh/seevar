@@ -1,116 +1,92 @@
 #!/usr/bin/env python3
-# -----------------------------------------------------------------------------
 # Filename: core/hardware/fleet_mapper.py
-# Version: 1.4.17 (Infrastructure Baseline)
-# Objective: Dynamically reads upstream ALP config, verifies the 'seestar.service', and maps hardware indices to a static schema.
-# -----------------------------------------------------------------------------
-import os
-import sys
+# Version:  2.0.0
+# Objective: Read [[seestars]] from config.toml, load hardware constants
+#            from core/hardware/models/<model>.json, and produce
+#            data/fleet_schema.json for use by pilot.py and orchestrator.py.
+#            Sovereign TCP path only. No Alpaca. No port 5555.
+
 import json
-import subprocess
-import urllib.request
+import sys
+import tomllib
+from pathlib import Path
 
-# Python 3.13.5 includes tomllib natively for safe TOML parsing
-import tomllib 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CONFIG_FILE  = PROJECT_ROOT / "config.toml"
+MODELS_DIR   = PROJECT_ROOT / "core" / "hardware" / "models"
+SCHEMA_FILE  = PROJECT_ROOT / "data" / "fleet_schema.json"
 
-# Resolve project paths dynamically
-PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-SCHEMA_FILE = os.path.join(PROJECT_DIR, 'data', 'fleet_schema.json')
 
-# Upstream seestar_alp paths (based on your system audit)
-ALP_DIR = os.path.expanduser("~/seestar_alp")
-ALP_CONFIG = os.path.join(ALP_DIR, "config.toml")
-
-def verify_alp_service():
-    """Queries systemd to guarantee the bridge is actually running before network calls."""
-    print("[BLOCK 2] Verifying 'seestar.service' via systemd...")
-    try:
-        # Corrected service name based on system audit
-        result = subprocess.run(["systemctl", "is-active", "seestar.service"], capture_output=True, text=True)
-        if result.stdout.strip() != "active":
-            print(f"[FATAL] seestar.service is not active. Status: '{result.stdout.strip()}'")
-            return False
-        print("[OK] systemd confirms seestar.service is active.")
-        return True
-    except FileNotFoundError:
-        print("[FATAL] systemctl not found. OS environment corrupted.")
-        return False
-
-def get_alpaca_endpoint():
-    """Reads the upstream config.toml to find the true listening port."""
-    port = 5555 # Fallback standard
-    host = "127.0.0.1" # Safe internal loopback
-    
-    print(f"[BLOCK 2] Reading upstream config: {ALP_CONFIG}")
-    if os.path.exists(ALP_CONFIG):
-        try:
-            with open(ALP_CONFIG, "rb") as f:
-                config = tomllib.load(f)
-                if "server" in config and "port" in config["server"]:
-                    port = config["server"]["port"]
-                elif "port" in config:
-                    port = config["port"]
-                print(f"[OK] Parsed port {port} from upstream config.toml.")
-        except Exception as e:
-            print(f"[WARNING] Could not parse {ALP_CONFIG}. Falling back to port {port}. Error: {e}")
-    else:
-        print(f"[WARNING] Upstream config {ALP_CONFIG} not found. Falling back to port {port}.")
-        
-    return f"http://{host}:{port}"
-
-def map_fleet():
-    if not verify_alp_service():
+def load_model(model_name: str) -> dict:
+    """Load hardware constants from core/hardware/models/<model>.json."""
+    path = MODELS_DIR / f"{model_name}.json"
+    if not path.exists():
+        print(f"[ERROR] Model file not found: {path}")
         sys.exit(1)
-        
-    base_url = get_alpaca_endpoint()
-    print(f"[BLOCK 2] Polling Alpaca Management API at {base_url}...")
-    
-    try:
-        req = urllib.request.urlopen(f"{base_url}/management/v1/configureddevices", timeout=3.0)
-        devices = json.loads(req.read().decode())['Value']
-    except Exception as e:
-        print(f"[FATAL] ALP bridge unreachable at {base_url}: {e}")
-        print("[BLOCK 2] Fleet mapping failed. Halting.")
+    with open(path) as f:
+        return json.load(f)
+
+
+def map_fleet() -> dict:
+    """Build fleet schema from config.toml [[seestars]] entries."""
+    if not CONFIG_FILE.exists():
+        print(f"[FATAL] config.toml not found: {CONFIG_FILE}")
         sys.exit(1)
 
-    fleet_schema = {
-        "bridge_url": base_url,
-        "telescopes": {}
-    }
+    with open(CONFIG_FILE, "rb") as f:
+        config = tomllib.load(f)
 
-    mapped_count = 0
-    for dev in devices:
-        if dev.get("DeviceType") == "Telescope":
-            name = dev.get("DeviceName", "Unknown")
-            idx = dev.get("DeviceNumber")
-            
-            # Identify units without assuming their index
-            identity = "unknown_unit"
-            if "Alpha" in name or "S30" in name: identity = "williamina_s30"
-            elif "Annie" in name: identity = "annie_s50"
-            elif "Henrietta" in name: identity = "henrietta_s50"
-            
-            fleet_schema["telescopes"][identity] = {
-                "name": name,
-                "device_number": idx,
-                "endpoints": {
-                    "base": f"/api/v1/telescope/{idx}",
-                    "ra": f"/api/v1/telescope/{idx}/rightascension",
-                    "dec": f"/api/v1/telescope/{idx}/declination",
-                    "slewing": f"/api/v1/telescope/{idx}/slewing",
-                    "tracking": f"/api/v1/telescope/{idx}/tracking",
-                    "action": f"/api/v1/telescope/{idx}/action"
-                }
-            }
-            mapped_count += 1
-            print(f"[OK] Locked: {identity} ('{name}') -> DeviceNumber {idx}")
+    seestars = config.get("seestars", [])
+    if not seestars:
+        print("[WARNING] No [[seestars]] entries found in config.toml.")
+        return {"telescopes": {}}
 
-    os.makedirs(os.path.dirname(SCHEMA_FILE), exist_ok=True)
+    fleet = {"telescopes": {}}
 
-    with open(SCHEMA_FILE, 'w') as f:
-        json.dump(fleet_schema, f, indent=4)
-    
-    print(f"[SUCCESS] Block 2: Schema written to {SCHEMA_FILE} with {mapped_count} device(s).")
+    for entry in seestars:
+        name  = entry.get("name")
+        model = entry.get("model")
+        ip    = entry.get("ip", "TBD")
+        mount = entry.get("mount", "altaz")
+
+        if not name or not model:
+            print(f"[WARNING] Skipping incomplete entry: {entry}")
+            continue
+
+        hw = load_model(model)
+
+        fleet["telescopes"][name] = {
+            "name":         name,
+            "model":        model,
+            "ip":           ip,
+            "ctrl_port":    4700,
+            "img_port":     4801,
+            "mount":        mount,
+            "telescope":    hw["telescope"],
+            "instrument":   hw["instrument"],
+            "sensor_w":     hw["sensor_w"],
+            "sensor_h":     hw["sensor_h"],
+            "focallen_mm":  hw["focallen_mm"],
+            "aperture_mm":  hw["aperture_mm"],
+            "pixscale":     hw["pixscale"],
+            "bayer":        hw["bayer"],
+            "gain_default": hw["gain_default"],
+            "filter":       hw["filter"],
+            "veto_temp_c":  hw["veto_temp_c"],
+            "veto_battery": hw["veto_battery"],
+            "settle_s":     hw["settle_s"],
+            "frame_timeout_s": hw["frame_timeout_s"],
+        }
+        print(f"[OK] Mapped: {name} ({model}) @ {ip}")
+
+    SCHEMA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(SCHEMA_FILE, "w") as f:
+        json.dump(fleet, f, indent=4)
+
+    print(f"[SUCCESS] Fleet schema written: {SCHEMA_FILE}")
+    print(f"          {len(fleet['telescopes'])} telescope(s) mapped.")
+    return fleet
+
 
 if __name__ == "__main__":
     map_fleet()

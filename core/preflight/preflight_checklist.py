@@ -1,56 +1,105 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-core/preflight/preflight_checklist.py
-Version: 1.0.1
-Objective: Verify bridge connectivity, mount orientation, and imaging pipeline status prior to flight.
+Filename: core/preflight/preflight_checklist.py
+Version: 2.0.0
+Objective: Sovereign preflight gate — verifies hardware is alive and at
+           zero-state before flight. Uses camera_control.CameraControl
+           for get_device_state health check and neutralizer.enforce_zero_state
+           for clean session start. No Alpaca, no mount_control ghost module.
 """
 
-import os
+import logging
 import sys
-import importlib.util
+from pathlib import Path
 
-# Project root discovery
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-MOUNT_PATH = os.path.join(BASE_DIR, "core/flight/mount_control.py")
-CAMERA_PATH = os.path.join(BASE_DIR, "core/flight/camera_control.py")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
 
-def load_module(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+from core.flight.camera_control import CameraControl
+from core.flight.neutralizer import enforce_zero_state
+from core.preflight.hardware_audit import HardwareAudit
 
-def main():
-    print("🚀 Initiating Preflight Checklist...\n")
-    
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s"
+)
+logger = logging.getLogger("PreflightChecklist")
+
+
+def run_checklist() -> bool:
+    """
+    Execute preflight checklist. Returns True if all pillars GREEN.
+
+    Pillar 1 — Hardware alive:
+        get_device_state on port 4700 via CameraControl.
+        Any valid JSON response = device alive.
+
+    Pillar 2 — Hardware telemetry:
+        Full TelemetryBlock parse via HardwareAudit.
+        Battery, temp, charger_status checked against veto thresholds.
+
+    Pillar 3 — Zero-state:
+        neutralizer.enforce_zero_state() — iscope_stop_view + scope_park
+        + poll for idle confirmation. 180s ceiling.
+    """
+    print("\n🚀 SeeVar Preflight Checklist\n")
+    results = {}
+
+    # Pillar 1 — Device alive
+    print("Pillar 1 — Hardware link (port 4700)...")
+    cam = CameraControl()
+    alive = cam.get_view_status()
+    results["hardware_link"] = alive
+    print(f"  {'✅ ALIVE' if alive else '❌ NO RESPONSE'}")
+
+    if not alive:
+        print("\n🛑 ABORT — device not reachable on port 4700.")
+        _write_results(results, passed=False)
+        return False
+
+    # Pillar 2 — Telemetry and veto check
+    print("\nPillar 2 — Hardware telemetry (battery / temp)...")
+    audit = HardwareAudit()
+    safe = audit.run_audit()
+    results["telemetry"] = safe
+    print(f"  {'✅ SAFE' if safe else '❌ VETO — check hardware_telemetry.json'}")
+
+    if not safe:
+        print("\n🛑 ABORT — hardware veto. Check data/hardware_telemetry.json.")
+        _write_results(results, passed=False)
+        return False
+
+    # Pillar 3 — Zero-state
+    print("\nPillar 3 — Zero-state (neutralizer)...")
+    zero = enforce_zero_state()
+    results["zero_state"] = zero
+    print(f"  {'✅ SECURED' if zero else '⚠️  UNCONFIRMED (alive but state unclear)'}")
+
+    passed = alive and safe
+    # zero-state unconfirmed is a warning, not a hard abort —
+    # neutralizer returns True even on timeout-but-alive per its own logic
+    print(f"\n{'✅ PREFLIGHT GREEN — proceed to flight' if passed else '🛑 PREFLIGHT RED — scrub'}\n")
+    _write_results(results, passed=passed)
+    return passed
+
+
+def _write_results(results: dict, passed: bool):
+    from datetime import datetime, timezone
+    import json
+    from core.utils.env_loader import DATA_DIR
+    out = DATA_DIR / "preflight_results.json"
     try:
-        mount = load_module("mount_control", MOUNT_PATH)
-        cam = load_module("camera_control", CAMERA_PATH)
-    except Exception as e:
-        print(f"❌ [FAIL] Core module load error: {e}")
-        sys.exit(1)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "passed":    passed,
+            "pillars":   results,
+        }, indent=2))
+    except OSError:
+        pass
 
-    # Pillar 1: Situational Awareness
-    print("🛰️ Pillar 1: Mount Orientation")
-    coords = mount.get_mount_coords()
-    if coords and coords.get("ra") is not None:
-        print(f"  ✅ SUCCESS: RA {coords['ra']:.4f} | DEC {coords['dec']:.4f}")
-    else:
-        print("  ❌ FAIL: Could not secure equatorial coordinates.")
 
-    # Pillar 2: Imaging Pipeline
-    print("\n📸 Pillar 2: Imaging Pipeline Status")
-    view_state = cam.get_view_status()
-    if view_state and isinstance(view_state, dict):
-        view_data = view_state.get("result", {}).get("View", {})
-        state = view_data.get("state", "Unknown")
-        mode = view_data.get("mode", "Unknown")
-        print(f"  ✅ SUCCESS: State [{state}] | Mode [{mode}]")
-    else:
-        print("  ❌ FAIL: Could not retrieve view state.")
-
-    print("\n✨ Preflight routine complete.")
-
+# SeeVar-v5-M6-preflight_checklist
 if __name__ == "__main__":
-    main()
+    sys.exit(0 if run_checklist() else 1)

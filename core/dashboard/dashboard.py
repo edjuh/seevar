@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/dashboard/dashboard.py
-Version: 4.4.9
-Objective: Dynamic Astronomical Twilight (-18.0°) flight window calculations and KNVWS removal.
+Version: 4.5.0
+Objective: M5: HW_CACHE reads battery_pct and temp_c from system_state.json telemetry block.
 """
 import json
 import logging
@@ -66,25 +66,49 @@ HW_CACHE = {
     "data": {
         "link_status": "OFFLINE",
         "battery":     "N/A",
+        "temp_c":      "N/A",
         "storage_mb":  "N/A"
     }
 }
 HW_CACHE_TTL = 10 
 
 def refresh_hw_cache():
+    """Refresh hardware cache from two sources:
+    - link_status, storage_mb : env_status.json (GPS/network daemon)
+    - battery, temp_c         : system_state.json telemetry block
+                                (written by orchestrator from TelemetryBlock)
+    """
     now = time.time()
     if now - HW_CACHE["timestamp"] < HW_CACHE_TTL:
-        return 
+        return
+
+    # Source 1: GPS/network state
     if ENV_STATUS.exists():
         try:
             with open(ENV_STATUS, 'r') as f:
-                fresh = json.load(f)
-            for key in ("link_status", "battery", "storage_mb"):
-                if key in fresh:
-                    HW_CACHE["data"][key] = fresh[key]
-            HW_CACHE["timestamp"] = now
+                env = json.load(f)
+            for key in ("link_status", "storage_mb"):
+                if key in env:
+                    HW_CACHE["data"][key] = env[key]
         except (json.JSONDecodeError, OSError) as e:
-            log.warning("HW_CACHE refresh failed: %s", e)
+            log.warning("HW_CACHE env_status refresh failed: %s", e)
+
+    # Source 2: TelemetryBlock from orchestrator via system_state.json
+    if STATE_FILE.exists():
+        try:
+            with open(STATE_FILE, 'r') as f:
+                state = json.load(f)
+            tel = state.get("telemetry", {})
+            batt = tel.get("battery_pct")
+            if batt is not None:
+                HW_CACHE["data"]["battery"] = str(batt)
+            temp = tel.get("temp_c")
+            if temp is not None:
+                HW_CACHE["data"]["temp_c"] = str(round(temp, 1))
+        except (json.JSONDecodeError, OSError) as e:
+            log.warning("HW_CACHE state refresh failed: %s", e)
+
+    HW_CACHE["timestamp"] = now
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -388,10 +412,11 @@ def get_telemetry():
         "weather":     weather,
         "science":     science,
         "orchestrator": orchestrator,
-        "hardware":    HW_CACHE["data"],
+        "hardware":    HW_CACHE["data"],  # battery, temp_c, link_status, storage_mb
         "last_audit":  last_audit,
         "postflight":  postflight,
     })
 
+# SeeVar-v5-M5-dashboard
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5050, debug=False)

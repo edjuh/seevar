@@ -1,0 +1,19 @@
+{
+    "_comment": "ZWO Seestar S30 hardware constants. Source: ZWO spec sheet March 2026.",
+    "model":        "S30",
+    "telescope":    "ZWO S30",
+    "instrument":   "IMX662",
+    "sensor_w":     1920,
+    "sensor_h":     1080,
+    "focallen_mm":  150,
+    "aperture_mm":  30,
+    "pixscale":     3.99,
+    "bayer":        "GRBG",
+    "gain_default": 80,
+    "filter":       "CV",
+    "mount":        "altaz",
+    "veto_temp_c":  55.0,
+    "veto_battery": 10,
+    "settle_s":     8,
+    "frame_timeout_s": 60
+}

@@ -14,7 +14,7 @@ For wire protocol detail see `API_PROTOCOL.MD`.
 
 - **`pilot.py`** v4.0.0 — The sovereign acquisition engine. Communicates
   directly via TCP port 4700 (JSON-RPC control) and port 4801 (binary
-  frame stream). No Alpaca. Handles slew (`scope_sync`), settle, frame
+  frame stream). No Alpaca. Handles slew (`scope_goto`), settle, frame
   capture (`iscope_start_view`), and FITS writing. Exports
   `DiamondSequence`, `AcquisitionTarget`, `FrameResult`.
 

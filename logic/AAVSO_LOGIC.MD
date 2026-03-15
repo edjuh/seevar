@@ -113,7 +113,7 @@ Required fields per observation:
 | `MTYPE` | always `STD` (standard ensemble) | `STD` |
 | `CNAME` | ensemble comp star AUIDs | `000-BCB-641` |
 | `CMAG` | comp star V mag | `9.9` |
-| `OBSCODE` | `AcquisitionTarget.observer_code` | `EDJUH` |
+| `OBSCODE` | `AcquisitionTarget.observer_code` | `REDA` |
 | `AFFIL` | observer affiliation | optional |
 
 Submission endpoint: `https://www.aavso.org/webobs/`.

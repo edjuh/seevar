@@ -21,30 +21,22 @@
 | core/postflight/pastinakel_math.py | 1.1.1 | Logic for saturation detection and dynamic aperture scaling. |
 | core/postflight/post_to_pre_feedback.py | 1.2.1 | Updates the master targets.json with successful observation dates extracted from QC reports. |
 | core/postflight/psf_models.py | 1.0.0 | PSF fitting for stellar profiles on IMX585 Bayer frames. |
-| core/postflight/__pycache__/__init__.cpython-313.pyc | N/A | No objective defined. |
-| core/postflight/__pycache__/accountant.cpython-313.pyc | N/A | No objective defined. |
-| core/postflight/__pycache__/bayer_photometry.cpython-313.pyc | N/A | No objective defined. |
-| core/postflight/__pycache__/calibration_engine.cpython-313.pyc | N/A | No objective defined. |
-| core/postflight/__pycache__/gaia_resolver.cpython-313.pyc | N/A | No objective defined. |
-| core/postflight/__pycache__/pastinakel_math.cpython-313.pyc | N/A | No objective defined. |
-| core/postflight/__pycache__/psf_models.cpython-313.pyc | N/A | No objective defined. |
 | core/postflight/data/qc_report.json | JSON | Data/Configuration file. |
 | core/flight/camera_control.py | 2.0.0 | Hardware status interface for ZWO S30-Pro via Sovereign TCP. |
+| core/flight/dark_library.py | 1.0.0 | Post-session dark frame acquisition via firmware start_create_dark. |
 | core/flight/exposure_planner.py | 1.0.0 | Estimate optimal exposure time for a target given magnitude, |
 | core/flight/fsm.py | 1.0.0 | The Finite State Machine governing S30-PRO Sovereign Operations. |
 | core/flight/mission_chronicle.py | 4.2.0 | Orchestrates the Preflight Funnel (Janitor -> Librarian -> Auditor -> Planner). |
 | core/flight/neutralizer.py | 3.0.0 | Hardware reset — stops any active S30-Pro session and verifies |
-| core/flight/orchestrator.py | 1.7.3 | Full pipeline state machine wired to the TCP Diamond Sequence with detailed 12-step mock telemetry. |
-| core/flight/pilot.py | 4.1.2 | Direct TCP control of ZWO S30-Pro for AAVSO-compliant Sovereign RAW acquisition. Fixes 16-bit integer overflow via standard FITS BZERO offsetting. |
+| core/flight/orchestrator.py | 2.0.0 | Full pipeline state machine wired to the TCP Diamond Sequence. M4: DarkLibrary wired into post-session flow. |
+| core/flight/pilot.py | 5.2.0 | Direct TCP control of ZWO S30-Pro for AAVSO-compliant Sovereign RAW acquisition. M2: TelemetryBlock, send_and_recv, session init S1-S4, veto logic on real values. |
 | core/flight/vault_manager.py | 1.4.1 | Secure metadata access with actual bi-directional tomli_w syncing. |
-| core/flight/__pycache__/__init__.cpython-311.pyc | N/A | No objective defined. |
 | core/flight/__pycache__/__init__.cpython-313.pyc | N/A | No objective defined. |
+| core/flight/__pycache__/dark_library.cpython-313.pyc | N/A | No objective defined. |
 | core/flight/__pycache__/exposure_planner.cpython-313.pyc | N/A | No objective defined. |
+| core/flight/__pycache__/orchestrator.cpython-313.pyc | N/A | No objective defined. |
 | core/flight/__pycache__/pilot.cpython-313.pyc | N/A | No objective defined. |
-| core/flight/__pycache__/vault_manager.cpython-311.pyc | N/A | No objective defined. |
-| core/flight/__pycache__/vault_manager.cpython-313.pyc | N/A | No objective defined. |
-| core/dashboard/dashboard.py | 4.4.9 | Dynamic Astronomical Twilight (-18.0°) flight window calculations and KNVWS removal. |
-| core/dashboard/dashboard.py.bak_20260313_235625 | 4.4.9 | Dynamic Astronomical Twilight (-18.0°) flight window calculations and KNVWS removal. |
+| core/dashboard/dashboard.py | 4.5.0 | M5: HW_CACHE reads battery_pct and temp_c from system_state.json telemetry block. |
 | core/dashboard/templates/index.html | N/A | No objective defined. |
 | core/dashboard/__pycache__/dashboard.cpython-313.pyc | N/A | No objective defined. |
 | core/preflight/aavso_fetcher.py | 12.3.0 | Step 1 - Haul scientific targets from AAVSO Target Tool API |
@@ -54,12 +46,12 @@
 | core/preflight/disk_usage_monitor.py | 1.1.1 | Monitor S30 internal storage via SMB mount and update system state with Go/No-Go veto. |
 | core/preflight/fog_monitor.py | 1.0.0 | Infrared sky-clarity monitor using MLX90614 to prevent imaging in fog. |
 | core/preflight/gps.py | 1.4.1 | Bi-directional GPS provider with lazy initialization and Null Island protection. |
-| core/preflight/hardware_audit.py | 1.3.1 | Deep hardware audit using the get_event_state bus, exporting to hardware_telemetry.json for Dashboard vitals. |
+| core/preflight/hardware_audit.py | 2.0.0 | Sovereign TCP hardware audit via get_device_state on port 4700. |
 | core/preflight/horizon.py | 2.0.0 | Veto targets based on local obstructions using Az/Alt mapping. |
 | core/preflight/ledger_manager.py | 2.1.2 | The High-Authority Mission Brain. Manages target cadence and observation history. |
 | core/preflight/librarian.py | 4.3.0 | The Single Source of Truth. Parses raw AAVSO haul, checks for VSP charts, and writes the Federation Catalog. |
 | core/preflight/nightly_planner.py | 2.6.1 | Filters the audited Federation Catalog by Cadence, Horizon, and Altitude (Unified Config). |
-| core/preflight/preflight_checklist.py | 1.0.1 | Verify bridge connectivity, mount orientation, and imaging pipeline status prior to flight. |
+| core/preflight/preflight_checklist.py | 2.0.0 | Sovereign preflight gate — verifies hardware is alive and at |
 | core/preflight/schedule_compiler.py | 1.0.1 | Translates tonights_plan.json into a native SSC JSON payload using the 1x1 mosaic hack for dithering. |
 | core/preflight/state_flusher.py | 1.1.1 | Preflight utility to flush stale system state and reset the dashboard to IDLE before a new flight. |
 | core/preflight/sync_location.py | 1.3.1 | Synchronize S30 location using dynamic config coordinates to the verified open Port 80. |
@@ -67,11 +59,8 @@
 | core/preflight/vsx_catalog.py | 2.0.0 | Fetch magnitude ranges from AAVSO VSX for all campaign targets. |
 | core/preflight/weather.py | 1.4.2 | Tri-source weather consensus daemon. |
 | core/preflight/__pycache__/__init__.cpython-313.pyc | N/A | No objective defined. |
-| core/preflight/__pycache__/aavso_fetcher.cpython-313.pyc | N/A | No objective defined. |
-| core/preflight/__pycache__/gps.cpython-313.pyc | N/A | No objective defined. |
-| core/preflight/__pycache__/horizon.cpython-313.pyc | N/A | No objective defined. |
-| core/preflight/__pycache__/librarian.cpython-313.pyc | N/A | No objective defined. |
-| core/preflight/__pycache__/nightly_planner.cpython-313.pyc | N/A | No objective defined. |
+| core/preflight/__pycache__/hardware_audit.cpython-313.pyc | N/A | No objective defined. |
+| core/preflight/__pycache__/preflight_checklist.cpython-313.pyc | N/A | No objective defined. |
 | core/preflight/__pycache__/vsx_catalog.cpython-313.pyc | N/A | No objective defined. |
 | core/utils/aavso_client.py | 1.2.1 | Low-level API client for authenticated AAVSO VSX and WebObs data retrieval. Returns JSON-ready dictionaries with #objective tags. |
 | core/utils/astro.py | 1.2.1 | Core library for RA/Dec parsing, sidereal time, and coordinate math. |
@@ -81,13 +70,9 @@
 | core/utils/notifier.py | 1.4.0 | Outbound alert management via Telegram and system bell. |
 | core/utils/observer_math.py | 1.0.2 | Mathematical utilities for observational astronomy, including Maidenhead grid calculations dynamically tested against config.toml. |
 | core/utils/platesolve_analyst.py | 1.2.1 | Quantitative reporter for plate-solving success rates, performing blind solves to compare header coordinates against reality. |
-| core/utils/__pycache__/__init__.cpython-311.pyc | N/A | No objective defined. |
 | core/utils/__pycache__/__init__.cpython-313.pyc | N/A | No objective defined. |
-| core/utils/__pycache__/env_loader.cpython-311.pyc | N/A | No objective defined. |
 | core/utils/__pycache__/env_loader.cpython-313.pyc | N/A | No objective defined. |
-| core/utils/__pycache__/notifier.cpython-313.pyc | N/A | No objective defined. |
 | core/utils/__pycache__/observer_math.cpython-313.pyc | N/A | No objective defined. |
-| core/__pycache__/__init__.cpython-311.pyc | N/A | No objective defined. |
 | core/__pycache__/__init__.cpython-313.pyc | N/A | No objective defined. |
 | logic/AAVSO_LOGIC.MD | N/A | ** Rules for scientific targeting, cadence, photometry |
 | logic/ALPACA_BRIDGE.MD | N/A | No objective defined. |
@@ -110,70 +95,6 @@
 | logic/SIMULATORLOGIC.MD | N/A | No objective defined. |
 | logic/SIMULATORLOGIC.md | N/A | ** Outlines networking and state logic required to synchronize the SeeStar ALP Bridge with the Raspberry Pi Simulator environment. |
 | logic/STATE_MACHINE.md | N/A | ** Deterministic hardware transitions for sovereign AAVSO |
-| tests/alpaca_simulator.py | 1.0.0 | Mock Alpaca bridge to simulate Seestar hardware responses and state transitions for safe indoor logic testing. |
-| tests/audit_names.py | 1.0.0 | Validates target names against the AAVSO VSX catalog for formatting errors. |
-| tests/ch-cyg.json | JSON | Data/Configuration file. |
-| tests/full_mission_simulator.py | 53.0.0 | Integrated Master Simulator executing the complete Sovereign Loop (Chronicle -> Orchestrator -> Accountant). |
-| tests/header_medic.py | 1.1.0 | Batch injects mandatory celestial and instrument headers into bare FITS files. |
-| tests/mission_chronicle.py | 3.7.0 | Autonomous End-to-End Orchestration: Fetch -> Auto-Provision Charts -> Triage. |
-| tests/mock_fits_generator.py | 2.0.0 | Generates mathematically valid, AAVSO-compliant synthetic FITS arrays with full WCS headers. |
-| tests/mock_night_shift.py | 4.0.0 | High-fidelity "Ask/Check" simulation of the JSON-RPC handshake for Seestar hardware. |
-| tests/monitor_mission.py | 1.0.0 | Parse the SSC schedule feedback and Alpaca telemetry to verify mission execution. |
-| tests/park_mount.py | 1.0.0 | Safely fold the physical mount, disengage tracking, and disconnect the Alpaca bridge. |
-| tests/phantom_bridge.py | 2.0.0 | Advanced Hardware-in-the-Loop simulator mocking the 12-step Alpaca/TCP state machine. |
-| tests/simulator.txt | N/A | No objective defined. |
-| tests/star_tour.json | JSON | Data/Configuration file. |
-| tests/test_aavso_api.py | 1.0.0 | Diagnostic probe to verify AAVSO Target API authentication and payload structure. |
-| tests/test_alp_bridge.py | 1.0.0 | Surgical JSON-RPC probe to test command execution against the ALP Bridge endpoint. |
-| tests/test_bruno_api.py | 1.0.0 | Validate Bruno's SeestarAPI class against the ALP bridge. |
-| tests/test_form_post.py | 1.0.0 | Mimic the ALP bridge web UI by sending x-www-form-urlencoded commands. |
-| tests/test_html_parser.py | 1.0.0 | Extract telemetry JSON directly from the synchronous HTML POST response. |
-| tests/test_htmx_poll.py | 1.1.0 | Trigger a command with extended timeouts and poll the HTMX event queue. |
-| tests/test_logic_gates.py | 1.0.0 | Unit tests to verify Seestar API dialect consistency and safety gates. |
-| tests/test_science_extraction.py | N/A | Batch process all test FITS files, locate targets, and extract instrumental flux. |
-| tests/test_session_manager.py | 1.0.0 | Validate active state-machine polling for GoTo and Plate Solving sequences. |
-| tests/test_sim_mission.py | 1.0.0 | End-to-End Dry Run using Simulated Bridge logic. |
-| tests/test_slew.py | 1.2.0 | Execute Alpaca sequence with explicit UNPARK command to bypass hardware safety locks. |
-| tests/test_sun.py | 1.0.0 | Execute a direct daytime Alpaca slew to the Sun's exact coordinates for March 6, 2026. |
-| tests/test_sync_haarlem.py | 1.0.0 | Synchronize S30 location (Haarlem) via Port 5555 Alpaca using PSV vocabulary. |
-| tests/test_vitals_polling.py | 1.5.0 | Use the absolute PSV strings to poll the S30 via Port 5555. |
-| tests/fits/algol-indx.xyls | N/A | No objective defined. |
-| tests/fits/algol.axy | N/A | No objective defined. |
-| tests/fits/algol.corr | N/A | No objective defined. |
-| tests/fits/algol.fits | N/A | No objective defined. |
-| tests/fits/algol.match | N/A | No objective defined. |
-| tests/fits/algol.new | N/A | No objective defined. |
-| tests/fits/algol.rdls | N/A | No objective defined. |
-| tests/fits/algol.solved | N/A | No objective defined. |
-| tests/fits/algol.wcs | N/A | No objective defined. |
-| tests/fits/mu_cam-indx.xyls | N/A | No objective defined. |
-| tests/fits/mu_cam.axy | N/A | No objective defined. |
-| tests/fits/mu_cam.corr | N/A | No objective defined. |
-| tests/fits/mu_cam.fits | N/A | No objective defined. |
-| tests/fits/mu_cam.match | N/A | No objective defined. |
-| tests/fits/mu_cam.new | N/A | No objective defined. |
-| tests/fits/mu_cam.rdls | N/A | No objective defined. |
-| tests/fits/mu_cam.solved | N/A | No objective defined. |
-| tests/fits/mu_cam.wcs | N/A | No objective defined. |
-| tests/fits/rr_lyrae-indx.xyls | N/A | No objective defined. |
-| tests/fits/rr_lyrae.axy | N/A | No objective defined. |
-| tests/fits/rr_lyrae.corr | N/A | No objective defined. |
-| tests/fits/rr_lyrae.fits | N/A | No objective defined. |
-| tests/fits/rr_lyrae.match | N/A | No objective defined. |
-| tests/fits/rr_lyrae.new | N/A | No objective defined. |
-| tests/fits/rr_lyrae.rdls | N/A | No objective defined. |
-| tests/fits/rr_lyrae.solved | N/A | No objective defined. |
-| tests/fits/rr_lyrae.wcs | N/A | No objective defined. |
-| tests/fits/seestar_spoof.fits | N/A | No objective defined. |
-| tests/fits/ss_cyg-indx.xyls | N/A | No objective defined. |
-| tests/fits/ss_cyg.axy | N/A | No objective defined. |
-| tests/fits/ss_cyg.corr | N/A | No objective defined. |
-| tests/fits/ss_cyg.fits | N/A | No objective defined. |
-| tests/fits/ss_cyg.match | N/A | No objective defined. |
-| tests/fits/ss_cyg.new | N/A | No objective defined. |
-| tests/fits/ss_cyg.rdls | N/A | No objective defined. |
-| tests/fits/ss_cyg.solved | N/A | No objective defined. |
-| tests/fits/ss_cyg.wcs | N/A | No objective defined. |
 | utils/comp_purger.py | 1.1.0 | Prunes orphaned comparison star charts in the SeeVar catalog. |
 | utils/generate_manifest.py | 1.5.0 | Generate FILE_MANIFEST.md for SeeVar and mirror it to NAS for quick reference. |
 | utils/harvest_manager.py | 1.3.0 | SeeVar Harvester - Supports simulation data (.fit) and real FITS. |
@@ -188,6 +109,129 @@
 | data/tonights_plan.json | JSON | Data/Configuration file. |
 | data/vsx_catalog.json | JSON | Data/Configuration file. |
 | data/weather_state.json | JSON | Data/Configuration file. |
+| data/local_buffer/SIM_AB_Dra_20260314T192956_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_AC_And_20260314T193347_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_AD_Per_20260314T193057_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_AD_Tau_20260314T193338_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_AF_Cam_20260314T193026_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_AG_Dra_20260314T192715_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_AL_Cep_20260314T193307_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_AM_Cas_20260314T193153_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_AR_And_20260314T192702_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_AR_Cep_20260314T193035_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_AT_Cnc_20260314T192859_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_AX_Per_20260314T192556_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_BH_Aur_20260314T192947_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_BI_Ori_20260314T193356_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_BU_Per_20260314T193018_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_BZ_UMa_20260314T193259_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_CC_Cnc_20260314T193140_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_CE_Tau_20260314T193351_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_CH_UMa_20260314T192855_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_CI_UMa_20260314T193005_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_DO_Dra_20260314T192930_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_EG_And_20260314T193202_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_EG_Cnc_20260314T193237_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_EX_Dra_20260314T192850_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_FI_Per_20260314T193052_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_FO_Per_20260314T193422_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_FX_Mon_20260314T192710_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_FZ_Per_20260314T193110_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_GK_Per_20260314T192925_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_GOTO065054.49+593624.51_20260314T193329_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_GU_Cep_20260314T193119_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_GX_Cas_20260314T193211_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_HD_232766_20260314T192631_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_IM_Cas_20260314T192605_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_IR_Gem_20260314T192833_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_KK_Per_20260314T192829_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_KT_Per_20260314T192552_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_KZ_Gem_20260314T193123_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_LN_UMa_20260314T192846_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_LS_And_20260314T192837_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_NSVS_12572573_20260314T192543_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_NSV_544_20260314T192614_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_NSV_693_20260314T193224_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_N_Cas_2020_20260314T192754_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_N_Cas_2021_20260314T193409_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_RR_Lyn_20260314T192653_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_RS_Per_20260314T193132_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_RU_Cyg_20260314T193303_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_RY_Dra_20260314T192728_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_R_And_20260314T193039_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_R_Ari_20260314T193220_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_R_Aur_20260314T192745_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_R_Cam_20260314T193215_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_R_Dra_20260314T192904_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_R_Gem_20260314T193316_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_R_LMi_20260314T192644_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_R_UMa_20260314T193404_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_SDSS_J080846.19+313106.0_20260314T192609_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_SS_Cep_20260314T193009_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_SS_Mon_20260314T192627_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_SS_UMi_20260314T192649_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_SU_Per_20260314T193127_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_SU_UMa_20260314T192758_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_SW_And_20260314T192908_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_SW_Cep_20260314T192939_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_SW_UMa_20260314T192912_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_S_Aur_20260314T193048_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_S_Cas_20260314T193334_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_S_Cep_20260314T193114_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_S_Per_20260314T193136_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_S_UMi_20260314T193246_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_TY_Cas_20260314T192921_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_TZ_Aur_20260314T193254_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_TZ_Per_20260314T192934_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_T_Cam_20260314T192601_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_T_Cas_20260314T193228_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_T_Cep_20260314T193000_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_T_Per_20260314T193022_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_T_UMi_20260314T193105_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_UU_Aur_20260314T192723_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_UV_Per_20260314T192824_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_U_Cam_20260314T192820_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_U_LMi_20260314T192807_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_U_Lac_20260314T193250_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_U_Per_20260314T193241_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_U_UMi_20260314T192618_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V0381_Cep_20260314T192811_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V0386_Cep_20260314T192816_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V0411_Per_20260314T192657_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V0476_Cyg_20260314T193149_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V0542_Cyg_20260314T192917_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V0550_Per_20260314T192943_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V0594_Cas_20260314T193013_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V0641_Cas_20260314T192732_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V0704_Cas_20260314T192548_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V0774_Cas_20260314T192741_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V0778_Cas_20260314T193158_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V1028_Cyg_20260314T193207_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V1143_Cyg_20260314T193426_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V1405_Cas_20260314T193413_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V416_Dra_20260314T193342_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V713_Cep_20260314T192623_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_VW_UMa_20260314T193400_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_VX_Cep_20260314T193233_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_VY_UMa_20260314T193417_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_V_Cas_20260314T193145_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_WZ_Cas_20260314T192706_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_W_And_20260314T193031_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_W_Cas_20260314T193312_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_W_Cep_20260314T192750_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_W_Dra_20260314T192842_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_XX_Per_20260314T193430_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_XZ_Cyg_20260314T193101_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_XZ_Dra_20260314T192640_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_X_Cam_20260314T192719_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_YZ_Cnc_20260314T192636_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_Y_Per_20260314T192803_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_Z_Cam_20260314T192952_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_Z_UMa_20260314T193044_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_eps_Aur_20260314T192737_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_miu_Cep_20260314T193321_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_mu._Cep_20260314T193325_Raw.fits | N/A | No objective defined. |
+| data/local_buffer/SIM_psi_1_Aur_20260314T192539_Raw.fits | N/A | No objective defined. |
 | data/raw/PSI_1_AUR_1773257515.fit | N/A | No objective defined. |
 | data/gaia_cache/ra000.300_decpp60.400.json | JSON | Data/Configuration file. |
 | data/gaia_cache/ra002.400_decpp64.000.json | JSON | Data/Configuration file. |
@@ -313,133 +357,6 @@
 | data/gaia_cache/ra356.100_decpp56.600.json | JSON | Data/Configuration file. |
 | data/gaia_cache/ra358.000_decpp61.800.json | JSON | Data/Configuration file. |
 | data/gaia_cache/ra359.600_decpp51.400.json | JSON | Data/Configuration file. |
-| data/archive/AD_Per_001.fit | N/A | No objective defined. |
-| data/archive/AD_Tau_001.fit | N/A | No objective defined. |
-| data/archive/AF_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/AL_Cep_001.fit | N/A | No objective defined. |
-| data/archive/AR_Cep_001.fit | N/A | No objective defined. |
-| data/archive/AU_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/AZ_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/BC_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/BI_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/BU_Per_001.fit | N/A | No objective defined. |
-| data/archive/CT_Lac_001.fit | N/A | No objective defined. |
-| data/archive/DR_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/EU_Del_001.fit | N/A | No objective defined. |
-| data/archive/FI_Per_001.fit | N/A | No objective defined. |
-| data/archive/FZ_Per_001.fit | N/A | No objective defined. |
-| data/archive/GU_Cep_001.fit | N/A | No objective defined. |
-| data/archive/HD_232766_001.fit | N/A | No objective defined. |
-| data/archive/IM_Cas_001.fit | N/A | No objective defined. |
-| data/archive/KK_Per_001.fit | N/A | No objective defined. |
-| data/archive/LX_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/NO_Aur_001.fit | N/A | No objective defined. |
-| data/archive/NSVS_J2041274+511326_001.fit | N/A | No objective defined. |
-| data/archive/NSV_544_001.fit | N/A | No objective defined. |
-| data/archive/NSV_693_001.fit | N/A | No objective defined. |
-| data/archive/PZ_Cas_001.fit | N/A | No objective defined. |
-| data/archive/RR_Lyn_001.fit | N/A | No objective defined. |
-| data/archive/RS_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/RS_Lac_001.fit | N/A | No objective defined. |
-| data/archive/RS_Per_001.fit | N/A | No objective defined. |
-| data/archive/RT_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/RU_And_001.fit | N/A | No objective defined. |
-| data/archive/RU_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/RU_Lyr_001.fit | N/A | No objective defined. |
-| data/archive/RU_Vul_001.fit | N/A | No objective defined. |
-| data/archive/RV_Peg_001.fit | N/A | No objective defined. |
-| data/archive/RW_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/RX_UMa_001.fit | N/A | No objective defined. |
-| data/archive/RZ_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/R_And_001.fit | N/A | No objective defined. |
-| data/archive/R_Ari_001.fit | N/A | No objective defined. |
-| data/archive/R_Aur_001.fit | N/A | No objective defined. |
-| data/archive/R_Cam_001.fit | N/A | No objective defined. |
-| data/archive/R_Cas_001.fit | N/A | No objective defined. |
-| data/archive/R_Lyr_001.fit | N/A | No objective defined. |
-| data/archive/R_Peg_001.fit | N/A | No objective defined. |
-| data/archive/R_Tri_001.fit | N/A | No objective defined. |
-| data/archive/R_UMa_001.fit | N/A | No objective defined. |
-| data/archive/R_Vul_001.fit | N/A | No objective defined. |
-| data/archive/SS_Cep_001.fit | N/A | No objective defined. |
-| data/archive/ST_And_001.fit | N/A | No objective defined. |
-| data/archive/SU_Per_001.fit | N/A | No objective defined. |
-| data/archive/SV_Cas_001.fit | N/A | No objective defined. |
-| data/archive/SW_Cep_001.fit | N/A | No objective defined. |
-| data/archive/SX_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/S_Aur_001.fit | N/A | No objective defined. |
-| data/archive/S_Cas_001.fit | N/A | No objective defined. |
-| data/archive/S_Cep_001.fit | N/A | No objective defined. |
-| data/archive/S_Del_001.fit | N/A | No objective defined. |
-| data/archive/S_Per_001.fit | N/A | No objective defined. |
-| data/archive/TU_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/TY_Cas_001.fit | N/A | No objective defined. |
-| data/archive/T_Ari_001.fit | N/A | No objective defined. |
-| data/archive/T_Cam_001.fit | N/A | No objective defined. |
-| data/archive/T_Cas_001.fit | N/A | No objective defined. |
-| data/archive/T_Cep_001.fit | N/A | No objective defined. |
-| data/archive/T_Peg_001.fit | N/A | No objective defined. |
-| data/archive/T_Peg_synthetic.fits | N/A | No objective defined. |
-| data/archive/T_Per_001.fit | N/A | No objective defined. |
-| data/archive/T_UMi_001.fit | N/A | No objective defined. |
-| data/archive/UU_Aur_001.fit | N/A | No objective defined. |
-| data/archive/U_Cam_001.fit | N/A | No objective defined. |
-| data/archive/U_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/U_Del_001.fit | N/A | No objective defined. |
-| data/archive/U_Lac_001.fit | N/A | No objective defined. |
-| data/archive/U_Lyr_001.fit | N/A | No objective defined. |
-| data/archive/U_Per_001.fit | N/A | No objective defined. |
-| data/archive/U_UMi_001.fit | N/A | No objective defined. |
-| data/archive/V0381_Cep_001.fit | N/A | No objective defined. |
-| data/archive/V0386_Cep_001.fit | N/A | No objective defined. |
-| data/archive/V0404_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/V0411_Per_001.fit | N/A | No objective defined. |
-| data/archive/V0497_Lyr_001.fit | N/A | No objective defined. |
-| data/archive/V0550_Per_001.fit | N/A | No objective defined. |
-| data/archive/V0572_Vul_001.fit | N/A | No objective defined. |
-| data/archive/V0641_Cas_001.fit | N/A | No objective defined. |
-| data/archive/V0648_Cas_001.fit | N/A | No objective defined. |
-| data/archive/V0704_Cas_001.fit | N/A | No objective defined. |
-| data/archive/V0774_Cas_001.fit | N/A | No objective defined. |
-| data/archive/V0778_Cas_001.fit | N/A | No objective defined. |
-| data/archive/V1016_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/V1500_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/V1655_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/V1659_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/V404_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/V657_Cas_001.fit | N/A | No objective defined. |
-| data/archive/V750_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/V850_Cas_001.fit | N/A | No objective defined. |
-| data/archive/VV_Cep_001.fit | N/A | No objective defined. |
-| data/archive/VW_UMa_001.fit | N/A | No objective defined. |
-| data/archive/VX_Cep_001.fit | N/A | No objective defined. |
-| data/archive/VY_UMa_001.fit | N/A | No objective defined. |
-| data/archive/V_Cas_001.fit | N/A | No objective defined. |
-| data/archive/V_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/WX_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/WZ_Cas_001.fit | N/A | No objective defined. |
-| data/archive/W_And_001.fit | N/A | No objective defined. |
-| data/archive/W_Cas_001.fit | N/A | No objective defined. |
-| data/archive/W_Cep_001.fit | N/A | No objective defined. |
-| data/archive/W_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/W_Peg_001.fit | N/A | No objective defined. |
-| data/archive/W_Per_001.fit | N/A | No objective defined. |
-| data/archive/W_Tau_001.fit | N/A | No objective defined. |
-| data/archive/XX_Per_001.fit | N/A | No objective defined. |
-| data/archive/X_Aur_001.fit | N/A | No objective defined. |
-| data/archive/X_Cam_001.fit | N/A | No objective defined. |
-| data/archive/YZ_Per_001.fit | N/A | No objective defined. |
-| data/archive/Y_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/Y_Per_001.fit | N/A | No objective defined. |
-| data/archive/Z_Aur_001.fit | N/A | No objective defined. |
-| data/archive/Z_Cas_001.fit | N/A | No objective defined. |
-| data/archive/Z_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/bet_Aur_001.fit | N/A | No objective defined. |
-| data/archive/eps_Aur_001.fit | N/A | No objective defined. |
-| data/archive/khi_Cyg_001.fit | N/A | No objective defined. |
-| data/archive/miu_Cep_001.fit | N/A | No objective defined. |
-| data/archive/mu._Cep_001.fit | N/A | No objective defined. |
-| data/archive/psi_1_Aur_001.fit | N/A | No objective defined. |
 | systemd/seevar-dashboard.service | N/A | No objective defined. |
 | systemd/seevar-orchestrator.service | N/A | No objective defined. |
 | systemd/seevar-weather.service | N/A | No objective defined. |

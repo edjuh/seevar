@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/aavso_fetcher.py
-Version: 12.3.0
+Version: 1.6.0  # SeeVar-v1.6.0-header
 Objective: Step 1 - Haul scientific targets from AAVSO Target Tool API
            and append strict CADENCE.md sampling rules.
 
@@ -89,6 +89,7 @@ def haul_and_filter(api_key):
 
                 targets.append({
                     "name": star_name,
+                    "auid": t.get("auid", ""),  # SeeVar-auid-field
                     "ra": t.get("ra", 0.0),
                     "dec": dec,
                     "type": star_type,

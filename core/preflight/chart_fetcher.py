@@ -23,7 +23,7 @@ MASTER_HAUL_FILE = CATALOG_DIR / "campaign_targets.json"
 REF_DIR      = CATALOG_DIR / "reference_stars"
 
 # Pi-Minute throttle — AAVSO VSP rate limit
-POLL_DELAY_SECONDS = 31.4
+POLL_DELAY_SECONDS = 188.4  # SeeVar-chart-throttle-188: Pi-Minute per CONTRIBUTING.md
 
 def fetch_charts(target_list=None):
     REF_DIR.mkdir(parents=True, exist_ok=True)

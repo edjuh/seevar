@@ -1,84 +1,123 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-core/preflight/hardware_audit.py
-Version: 1.3.1
-Objective: Deep hardware audit using the get_event_state bus, exporting to hardware_telemetry.json for Dashboard vitals.
+Filename: core/preflight/hardware_audit.py
+Version: 2.0.0
+Objective: Sovereign TCP hardware audit via get_device_state on port 4700.
+           Exports hardware_telemetry.json for dashboard vitals.
+           Confirmed fields only: battery_capacity, temp, charger_status
+           from pi_status block. No BalanceSensor (key unconfirmed on
+           S30-Pro — verify on first light via get_event_state response).
 """
 
-import requests
 import json
 import logging
-import sys
+from datetime import datetime, timezone
 from pathlib import Path
-from datetime import datetime
+import sys
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - %(message)s')
-logger = logging.getLogger("PreflightAudit")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
 
-class HardwareGuard:
-    def __init__(self):
-        self.endpoint = "http://127.0.0.1:5555/api/v1/telescope/1/action"
-        self.telemetry_path = Path("~/seevar/data/hardware_telemetry.json").expanduser()
+from core.flight.pilot import ControlSocket, TelemetryBlock, SEESTAR_HOST
+from core.utils.env_loader import DATA_DIR
 
-    def _fetch_event_bus(self):
-        payload = {
-            "Action": "method_sync",
-            "Parameters": json.dumps({"method": "get_event_state"}),
-            "ClientID": "1", 
-            "ClientTransactionID": "999"
-        }
-        try:
-            response = requests.put(self.endpoint, data=payload, timeout=10)
-            if response.status_code == 200:
-                return response.json().get("Value", {}).get("result", {})
-            return None
-        except Exception as e:
-            logger.error(f"Failed to reach hardware bus at {self.endpoint}: {e}")
-            return None
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s"
+)
+logger = logging.getLogger("HardwareAudit")
 
-    def run_audit(self):
-        logger.info("🔍 S30-PRO FEDERATION: INITIATING EVENT-BUS AUDIT")
-        bus = self._fetch_event_bus()
-        
-        # We do not pretend; if bus is None, link_status is OFFLINE
-        link_status = "ACTIVE" if bus else "OFFLINE"
-        audit_passed = False
+TELEMETRY_PATH = DATA_DIR / "hardware_telemetry.json"
+
+# Veto thresholds — must match STATE_MACHINE.md and pilot.py
+VETO_BATTERY = 10    # %
+VETO_TEMP    = 55.0  # °C
+
+
+class HardwareAudit:
+    """
+    Sovereign hardware gate for preflight.
+
+    Sends get_device_state to port 4700, parses TelemetryBlock,
+    applies veto thresholds, writes hardware_telemetry.json.
+
+    BalanceSensor / tilt fields are NOT included — key names are
+    unconfirmed on the S30-Pro. Add after first-light get_event_state
+    response is captured and key names are verified.
+    """
+
+    def __init__(self, host: str = SEESTAR_HOST):
+        self.host = host
+
+    def run_audit(self) -> bool:
+        """
+        Query hardware state and write telemetry file.
+        Returns True if hardware is safe to proceed, False if veto.
+        """
+        logger.info("Hardware audit starting — port 4700 get_device_state")
+
+        ctrl = ControlSocket(host=self.host)
+        telemetry = TelemetryBlock(parse_error="not yet queried")
+
+        if not ctrl.connect():
+            logger.error("Cannot connect to %s:4700", self.host)
+            telemetry = TelemetryBlock(parse_error="connection failed")
+        else:
+            try:
+                resp = ctrl.send_and_recv("get_device_state")
+                telemetry = TelemetryBlock.from_response(resp)
+            except Exception as e:
+                telemetry = TelemetryBlock(parse_error=str(e))
+            finally:
+                ctrl.disconnect()
+
+        passed  = telemetry.parse_error is None
+        veto    = telemetry.veto_reason() if passed else None
+        safe    = passed and veto is None
+
         warnings = []
-        tilt_x, tilt_y, temp = 0.0, 0.0, 0.0
+        if not passed:
+            warnings.append(f"parse_error: {telemetry.parse_error}")
+        if veto:
+            warnings.append(veto)
+            passed = False
 
-        if bus:
-            audit_passed = True
-            balance = bus.get("BalanceSensor", {}).get("data", {})
-            tilt_x = balance.get("x", 0.0)
-            tilt_y = balance.get("y", 0.0)
-            
-            if abs(tilt_x) > 0.05 or abs(tilt_y) > 0.05:
-                warnings.append(f"MOUNT_NOT_LEVEL (X:{tilt_x}, Y:{tilt_y})")
-                audit_passed = False
+        if passed and not veto:
+            logger.info("Audit PASSED — %s", telemetry.summary())
+        else:
+            logger.error("Audit FAILED — %s", warnings)
 
-            temp = bus.get("PiStatus", {}).get("temp", 0.0)
-            if temp > 65.0:
-                warnings.append(f"HIGH_CPU_TEMP ({temp}C)")
-
-        # Generate the JSON file for the dashboard
-        self.telemetry_path.parent.mkdir(parents=True, exist_ok=True)
-        telemetry_payload = {
-            "#objective": "Live hardware telemetry and safety audit results.",
-            "timestamp": datetime.now().isoformat(),
-            "passed": audit_passed,
-            "link_status": link_status,
-            "warnings": warnings,
-            "tilt_x": tilt_x,
-            "tilt_y": tilt_y,
-            "temperature": temp
+        payload = {
+            "#objective": "Sovereign hardware telemetry from get_device_state port 4700.",
+            "timestamp":      datetime.now(timezone.utc).isoformat(),
+            "passed":         safe,
+            "link_status":    "ACTIVE" if telemetry.parse_error is None else "OFFLINE",
+            "warnings":       warnings,
+            "battery_pct":    telemetry.battery_pct,
+            "temp_c":         telemetry.temp_c,
+            "charger_status": telemetry.charger_status,
+            "charge_online":  telemetry.charge_online,
+            "device_name":    telemetry.device_name,
+            "firmware_ver":   telemetry.firmware_ver,
+            # tilt_x / tilt_y: NOT included — BalanceSensor key unconfirmed
+            # on S30-Pro. Verify via get_event_state on first light and
+            # update TelemetryBlock + this audit accordingly.
+            # Ref: logic/STATE_MACHINE.md VETO LOGIC — level > 1.5 deg
         }
-        
-        with open(self.telemetry_path, "w") as f:
-            json.dump(telemetry_payload, f, indent=4)
-        
-        return audit_passed
 
+        try:
+            TELEMETRY_PATH.parent.mkdir(parents=True, exist_ok=True)
+            TELEMETRY_PATH.write_text(json.dumps(payload, indent=2))
+            logger.info("hardware_telemetry.json written.")
+        except OSError as e:
+            logger.error("Failed to write hardware_telemetry.json: %s", e)
+
+        return safe
+
+
+# SeeVar-v5-M6-hardware_audit
 if __name__ == "__main__":
-    guard = HardwareGuard()
-    guard.run_audit()
+    import sys
+    audit = HardwareAudit()
+    sys.exit(0 if audit.run_audit() else 1)

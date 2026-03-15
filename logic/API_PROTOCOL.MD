@@ -12,10 +12,14 @@ toggle only — it is not the capture path. See `ALPACA_BRIDGE.MD`.
 
 | Port | Host | Protocol | Purpose |
 |------|------|----------|---------|
-| `4700` | `192.168.178.55` | JSON-RPC over TCP (`\r\n`) | All sovereign control |
-| `4801` | `192.168.178.55` | Binary frame stream | Science capture (preview frames) |
-| `4800` | `192.168.178.55` | Binary frame stream | ZIP stacks — not used for science |
+| `4700` | `<telescope_ip>` | JSON-RPC over TCP (`\r\n`) | All sovereign control |
+| `4801` | `<telescope_ip>` | Binary frame stream | Science capture (preview frames) |
+| `4800` | `<telescope_ip>` | Binary frame stream | ZIP stacks — not used for science |
 | `5432` | `127.0.0.1` | HTTP (Alpaca) | Bridge health-check only |
+
+`<telescope_ip>` is read from `config.toml [hardware] host` at runtime.
+In simulation it is the Pi's own ethernet IP. In production it is the
+S30-Pro's network address. Never hardcoded. <!-- telescope_ip_config_note -->
 
 **Port 5555 does not exist. Port 4720 does not exist. Do not use either.**
 
@@ -47,6 +51,9 @@ mirrors seestar_alp convention). `params` is omitted when not required.
 | `scope_goto` | `[ra_hours, dec_deg]` | Slew to coordinates. |
 | `scope_park` | — | Park mount. |
 | `set_user_location` | `{"lat": float, "lon": float, "force": true}` | Push GPS fix to mount. |
+| `scope_get_track_state` | — | Query tracking state. Returns `false` when parked. Confirmed SEEVAR_DICT.PSV. |
+| `scope_set_track_state` | `[true]` | Engage sidereal tracking (unpark). `[false]` to park. Confirmed SEEVAR_DICT.PSV. <!-- SeeVar-mount-query-methods --> |
+| `scope_get_ra_dec` | — | Query current mount position. Returns `[ra, dec, ...]`. Confirmed SEEVAR_DICT.PSV. |
 
 ### Camera
 | Method | Params | Effect |
@@ -54,7 +61,9 @@ mirrors seestar_alp convention). `params` is omitted when not required.
 | `set_control_value` | `["gain", 80]` | Set sensor gain. |
 | `set_setting` | `{"exp_ms": {"stack_l": ms}}` | Set exposure time (ms). |
 | `start_solve` | — | Trigger plate solve / centering. |
+| `get_solve_result` | — | Poll plate solve result. `code` 0=success, 207=fail. Confirmed SEEVAR_DICT.PSV. |
 | `start_auto_focuse` | — | Trigger autofocus. Note firmware typo — one `s`. |
+| `stop_auto_focuse` | — | Stop autofocus. Firmware typo — one `s`. Confirmed SEEVAR_DICT.PSV. |
 
 ## Unconfirmed / Removed Methods
 
