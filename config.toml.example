@@ -1,0 +1,118 @@
+# =============================================================================
+# Filename:  config.toml.example
+# Version:   2.0.0
+# Objective: Template for SeeVar configuration. bootstrap.sh copies this to
+#            config.toml and patches it interactively. You can also edit
+#            config.toml directly after installation.
+#
+# Required sections : [location], [aavso], [planner], [storage], [[seestars]]
+# Optional sections : [weather], [notifications], [network]
+#                     Leave optional string fields empty ("") to disable them.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# LOCATION — required
+# These coordinates are the GPS fallback when the hardware GPS is unavailable.
+# maidenhead is also the home-detection trigger: if maidenhead matches
+# [network] home_grid the pipeline knows it is at home and expects a NAS.
+# -----------------------------------------------------------------------------
+[location]
+lat            = 51.4779
+lon            = -0.0015
+elevation      = 46.0
+maidenhead     = "IO91WM"
+bortle         = 7        # 1 = pristine dark sky, 9 = city centre
+horizon_limit  = 30.0     # minimum target altitude in degrees
+moon_avoidance = 30.0     # minimum angular distance from moon in degrees
+
+# -----------------------------------------------------------------------------
+# AAVSO — required
+# observer_code : your official AAVSO observer code (e.g. REDA)
+# webobs_token  : optional — needed for live AAVSO WebObs submission
+# target_key    : optional — needed for live AAVSO TargetTool API access
+#                 The bundled seed catalog works without these keys.
+# -----------------------------------------------------------------------------
+[aavso]
+observer_code = "YOUR_CODE_HERE"
+webobs_token  = ""
+target_key    = ""
+
+# -----------------------------------------------------------------------------
+# PLANNER — required
+# sun_altitude_limit : astronomical darkness threshold in degrees (-18.0)
+# simulation_mode    : true = run without hardware (development only)
+#                      Always false for real observations.
+# -----------------------------------------------------------------------------
+[planner]
+sun_altitude_limit = -18.0
+simulation_mode    = false
+
+# -----------------------------------------------------------------------------
+# STORAGE — required
+# lifeboat_dir : local fallback when RAID1 / NAS is not available
+# primary_dir  : main archive destination (RAID1 mount or local)
+# -----------------------------------------------------------------------------
+[storage]
+lifeboat_dir  = "~/seevar/data/local_buffer"
+primary_dir   = "~/seevar/data/local_buffer"
+target_dir    = "~/seevar/data"
+sequence_dir  = "~/seevar/data/sequences"
+comp_star_dir = "~/seevar/data/comp_stars"
+
+# -----------------------------------------------------------------------------
+# WEATHER — optional
+# Leave api_key empty for open-meteo (no registration required).
+# Set max_cloud_cover_pct to your acceptable threshold.
+# -----------------------------------------------------------------------------
+[weather]
+provider            = "open-meteo"
+api_key             = ""
+max_cloud_cover_pct = 50.0
+
+# -----------------------------------------------------------------------------
+# NOTIFICATIONS — optional
+# Create a Telegram bot via @BotFather to receive session alerts.
+# Leave both fields empty to disable notifications entirely.
+# -----------------------------------------------------------------------------
+[notifications]
+telegram_bot_token = ""
+telegram_chat_id   = ""
+
+# -----------------------------------------------------------------------------
+# NETWORK — optional
+# Required only if you have a NAS on your home network.
+# home_grid must match [location] maidenhead for NAS detection to activate.
+# If you are at a remote site (maidenhead != home_grid) the NAS is skipped.
+# -----------------------------------------------------------------------------
+[network]
+nas_ip    = ""
+nas_port  = 445
+home_grid = "IO91WM"
+
+# -----------------------------------------------------------------------------
+# FLEET — required
+# One [[seestars]] entry per telescope.
+# model : must match a file in core/hardware/models/ (S30, S30-Pro, S50)
+# ip    : telescope IP address on your local network — set TBD until known
+# mount : altaz for all current Seestar units
+#
+# The bootstrap telescope questionnaire fills in the first entry.
+# Add further telescopes by copying this block.
+# -----------------------------------------------------------------------------
+[[seestars]]
+name  = "MyTelescope"
+model = "S30-Pro"
+ip    = "TBD"
+mount = "altaz"
+
+# [[seestars]]
+# name  = "Anna"
+# model = "S30-Pro"
+# ip    = "TBD"
+# mount = "altaz"
+
+# [[seestars]]
+# name  = "Henrietta"
+# model = "S50"
+# ip    = "TBD"
+# mount = "altaz"
