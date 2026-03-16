@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/pilot.py
-Version: 1.6.0  # SeeVar-v1.6.0-header
+Version: 1.6.1  # SeeVar-v1.6.1-header
 Objective: Direct TCP control of ZWO S30-Pro for AAVSO-compliant Sovereign RAW acquisition. M2: TelemetryBlock, send_and_recv, session init S1-S4, veto logic on real values.
 """
 
@@ -464,6 +464,10 @@ def sovereign_stamp(
 
     if target.auid:
         h["AUID"] = target.auid
+
+    # JD — Julian Date of exposure start.
+    # Explicit key for AAVSO photometry tools and reporter cross-reference.
+    h["JD"] = round(t_astropy.jd, 6)
 
     return h
 
