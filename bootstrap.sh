@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Filename:  bootstrap.sh
-# Version:   1.1.0
+# Version:   1.2.0
 # Objective: Install SeeVar on fresh Debian Bookworm (Raspberry Pi).
 #            Creates Python .venv, installs dependencies, runs interactive
 #            questionnaire for telescope and site configuration, installs
@@ -310,10 +310,12 @@ function telescope_questionnaire {
   sed -i "s|ip    = \"TBD\"|ip    = \"${SCOPE_IP}\"|" "$TOML"
 
   info "Running fleet_mapper.py..."
-  "$VENV/bin/python3" "$SEEVAR_DIR/core/hardware/fleet_mapper.py" \
-    && info "Fleet schema generated: data/fleet_schema.json" \
-    || warn "fleet_mapper.py returned an error. Edit [[seestars]] in config.toml and re-run:"
-  warn "  python3 core/hardware/fleet_mapper.py"
+  if "$VENV/bin/python3" "$SEEVAR_DIR/core/hardware/fleet_mapper.py"; then
+    info "Fleet schema generated: data/fleet_schema.json"
+  else
+    warn "fleet_mapper.py returned an error. Edit [[seestars]] in config.toml and re-run:"
+    warn "  cd ~/seevar && python3 core/hardware/fleet_mapper.py"
+  fi
 
   info "Telescope: ${SCOPE_NAME} (${SCOPE_MODEL}) @ ${SCOPE_IP}"
 }
@@ -333,7 +335,7 @@ function systemd_service_setup {
   sudo tee /etc/systemd/system/seevar-dashboard.service > /dev/null << EOF
 [Unit]
 Description=SeeVar Dashboard
-After=seevar-orchestrator.service
+After=network.target
 
 [Service]
 Type=simple
@@ -390,12 +392,39 @@ EOF
 
   sudo systemctl daemon-reload
 
-  for service in seevar-dashboard seevar-orchestrator seevar-weather; do
+  for service in seevar-weather seevar-orchestrator seevar-dashboard; do
     sudo systemctl enable "$service"
     info "Enabled ${service}"
   done
 
-  info "Systemd services installed. Start manually after setting telescope IP."
+  section "Starting services"
+  for service in seevar-weather seevar-orchestrator seevar-dashboard; do
+    sudo systemctl start "$service" \
+      && info "Started ${service}" \
+      || warn "${service} did not start cleanly — check: journalctl -u ${service}"
+  done
+
+  info "Services running. Orchestrator will retry until telescope is on the network."
+}
+
+# -----------------------------------------------------------------------------
+# FETCH TARGETS
+# -----------------------------------------------------------------------------
+
+function fetch_targets {
+  section "Fetching AAVSO target list"
+
+  local PYBIN="$VENV/bin/python3"
+
+  info "Running aavso_fetcher.py — populating target catalog..."
+  cd "$SEEVAR_DIR"
+  "$PYBIN" core/preflight/aavso_fetcher.py \
+    && info "Target catalog populated." \
+    || warn "aavso_fetcher.py returned an error — seed catalog will be used instead."
+
+  echo ""
+  warn "chart_fetcher.py fetches comparison star charts — run once overnight:"
+  warn "  cd ~/seevar && python3 core/preflight/chart_fetcher.py"
 }
 
 # -----------------------------------------------------------------------------
@@ -456,12 +485,7 @@ function print_banner {
 │    3. Run chart_fetcher once overnight:             │
 │         python3 core/preflight/chart_fetcher.py     │
 │                                                     │
-│  Start the observatory:                             │
-│    sudo systemctl start seevar-weather              │
-│    sudo systemctl start seevar-orchestrator         │
-│    sudo systemctl start seevar-dashboard            │
-│                                                     │
-│  Dashboard : http://${HOST}.local:5050              │
+$(printf "| %-51s|" "  Dashboard : http://${HOST}.local:5050")
 │  Logs      : ~/seevar/logs/                         │
 │  Data      : ~/seevar/data/                         │
 └─────────────────────────────────────────────────────┘
@@ -483,6 +507,7 @@ function setup {
   config_setup
   telescope_questionnaire
   systemd_service_setup
+  fetch_targets
   sanity_check
   print_banner
 }
