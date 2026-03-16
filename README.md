@@ -188,21 +188,27 @@ The architecture allows remote telescopes to join the network.
 
 ---
 
+# 🚧 Beta
+
+SeeVar is currently in beta. Hardware testing begins April 2026 with the ZWO Seestar S30-Pro.
+
+Community testers are welcome. Please report issues via [GitHub Issues](https://github.com/edjuh/seevar/issues).
+
+---
+
 # 🚀 Getting Started
 
-Initialize the environment:
+Install on a fresh **Raspberry Pi OS Lite (64-bit)** — Bookworm:
 
-```
-bootstrap.sh
-```
-
-Start the observatory control loop:
-
-```
-core/flight/orchestrator.py
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/edjuh/seevar/main/bootstrap.sh)
 ```
 
-Detailed implementation notes are available in the **logic** directory.
+Bootstrap installs all dependencies, creates the Python environment, runs an
+interactive questionnaire for telescope and site configuration, and starts the
+three systemd services automatically.
+
+Full installation instructions: [INSTALL.md](INSTALL.md)
 
 ---
 
