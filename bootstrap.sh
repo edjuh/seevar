@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Filename:  bootstrap.sh
-# Version:   1.2.0
+# Version:   1.2.1
 # Objective: Install SeeVar on fresh Debian Bookworm (Raspberry Pi).
 #            Creates Python .venv, installs dependencies, runs interactive
 #            questionnaire for telescope and site configuration, installs
@@ -196,6 +196,19 @@ function create_directory_structure {
       info "Seeded $f"
     fi
   done
+
+  # Seed flat horizon mask — 15° all-round safe default
+  # Replaced at first light by camera-based horizon mapper (v1.8)
+  if [ ! -f "$SEEVAR_DIR/data/horizon_mask.json" ]; then
+    python3 -c "
+import json
+profile = {str(az): 15.0 for az in range(360)}
+data = {'profile': profile, 'source': 'default_flat', 'note': 'Flat 15 degree default — replace with camera scan at first light'}
+with open('$SEEVAR_DIR/data/horizon_mask.json', 'w') as f:
+    json.dump(data, f, indent=2)
+"
+    info "Seeded flat horizon mask (15 degrees all-round)"
+  fi
 
   info "Directory structure ready."
 }
@@ -476,14 +489,15 @@ function print_banner {
 ┌─────────────────────────────────────────────────────┐
 │            SeeVar Installation Complete             │
 │                                                     │
-│  Before first start:                                │
-│    1. Set telescope IP in config.toml               │
-│         [[seestars]]  ip = "x.x.x.x"               │
-│    2. Regenerate fleet schema:                      │
-│         cd ~/seevar                                 │
-│         python3 core/hardware/fleet_mapper.py       │
-│    3. Run chart_fetcher once overnight:             │
-│         python3 core/preflight/chart_fetcher.py     │
+│  Services started — waiting for astronomical night. │
+│  AAVSO target catalog is being fetched now.         │
+│                                                     │
+│  When your telescope joins the network:             │
+│    1. Set its IP in config.toml [[seestars]]        │
+│    2. Run: python3 core/hardware/fleet_mapper.py    │
+│                                                     │
+│  Run chart_fetcher once overnight:                  │
+│    python3 core/preflight/chart_fetcher.py          │
 │                                                     │
 $(printf "| %-51s|" "  Dashboard : http://${HOST}.local:5050")
 │  Logs      : ~/seevar/logs/                         │
