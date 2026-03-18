@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-core/utils/coordinate_converter.py
-Version: 1.2.1
+Filename: core/utils/coordinate_converter.py
+Version: 1.2.2
 Objective: Ensures data validity by converting sexagesimal AAVSO coordinates into decimal degrees, appending #objective to JSON writes.
 """
 
-import os
 import json
 import logging
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("Librarian_Coords")
@@ -33,15 +33,14 @@ def dms_to_deg(dms):
         return None
 
 def process_library():
-    seq_dir = os.path.expanduser('~/seevar/data/comp_stars')
-    if not os.path.exists(seq_dir): return
+    seq_dir = Path(__file__).resolve().parents[2] / "data" / "comp_stars"
+    if not seq_dir.exists(): return
     
-    files = [f for f in os.listdir(seq_dir) if f.endswith('.json')]
+    files = [f for f in seq_dir.iterdir() if f.suffix == '.json']
     updated_count = 0
     
-    for filename in files:
-        path = os.path.join(seq_dir, filename)
-        with open(path, 'r+') as f:
+    for file_path in files:
+        with open(file_path, 'r+') as f:
             try:
                 data = json.load(f)
             except json.JSONDecodeError:

@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-core/utils/aavso_client.py
-Version: 1.2.1
+Filename: core/utils/aavso_client.py
+Version: 1.2.2
 Objective: Low-level API client for authenticated AAVSO VSX and WebObs data retrieval. Returns JSON-ready dictionaries with #objective tags.
 """
 
 import os
 import json
 import requests
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(os.path.expanduser("~/seevar/.env"))
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(PROJECT_ROOT / ".env")
 
 class AAVSOClient:
     def __init__(self):
@@ -46,7 +48,7 @@ class AAVSOClient:
             "#objective": f"AAVSO Target Package resolved for {name}",
             "target": target,
             "sequence": sequence,
-            "metadata": {"client_version": "1.2.1", "status": "resolved"}
+            "metadata": {"client_version": "1.2.2", "status": "resolved"}
         }
 
 if __name__ == "__main__":

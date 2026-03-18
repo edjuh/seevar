@@ -1,36 +1,39 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-core/utils/platesolve_analyst.py
-Version: 1.2.1
+Filename: core/utils/platesolve_analyst.py
+Version: 1.2.2
 Objective: Quantitative reporter for plate-solving success rates, performing blind solves to compare header coordinates against reality.
 """
 
 import os
 import subprocess
+from pathlib import Path
 from astropy.io import fits
 
-SAMPLE_DIR = os.path.expanduser("~/seevar/tests/samples")
-TEMP_DIR = os.path.join(SAMPLE_DIR, "solve_temp")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SAMPLE_DIR = PROJECT_ROOT / "tests" / "samples"
+TEMP_DIR = SAMPLE_DIR / "solve_temp"
+
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 def solve_and_compare(filename):
-    filepath = os.path.join(SAMPLE_DIR, filename)
+    filepath = SAMPLE_DIR / filename
     
     try:
         header = fits.getheader(filepath, 0, ignore_missing_end=True)
         reported_ra = header.get('OBJCTRA') or header.get('RA') or "Unknown"
         reported_dec = header.get('OBJCTDEC') or header.get('DEC') or "Unknown"
     except Exception as e:
-        print(f"❌ Header Read Error on {filename}: {e}")
+        print(f"❌ Header Read Error on {filename.name}: {e}")
         return
 
-    print(f"\n🧩 Analyzing: {filename}")
+    print(f"\n🧩 Analyzing: {filename.name}")
     print(f"   📡 Header: {reported_ra} | {reported_dec}")
 
     cmd = [
-        "solve-field", filepath, 
-        "--dir", TEMP_DIR,
+        "solve-field", str(filepath), 
+        "--dir", str(TEMP_DIR),
         "--no-plots", "--overwrite",
         "--downsample", "2",
         "--cpulimit", "60"
@@ -38,8 +41,8 @@ def solve_and_compare(filename):
     
     try:
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        wcs_file = os.path.join(TEMP_DIR, filename.replace(".fits", ".wcs"))
-        if os.path.exists(wcs_file):
+        wcs_file = TEMP_DIR / filename.name.replace(".fits", ".wcs")
+        if wcs_file.exists():
             w_hdr = fits.getheader(wcs_file, 0)
             true_ra = w_hdr.get('CRVAL1')
             true_dec = w_hdr.get('CRVAL2')
@@ -50,7 +53,7 @@ def solve_and_compare(filename):
         print(f"   ❌ EXECUTION ERROR: {e}")
 
 if __name__ == "__main__":
-    if os.path.exists(SAMPLE_DIR):
-        fits_files = sorted([f for f in os.listdir(SAMPLE_DIR) if f.endswith(".fits")])
+    if SAMPLE_DIR.exists():
+        fits_files = sorted([f for f in SAMPLE_DIR.iterdir() if f.suffix == ".fits"])
         for f in fits_files:
             solve_and_compare(f)

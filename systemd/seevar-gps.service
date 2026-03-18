@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/env python3 /home/ed/seevar/core/utils/gps_monitor.py
+ExecStart=/usr/bin/env python3 %h/seevar/core/utils/gps_monitor.py
 Restart=always
 RestartSec=10
 StandardOutput=journal

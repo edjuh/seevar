@@ -2,110 +2,446 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SeeVar Federation Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>S30-PRO Federation Dashboard</title>
     <style>
-        :root { --bg: #111; --card: #1a1a1a; --green: #39ff14; --orange: #ff9900; --red: #ff3333; --text: #eee; --muted: #888; }
-        body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; margin: 0; padding: 10px 20px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .top-bar { display: flex; justify-content: space-between; color: var(--green); font-weight: bold; font-size: 0.9em; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 5px; }
-        .grid { display: flex; gap: 20px; flex: 1; min-height: 0; }
-        .panel { flex: 1; background: var(--card); border: 1px solid #333; padding: 20px; display: flex; flex-direction: column; box-shadow: inset 0 0 20px #000; }
-        .panel h2 { color: var(--muted); font-size: 0.8em; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 10px; margin: 0 0 15px 0; }
-        .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.85em; font-weight: bold; }
-        .led { width: 18px; height: 18px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #000; }
-        .green { background: var(--green); box-shadow: 0 0 8px var(--green); }
-        .orange { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
-        .red { background: var(--red); box-shadow: 0 0 8px var(--red); }
-        .grey { background: #444; }
-        .icon-p { background: linear-gradient(135deg, #1e90ff, #005cbf); color: white; font-size: 3em; font-weight: bold; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 16px; margin-bottom: 20px; }
-        .pf-scoreboard { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; border-bottom: 1px dashed #333; padding-bottom: 15px; margin-bottom: 15px; }
-        .pf-val { font-size: 1.5em; font-weight: 900; text-align: center; }
-        .pf-lbl { font-size: 0.6em; color: #555; text-align: center; }
-        .log-box { margin-top: 15px; border-top: 1px dashed #333; padding-top: 15px; font-size: 0.85em; color: var(--muted); }
-        .latest { color: #fff; font-weight: bold; }
+        :root {
+            --bg-dark: #111111; --panel-bg: #1a1a1a;
+            --text-muted: #888888; --text-bright: #ffffff;
+            --led-green: #39ff14; --led-orange: #ff9900; 
+            --led-grey: #555555; --led-bluegrey: #4a5a6a;
+            --neon-purple: #E0B0FF; --purple-glow: #BF00FF;
+            --alert-red: #ff3333;
+        }
+        
+        * { box-sizing: border-box; } 
+        
+        body { background-color: var(--bg-dark); color: var(--text-bright); font-family: 'Courier New', Courier, monospace; margin: 0; padding: 10px 20px; overflow-x: hidden; display: flex; flex-direction: column; min-height: 98vh;}
+        
+        .top-bar { display: flex; justify-content: space-between; color: var(--led-green); font-weight: bold; font-size: 0.9em; margin-bottom: 20px; padding: 5px 0; border-bottom: 1px solid #333; }
+        .swipe-hint { display: none; text-align: center; color: var(--led-orange); font-size: 0.8em; margin-bottom: 10px; font-weight: bold; }
+
+        .container { display: flex; gap: 20px; justify-content: space-between; width: 100%; flex: 1;}
+        .panel { flex: 1; background-color: var(--panel-bg); border: 1px solid #333; padding: 20px; min-height: 400px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+        .panel h2 { color: var(--text-muted); font-size: 0.85em; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 10px; margin-top: 0; margin-bottom: 20px; }
+        
+        .flight-window-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #333; font-size: 0.9em; font-weight: bold; }
+        .fw-val { color: #88ccff; letter-spacing: 1px; }
+
+        .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.85em; font-weight: bold; }
+        .label { color: var(--text-muted); width: 45%; }
+        .val { color: var(--text-bright); text-align: left; flex: 1; }
+        
+        .target-card { border-top: 1px dashed #333; padding-top: 15px; margin-top: 15px; } 
+        .target-card .row { margin-bottom: 8px; }
+        .target-card .label { width: 30%; color: #aaa; }
+        
+        .led { width: 20px; height: 20px; border-radius: 4px; margin-left: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color: #000; }
+        .green { background-color: var(--led-green); box-shadow: 0 0 8px var(--led-green); }
+        .orange { background-color: var(--led-orange); box-shadow: 0 0 8px var(--led-orange); }
+        .red { background-color: var(--alert-red); box-shadow: 0 0 8px var(--alert-red); }
+        .grey { background-color: var(--led-grey); }
+        .blue-grey { background-color: var(--led-bluegrey); box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); border: 1px solid #333; color: transparent; }
+        .weather-icon { background: none; box-shadow: none; font-size: 18px; color: transparent; }
+        
+        .center-content { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80%; text-align: center; }
+        .icon-p { background: linear-gradient(135deg, #1e90ff, #005cbf); color: white; font-size: 3em; font-weight: bold; font-family: sans-serif; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); transition: all 0.5s ease; }
+        .state-parked { background: linear-gradient(135deg, #1e90ff, #005cbf) !important; animation: none; }
+        .state-slewing { background: linear-gradient(135deg, #ff9900, #b36b00) !important; animation: spin 2s linear infinite; }
+        .state-tracking { background: linear-gradient(135deg, #39ff14, #006600) !important; animation: pulse-green 3s infinite; }
+        .state-exposing { background: linear-gradient(135deg, #5dade2, #1b4f72) !important; animation: pulse-blue 2s infinite; }
+        
+        .status-main { color: var(--text-bright); font-size: 2em; letter-spacing: 5px; font-weight: 900; margin-bottom: 10px; transition: color 0.5s ease;}
+        .status-sub { color: var(--text-bright); font-size: 0.9em; font-weight: bold; margin-bottom: 30px; letter-spacing: 1px; }
+        .status-msg { color: var(--text-muted); font-size: 0.8em; font-style: italic; }
+
+        @keyframes pulse-green { 0% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } 50% { box-shadow: 0 0 30px rgba(57,255,20,0.8); } 100% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } }
+        @keyframes pulse-blue { 0% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } 50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(93,173,226,0.8); } 100% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .critical { color: var(--neon-purple) !important; text-shadow: 0 0 8px var(--purple-glow), 0 0 12px var(--purple-glow); background: none !important; }
+
+        .stat-val { color: var(--led-green); }
+        .batt-warn { color: var(--led-orange) !important; }
+        .batt-crit { color: var(--alert-red) !important; animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+        .flight-log-container { display: flex; flex-direction: column; gap: 4px; border-top: 1px dashed #333; padding-top: 15px; margin-top: 15px; height: 100px; overflow: hidden; justify-content: flex-end;}
+        .log-line { color: var(--text-muted); font-size: 0.9em; white-space: nowrap; }
+        .log-line.latest { color: var(--text-bright); font-weight: bold; }
+
+        @media (max-width: 900px) {
+            body { padding: 5px; }
+            .swipe-hint { display: block; }
+            .container { overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 20px; -webkit-overflow-scrolling: touch; gap: 10px; }
+            .panel { min-width: 93vw; scroll-snap-align: center; flex-shrink: 0; padding: 15px; }
+            .flight-log-container { border-left: none; border-top: 1px dashed #333; padding-left: 0; margin-left: 0; padding-top: 10px; width: 100%; height: auto;}
+        }
+
+        .pf-scoreboard { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #333; }
+        .pf-score-cell { text-align: center; }
+        .pf-score-num  { font-size: 1.5em; font-weight: 900; letter-spacing: 1px; line-height: 1; }
+        .pf-score-lbl  { font-size: 0.6em; color: #555; letter-spacing: 2px; margin-top: 4px; }
+        .s-dim    { color: #444; }
+        .s-green  { color: var(--led-green);  text-shadow: 0 0 8px var(--led-green); }
+        .s-orange { color: var(--led-orange); text-shadow: 0 0 8px var(--led-orange); }
+        .s-red    { color: var(--alert-red);  text-shadow: 0 0 8px var(--alert-red); }
+        .pf-led-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; font-weight: bold; margin-bottom: 10px; }
+        .pf-led-label { color: var(--text-muted); }
+        .pf-led-right { display: flex; align-items: center; gap: 8px; }
+        .pf-led-val   { font-size: 0.8em; color: var(--text-muted); }
+        .pf-led-val.v-green  { color: var(--led-green); }
+        .pf-led-val.v-orange { color: var(--led-orange); }
+        .pf-log-head { display: grid; grid-template-columns: 38px 1fr 24px 1fr 54px; gap: 4px; font-size: 0.62em; color: #444; letter-spacing: 1.5px; padding-bottom: 5px; border-bottom: 1px solid #222; margin-bottom: 4px; }
+        .pf-log      { display: flex; flex-direction: column; gap: 1px; }
+        .pf-entry    { display: grid; grid-template-columns: 38px 1fr 24px 1fr 54px; gap: 4px; font-size: 0.72em; padding: 5px 0 5px 6px; border-bottom: 1px solid #1a1a1a; align-items: center; border-left: 2px solid transparent; }
+        .pf-entry.e-ok   { border-left-color: var(--led-green); }
+        .pf-entry.e-warn { border-left-color: var(--led-orange); }
+        .pf-entry.e-fail { border-left-color: var(--alert-red); }
+        .c-time { color: #555; }
+        .c-name { color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .c-flt  { color: #777; }
+        .c-mag  { color: var(--led-green); font-weight: bold; }
+        .c-mag.m-warn { color: var(--led-orange); }
+        .c-mag.m-fail { color: var(--alert-red); }
+        .c-zp         { font-size: 0.9em; }
+        .c-zp.z-good  { color: var(--led-green); }
+        .c-zp.z-ok    { color: var(--led-orange); }
+        .c-zp.z-bad   { color: var(--alert-red); }
+        .pf-footer    { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px solid #333; font-size: 0.72em; }
+        .pf-footer-note { color: #444; }
+        .pf-overall { font-weight: bold; letter-spacing: 2px; padding: 2px 8px; border: 1px solid; }
+        .pf-overall.o-green  { color: var(--led-green);  border-color: #1a3a0a; }
+        .pf-overall.o-orange { color: var(--led-orange); border-color: #3a2a00; }
+        .pf-overall.o-grey   { color: #555; border-color: #333; }
     </style>
 </head>
 <body>
-    <div class="top-bar"><span id="tel-mh">--</span><span>JDATE: <span id="live-jd">--</span></span></div>
-    <div class="grid">
+    <div class="top-bar">
+        <span id="telemetry-mh">--</span>
+        <span>JDATE: <span id="live-jdate">CALCULATING...</span></span>
+    </div>
+    <div class="swipe-hint">⟸ SWIPE PANELS ⟹</div>
+
+    <div class="container">
         <div class="panel">
             <h2>SYSTEM VITALS</h2>
-            <div class="row"><span style="color:var(--muted)">WINDOW</span><span id="fw-val">{{ flight_window }}</span></div>
-            <div class="row"><span style="color:var(--muted)">SEESTAR</span><div id="link-led" class="led grey"></div></div>
-            <div class="row"><span style="color:var(--muted)">WEATHER</span><span id="wth-t">--</span><div id="wth-i" style="margin-left:10px">❓</div></div>
-            <div class="target-card" style="border-top:1px dashed #333; margin-top:15px; padding-top:15px">
-                <div class="row"><span style="color:var(--muted)">NAME</span><span id="t-name">--</span><div id="t-cnt" class="led orange">00</div></div>
-                <div class="row"><span style="color:var(--muted)">LOC</span><span id="t-loc">--</span></div>
-                <div class="row"><span style="color:var(--muted)">MAG</span><span id="t-mag" style="color:#88ccff">--</span></div>
+            <div class="flight-window-row"><span class="label">FLIGHT WINDOW</span> <span class="fw-val">{{ flight_window }}</span></div>
+            <div class="row"><span class="label">SEESTAR (LINK)</span> <span id="tel-link-val" class="val">WAITING...</span> <div id="tel-link-led" class="led grey"></div></div>
+            <div class="row"><span class="label">GPS (LOCK)</span> <span class="val"></span> <div class="led green"></div></div>
+            <div class="row"><span class="label">WEATHER (PRED)</span> <span id="weather-val" class="val">CLEAR</span> <div id="weather-icon-led" class="led weather-icon">⭐</div></div>
+            <div class="row"><span class="label">FOG (VIS)</span> <span class="val">DISCONNECTED</span> <div class="led blue-grey"></div></div>
+            
+            <div class="row"><span class="label">BATTERY</span> <span id="bb-batt" class="val stat-val">--%</span></div>
+            <div class="row"><span class="label">STORAGE</span> <span id="bb-store" class="val stat-val">-- MB</span></div>
+            
+            <div class="target-card">
+                <div class="row" style="padding-bottom: 5px;">
+                    <span class="label" style="width: auto;">TARGET TELEMETRY</span>
+                    <div id="target-count-led" class="led orange">00</div>
+                </div>
+                <div class="row"><span class="label">NAME</span> <span id="t-name" class="val">FETCHING...</span></div>
+                <div class="row"><span class="label">TYPE</span> <span id="t-type" class="val">-</span></div>
+                <div class="row"><span class="label">LOC</span> <span id="t-loc" class="val" style="font-size: 0.9em;">-</span></div>
+                <div class="row"><span class="label">MAG</span> <span id="t-mag" class="val">-</span></div>
             </div>
         </div>
+
         <div class="panel">
-            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
-                <div class="icon-p">P</div>
-                <div id="f-state" style="font-size:2em; font-weight:900; color:#1e90ff">PARKED</div>
-                <div id="f-sub" style="font-weight:bold; color:var(--muted)">OFF-DUTY</div>
+            <div class="center-content">
+                <div id="orch-icon" class="icon-p state-parked">P</div>
+                <div id="orch-main" class="status-main" style="color: #1e90ff;">PARKED</div>
+                <div id="orch-sub" class="status-sub">OFF-DUTY</div>
+                <div id="orch-msg" class="status-msg">Waiting for orchestrator...</div>
             </div>
-            <div class="row" style="margin-top:auto"><span style="color:var(--muted)">BATTERY</span><span id="v-bat">--%</span></div>
-            <div class="row"><span style="color:var(--muted)">S30 TEMP</span><span id="v-tmp">--°C</span></div>
-            <div class="row"><span style="color:var(--muted)">STORAGE</span><span id="v-store">-- MB</span></div>
         </div>
+
         <div class="panel">
             <h2>POSTFLIGHT AUDIT</h2>
+
             <div class="pf-scoreboard">
-                <div><div class="pf-val" id="pf-s">--</div><div class="pf-lbl">SCHED</div></div>
-                <div><div class="pf-val" id="pf-a">--</div><div class="pf-lbl">ATT</div></div>
-                <div><div class="pf-val" id="pf-o" style="color:var(--green)">--</div><div class="pf-lbl">OBS</div></div>
-                <div><div class="pf-val" id="pf-f" style="color:var(--orange)">--</div><div class="pf-lbl">FAIL</div></div>
+                <div class="pf-score-cell">
+                    <div class="pf-score-num s-dim" id="pf-sched">--</div>
+                    <div class="pf-score-lbl">SCHED</div>
+                </div>
+                <div class="pf-score-cell">
+                    <div class="pf-score-num s-dim" id="pf-attempt">--</div>
+                    <div class="pf-score-lbl">ATTEMPT</div>
+                </div>
+                <div class="pf-score-cell">
+                    <div class="pf-score-num s-dim" id="pf-observed">--</div>
+                    <div class="pf-score-lbl">OBSERVED</div>
+                </div>
+                <div class="pf-score-cell">
+                    <div class="pf-score-num s-dim" id="pf-failed">--</div>
+                    <div class="pf-score-lbl">FAILED</div>
+                </div>
             </div>
-            <div class="row"><span style="color:var(--muted)">PHOTOMETRY</span><div id="led-p" class="led grey"></div></div>
-            <div class="row" style="margin-bottom:20px"><span style="color:var(--muted)">AAVSO READY</span><div id="led-a" class="led grey"></div></div>
-            <div id="pf-list" style="font-size:0.75em; flex:1; overflow-y:auto"></div>
-            <div class="log-box" id="f-log"></div>
+
+            <div class="pf-led-row">
+                <span class="pf-led-label">PHOTOMETRY</span>
+                <div class="pf-led-right">
+                    <span class="pf-led-val" id="pf-phot-val">--</span>
+                    <div id="led-phot" class="led grey"></div>
+                </div>
+            </div>
+            <div class="pf-led-row">
+                <span class="pf-led-label">AAVSO READY</span>
+                <div class="pf-led-right">
+                    <span class="pf-led-val" id="pf-aavso-val">--</span>
+                    <div id="led-aavso" class="led grey"></div>
+                </div>
+            </div>
+
+            <div class="pf-log-head">
+                <span>UTC</span>
+                <span>TARGET</span>
+                <span>FLT</span>
+                <span>MAG ± ERR / SNR</span>
+                <span>ZP ± σ</span>
+            </div>
+            <div class="pf-log" id="pf-log-body"></div>
+
+            <div class="pf-footer">
+                <span class="pf-footer-note" id="pf-footer-note">session since dusk</span>
+                <span class="pf-overall o-grey" id="pf-overall">--</span>
+            </div>
+
+            <div class="flight-log-container" id="flight-log">
+                <div class="log-line latest">⏳ Hardware link established. Awaiting flight directives...</div>
+                <div class="log-line"></div>
+                <div class="log-line"></div>
+                <div class="log-line"></div>
+                <div class="log-line"></div>
+            </div>
         </div>
     </div>
+
     <script>
         const targetData = {{ target_data | tojson | safe }};
         let tickerIndex = 0;
+
         function updateTicker() {
-            if (!targetData || targetData.length === 0) return;
+            const countLed = document.getElementById('target-count-led');
+            if (!targetData || targetData.length === 0) {
+                document.getElementById('t-name').innerText = "NO FLIGHT PLAN"; 
+                countLed.className = "led orange"; countLed.innerText = "00";
+                return;
+            }
+            countLed.className = "led green";
+            countLed.innerText = targetData.length.toString().padStart(2, '0');
             const t = targetData[tickerIndex];
+            
             document.getElementById('t-name').innerText = t.name || t.star_name || "UNKNOWN";
-            document.getElementById('t-loc').innerText = `RA: ${t.ra} DEC: ${t.dec}`;
+            document.getElementById('t-name').className = (t.priority) ? "val critical" : "val";
+            document.getElementById('t-type').innerText = t.type || t.var_type || "N/A";
+            
+            const ra = t.ra ? parseFloat(t.ra).toFixed(2) : "--";
+            const dec = t.dec ? parseFloat(t.dec).toFixed(2) : "--";
+            const con = t.constellation || "UNK";
+            document.getElementById('t-loc').innerText = `${con} | RA: ${ra} DEC: ${dec}`;
             const maxM = t.max_mag != null ? t.max_mag : "--";
             const minM = t.min_mag != null ? t.min_mag : "--";
-            const perD = t.period_days != null ? (t.period_days < 1 ? (t.period_days * 24).toFixed(1) + "h" : t.period_days.toFixed(1) + "d") : "--";
+            const perD = t.period_days != null
+                ? (t.period_days < 1
+                    ? (t.period_days * 24).toFixed(1) + "h"
+                    : t.period_days.toFixed(1) + "d")
+                : "--";
             document.getElementById('t-mag').innerText = `${maxM} – ${minM} · ${perD} (V)`;
-            document.getElementById('t-cnt').innerText = String(targetData.length).padStart(2, '0');
             tickerIndex = (tickerIndex + 1) % targetData.length;
         }
+
         function fetchTelemetry() {
-            fetch('/telemetry').then(r => r.json()).then(d => {
-                document.getElementById('tel-mh').innerText = d.maidenhead;
-                document.getElementById('wth-t').innerText = d.weather.status;
-                document.getElementById('wth-i').innerText = d.weather.icon;
-                document.getElementById('f-state').innerText = d.orchestrator.state;
-                document.getElementById('f-sub').innerText = d.orchestrator.sub;
-                document.getElementById('v-bat').innerText = d.hardware.battery + "%";
-                document.getElementById('v-tmp').innerText = d.hardware.temp_c + "°C";
-                document.getElementById('v-store').innerText = d.hardware.storage_mb + " MB";
-                document.getElementById('link-led').className = 'led ' + (d.hardware.link_status === "ACTIVE" ? "green" : "red");
-                const sb = d.postflight.scoreboard;
-                document.getElementById('pf-s').innerText = sb.scheduled;
-                document.getElementById('pf-a').innerText = sb.attempted;
-                document.getElementById('pf-obs').innerText = sb.observed;
-                document.getElementById('pf-fail').innerText = sb.failed;
-                document.getElementById('led-p').className = 'led ' + d.postflight.phot_led;
-                document.getElementById('led-a').className = 'led ' + d.postflight.aavso_led;
-                if(d.orchestrator.flight_log) {
-                    const logs = d.orchestrator.flight_log.slice(-5);
-                    document.getElementById('f-log').innerHTML = logs.map((l, i) => `<div class="${i === logs.length-1 ? 'latest' : ''}">${l}</div>`).join('');
-                }
-                document.getElementById('pf-list').innerHTML = d.postflight.log.map(r => 
-                    `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #222; padding:4px 0"><span>${r.time}</span><span>${r.name}</span><span style="color:var(--green)">${r.mag}</span></div>`).join('');
-            });
+            fetch('/telemetry')
+                .then(res => res.json())
+                .then(data => {
+                    if(data.maidenhead) document.getElementById('telemetry-mh').innerText = data.maidenhead;
+
+                    if(data.weather) {
+                        const wVal = document.getElementById('weather-val');
+                        const wLed = document.getElementById('weather-icon-led');
+                        if(wVal) wVal.innerText = data.weather.status || 'N/A';
+                        if(wLed) {
+                            wLed.innerText = data.weather.icon || '❓';
+                            wLed.style.color = '#fff';
+                        }
+                    }
+
+                    if(data.orchestrator) {
+                        const state = data.orchestrator.state || 'PARKED';
+                        document.getElementById('orch-main').innerText = state;
+                        document.getElementById('orch-sub').innerText = data.orchestrator.sub || 'OFF-DUTY';
+                        document.getElementById('orch-msg').innerText = data.orchestrator.msg || '';
+
+                        const ct = data.orchestrator.current_target;
+                        if(ct && ct.name) {
+                            document.getElementById('t-name').innerText = ct.name;
+                            document.getElementById('t-name').className = 'val critical';
+                            document.getElementById('t-type').innerText = ct.type || 'N/A';
+                            const ra  = ct.ra  != null ? parseFloat(ct.ra).toFixed(2)  : '--';
+                            const dec = ct.dec != null ? parseFloat(ct.dec).toFixed(2) : '--';
+                            document.getElementById('t-loc').innerText = 'ACQ | RA: ' + ra + ' DEC: ' + dec;
+                            const maxM = ct.mag_max != null ? ct.mag_max : '--';
+                            const minM = ct.min_mag != null ? ct.min_mag : '--';
+                            const perD = ct.period_days != null
+                                ? (ct.period_days < 1
+                                    ? (ct.period_days * 24).toFixed(1) + 'h'
+                                    : ct.period_days.toFixed(1) + 'd')
+                                : '--';
+                            document.getElementById('t-mag').innerText = maxM + ' – ' + minM + ' · ' + perD + ' (V)';
+                        }
+                        
+                        const icon = document.getElementById('orch-icon');
+                        const mainText = document.getElementById('orch-main');
+                        
+                        if(state === 'PARKED') {
+                            icon.innerText = 'P'; icon.className = 'icon-p state-parked'; mainText.style.color = '#1e90ff';
+                        } else if(state === 'IDLE') {
+                            icon.innerText = 'I'; icon.className = 'icon-p state-parked'; mainText.style.color = '#555555';
+                        } else if(state === 'PREFLIGHT') {
+                            icon.innerText = '✓'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
+                        } else if(state === 'PLANNING') {
+                            icon.innerText = '⊞'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
+                        } else if(state === 'FLIGHT') {
+                            icon.innerText = '◈'; icon.className = 'icon-p state-tracking'; mainText.style.color = '#39ff14';
+                        } else if(state === 'SLEWING') {
+                            icon.innerText = 'S'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
+                        } else if(state === 'TRACKING') {
+                            icon.innerText = 'T'; icon.className = 'icon-p state-tracking'; mainText.style.color = '#39ff14';
+                        } else if(state === 'EXPOSING') {
+                            icon.innerText = 'E'; icon.className = 'icon-p state-exposing'; mainText.style.color = '#5dade2';
+                        } else if(state === 'POSTFLIGHT') {
+                            icon.innerText = '↓'; icon.className = 'icon-p state-exposing'; mainText.style.color = '#5dade2';
+                        } else if(state === 'ABORTED') {
+                            icon.innerText = '✕'; icon.className = 'icon-p'; mainText.style.color = '#ff3333';
+                            icon.style.background = 'linear-gradient(135deg, #ff3333, #8b0000)';
+                        }
+
+                        if(data.orchestrator.flight_log && Array.isArray(data.orchestrator.flight_log)) {
+                            let logHtml = '';
+                            const logs = data.orchestrator.flight_log.slice(-5);
+                            logs.forEach((line, index) => {
+                                const isLatest = (index === logs.length - 1) ? 'latest' : '';
+                                logHtml += `<div class="log-line ${isLatest}">${line}</div>`;
+                            });
+                            for(let i = logs.length; i < 5; i++) {
+                                logHtml += `<div class="log-line"></div>`;
+                            }
+                            document.getElementById('flight-log').innerHTML = logHtml;
+                        }
+                    }
+
+                    if(data.hardware) {
+                        const linkVal = document.getElementById('tel-link-val');
+                        const linkLed = document.getElementById('tel-link-led');
+                        const battTxt = document.getElementById('bb-batt');
+                        const storeTxt = document.getElementById('bb-store');
+
+                        if(data.hardware.link_status === "ACTIVE") {
+                            linkVal.innerText = "NATIVE COMMS UP";
+                            linkLed.className = "led green";
+                        } else {
+                            linkVal.innerText = "NO SIGNAL";
+                            linkLed.className = "led red";
+                        }
+
+                        const batt = data.hardware.battery;
+                        if (batt !== "N/A") {
+                            battTxt.innerText = batt + "%";
+                            if (parseInt(batt) > 30) battTxt.className = "val stat-val";
+                            else if (parseInt(batt) > 15) battTxt.className = "val stat-val batt-warn";
+                            else battTxt.className = "val stat-val batt-crit";
+                        } else {
+                            battTxt.innerText = "--%";
+                            battTxt.className = "val stat-val batt-crit";
+                        }
+
+                        const rawMb = parseFloat(data.hardware.storage_mb);
+                        storeTxt.innerText = isNaN(rawMb) ? '-- MB' : rawMb >= 1000 ? (rawMb / 1024).toFixed(1) + ' GB' : rawMb + ' MB';
+                    }
+
+                    if (data.postflight) {
+                        const pf = data.postflight;
+                        const sb = pf.scoreboard || {};
+
+                        const sched    = sb.scheduled || 0;
+                        const attempt  = sb.attempted  || 0;
+                        const observed = sb.observed   || 0;
+                        const failed   = sb.failed     || 0;
+
+                        const schedEl = document.getElementById('pf-sched');
+                        schedEl.innerText = sched;
+                        schedEl.className = 'pf-score-num s-dim';
+
+                        const attEl = document.getElementById('pf-attempt');
+                        attEl.innerText = attempt;
+                        attEl.className = attempt > 0 ? 'pf-score-num s-green' : 'pf-score-num s-dim';
+
+                        const obsEl = document.getElementById('pf-observed');
+                        obsEl.innerText = observed;
+                        obsEl.className = observed > 0 ? 'pf-score-num s-green' : 'pf-score-num s-dim';
+
+                        const failEl = document.getElementById('pf-failed');
+                        failEl.innerText = failed;
+                        failEl.className = failed > 0 ? 'pf-score-num s-orange' : 'pf-score-num s-dim';
+
+                        const photLed = document.getElementById('led-phot');
+                        const photVal = document.getElementById('pf-phot-val');
+                        photLed.className = 'led ' + (pf.phot_led || 'grey');
+                        photVal.className  = 'pf-led-val' + (pf.phot_led === 'green' ? ' v-green' : pf.phot_led === 'orange' ? ' v-orange' : '');
+                        photVal.innerText  = observed > 0 ? observed + ' OBS' : '--';
+
+                        const aavsoLed = document.getElementById('led-aavso');
+                        const aavsoVal = document.getElementById('pf-aavso-val');
+                        aavsoLed.className = 'led ' + (pf.aavso_led || 'grey');
+                        aavsoVal.className  = 'pf-led-val' + (pf.aavso_led === 'green' ? ' v-green' : pf.aavso_led === 'orange' ? ' v-orange' : '');
+                        aavsoVal.innerText  = pf.aavso_led === 'green' ? 'SUBMITTED' : pf.aavso_led === 'orange' ? 'PENDING' : '--';
+
+                        const overallEl = document.getElementById('pf-overall');
+                        if (pf.overall === 'green') {
+                            overallEl.className = 'pf-overall o-green';
+                            overallEl.innerText = 'ALL GOOD';
+                        } else if (pf.overall === 'orange') {
+                            overallEl.className = 'pf-overall o-orange';
+                            overallEl.innerText = failed + ' WARN';
+                        } else {
+                            overallEl.className = 'pf-overall o-grey';
+                            overallEl.innerText = 'WAITING';
+                        }
+
+                        const logBody = document.getElementById('pf-log-body');
+                        const rows = pf.log || [];
+                        if (rows.length === 0) {
+                            logBody.innerHTML = '<div style="color:#444;font-size:0.75em;padding:8px 6px;grid-column:1/-1;">no observations this session</div>'; 
+                        } else {
+                            logBody.innerHTML = rows.map(r => {
+                                const magClass = r.row_class === 'fail' ? ' m-fail' : r.row_class === 'warn' ? ' m-warn' : '';
+                                return `<div class="pf-entry e-${r.row_class}">
+                                    <span class="c-time">${r.time}</span>
+                                    <span class="c-name">${r.name}</span>
+                                    <span class="c-flt">${r.filter}</span>
+                                    <span class="c-mag${magClass}">${r.mag_str} / ${r.snr_str}</span>
+                                    <span class="c-zp ${r.zp_class}">${r.zp_str}</span>
+                                </div>`;
+                            }).join('');
+                        }
+
+                        document.getElementById('pf-footer-note').innerText =
+                            rows.length + ' of ' + attempt + ' · session since dusk';
+                    }
+                })
+                .catch(err => console.error("Telemetry error:", err));
         }
-        setInterval(updateTicker, 4000); setInterval(fetchTelemetry, 2000);
-        setInterval(() => { document.getElementById('live-jd').innerText = ((new Date().getTime() / 86400000) + 2440587.5).toFixed(4); }, 1000);
-        updateTicker(); fetchTelemetry();
+
+        function updateJDate() {
+            const now = new Date();
+            const jd = (now.getTime() / 86400000) + 2440587.5;
+            document.getElementById('live-jdate').innerText = jd.toFixed(4);
+        }
+
+        setInterval(updateTicker, 4000);
+        setInterval(fetchTelemetry, 2000);
+        setInterval(updateJDate, 1000);
+        updateTicker(); fetchTelemetry(); updateJDate();
     </script>
 </body>
 </html>

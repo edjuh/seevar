@@ -40,7 +40,7 @@
 | core/flight/pilot.py | 1.6.2 | Direct TCP control of ZWO S30-Pro for AAVSO-compliant Sovereign RAW acquisition. Dynamically routes network IP from config. |
 | core/flight/sim_runner.py | 1.0.0 | Execute a full realtime nightly simulation against tonights_plan.json |
 | core/flight/vault_manager.py | 1.4.1 | Secure metadata access with actual bi-directional tomli_w syncing. |
-| core/dashboard/dashboard.py | 4.7.0 | Full restoration of v4.6.1 logic. Fixed startup pathing and beta-ready telemetry. |
+| core/dashboard/dashboard.py | 4.5.3 | Remove hardcoded local coordinates; fallback to Greenwich. |
 | core/dashboard/templates/index.html | N/A | No objective defined. |
 | core/preflight/aavso_fetcher.py | 1.6.1 | Step 1 - Haul scientific targets from AAVSO Target Tool API and append strict CADENCE.md sampling rules. |
 | core/preflight/audit.py | 1.4.0 | Enforces scientific cadence (1/20th rule) by properly parsing ledger dictionaries. |
@@ -60,14 +60,14 @@
 | core/preflight/target_evaluator.py | 1.0.2 | Audits the nightly plan for freshness and quantity to update dashboard UI. |
 | core/preflight/vsx_catalog.py | 2.0.1 | Fetch magnitude ranges from AAVSO VSX for all campaign targets. |
 | core/preflight/weather.py | 1.5.1 | Dual-source weather consensus daemon. |
-| core/utils/aavso_client.py | 1.2.1 | Low-level API client for authenticated AAVSO VSX and WebObs data retrieval. Returns JSON-ready dictionaries with #objective tags. |
+| core/utils/aavso_client.py | 1.2.2 | Low-level API client for authenticated AAVSO VSX and WebObs data retrieval. Returns JSON-ready dictionaries with #objective tags. |
 | core/utils/astro.py | 1.2.1 | Core library for RA/Dec parsing, sidereal time, and coordinate math. |
-| core/utils/coordinate_converter.py | 1.2.1 | Ensures data validity by converting sexagesimal AAVSO coordinates into decimal degrees, appending #objective to JSON writes. |
+| core/utils/coordinate_converter.py | 1.2.2 | Ensures data validity by converting sexagesimal AAVSO coordinates into decimal degrees, appending #objective to JSON writes. |
 | core/utils/env_loader.py | 1.1.0 | Single source of truth for SeeVar environment paths and TOML configuration loading. |
 | core/utils/gps_monitor.py | 1.5.0 | Continuous native GPSD socket monitor with full resource safety, |
 | core/utils/notifier.py | 1.4.0 | Outbound alert management via Telegram and system bell. |
-| core/utils/observer_math.py | 1.0.2 | Mathematical utilities for observational astronomy, including Maidenhead grid calculations dynamically tested against config.toml. |
-| core/utils/platesolve_analyst.py | 1.2.1 | Quantitative reporter for plate-solving success rates, performing blind solves to compare header coordinates against reality. |
+| core/utils/observer_math.py | 1.0.3 | Mathematical utilities for observational astronomy, including Maidenhead grid calculations dynamically tested against config.toml. |
+| core/utils/platesolve_analyst.py | 1.2.2 | Quantitative reporter for plate-solving success rates, performing blind solves to compare header coordinates against reality. |
 | logic/FILE_MANIFEST.md | N/A | No objective defined. |
 | dev/CONTRIBUTING.md | N/A | ** Defines the strict technical standards, workflow protocols, and "Garmt" purified header requirements for all project contributors (AI or Human). |
 | dev/tools/aavso_reporter_test.py | 1.0.0 | Generate a small dummy AAVSO Extended Format report for WebObs |

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-core/utils/observer_math.py
-Version: 1.0.2
+Filename: core/utils/observer_math.py
+Version: 1.0.3
 Objective: Mathematical utilities for observational astronomy, including Maidenhead grid calculations dynamically tested against config.toml.
 """
 
-import os
 import tomllib
+from pathlib import Path
 
 def get_maidenhead_6char(lat: float, lon: float) -> str:
     """
@@ -34,7 +34,7 @@ def get_maidenhead_6char(lat: float, lon: float) -> str:
     return f"{char1}{char2}{char3}{char4}{char5}{char6}"
 
 if __name__ == "__main__":
-    config_path = os.path.expanduser("~/seevar/config.toml")
+    config_path = Path(__file__).resolve().parents[2] / "config.toml"
     try:
         with open(config_path, "rb") as f:
             config = tomllib.load(f)
