@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/orchestrator.py
-Version: 1.6.0  # SeeVar-v1.6.0-header
+Version: 1.6.1  # SeeVar-v1.6.1-header
 Objective: Full pipeline state machine wired to the TCP Diamond Sequence. M4: DarkLibrary wired into post-session flow.
+           v1.6.1: Weather veto wired into _run_idle — RAIN/FOGGY/CLOUDY/WINDY abort before PREFLIGHT.
 """
 
 import json
@@ -204,14 +205,64 @@ class Orchestrator:
         elif self._state == PipelineState.PARKED: self._run_parked()
         elif self._state == PipelineState.ABORTED: self._run_aborted()
 
+    def _check_weather_veto(self) -> tuple[bool, str]:
+        """
+        Read weather_state.json and return (go, reason).
+        Hard abort: RAIN, FOGGY, CLOUDY, WINDY.
+        Warnings only (session proceeds): HAZY, HUMID, CLEAR.
+        Fails open if weather_state.json is missing or stale.
+        """
+        HARD_ABORT = {"RAIN", "FOGGY", "CLOUDY", "WINDY"}
+        try:
+            if not WEATHER_FILE.exists():
+                log.warning("weather_state.json not found — proceeding without weather veto")
+                return True, "NO_WEATHER_FILE"
+
+            with open(WEATHER_FILE) as f:
+                w = json.load(f)
+
+            status = w.get("status", "UNKNOWN")
+            icon   = w.get("icon",   "")
+            age_s  = time.time() - w.get("last_update", 0)
+
+            # Warn if weather data is older than 6 hours
+            if age_s > 21600:
+                log.warning("Weather data is %.0fh old — proceeding with caution", age_s / 3600)
+
+            if status in HARD_ABORT:
+                reason = (
+                    f"Weather veto: {status} {icon} — "
+                    f"KNMI oktas:{w.get('knmi_oktas','?')} "
+                    f"CO_low:{w.get('low_cloud','?')}% "
+                    f"window:{w.get('dark_start','?')}→{w.get('dark_end','?')}"
+                )
+                return False, reason
+
+            log.info("Weather GO: %s %s (age: %.0fmin)",
+                     status, icon, age_s / 60)
+            return True, status
+
+        except Exception as e:
+            log.warning("Weather veto check failed: %s — proceeding", e)
+            return True, "WEATHER_CHECK_ERROR"
+
     def _run_idle(self):
         sun_alt = self._sun_altitude()
         msg = f"Sun at {sun_alt:.1f}°. Waiting for night (<{self.SUN_LIMIT_DEG}°)."
         self._write_state(sub="Standing by", msg=msg)
         
         if self.simulation_mode or sun_alt < self.SUN_LIMIT_DEG:
-            self._transition(PipelineState.PREFLIGHT, msg="Night sky confirmed (or forced by Simulation).")
-        else: 
+            # Weather veto — check before committing to PREFLIGHT
+            if not self.simulation_mode:
+                go, reason = self._check_weather_veto()
+                if not go:
+                    self._write_state(sub="Weather Hold", msg=reason)
+                    log.warning("🌧️ %s", reason)
+                    time.sleep(self.LOOP_SLEEP_SEC * 4)  # wait 4 ticks before re-checking
+                    return
+            self._transition(PipelineState.PREFLIGHT,
+                             msg="Night sky confirmed (or forced by Simulation).")
+        else:
             time.sleep(self.LOOP_SLEEP_SEC)
 
     def _run_preflight(self):
