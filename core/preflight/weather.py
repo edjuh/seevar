@@ -237,7 +237,7 @@ class WeatherSentinel:
         """
         try:
             from clear_outside_apy import ClearOutsideAPY
-            api = ClearOutsideAPY(str(round(lat, 2)), str(round(lon, 2)), "current")
+            api = ClearOutsideAPY(f"{lat:.2f}", f"{lon:.2f}", "current")
             api.update()
             data = api.pull()
 
