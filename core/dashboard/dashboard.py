@@ -64,7 +64,7 @@ app = Flask(__name__, template_folder=str(TEMPLATE_DIR))
 HW_CACHE = {
     "timestamp": 0,
     "data": {
-        "link_status": "OFFLINE",
+        "link_status": "WAITING",
         "battery":     "N/A",
         "temp_c":      "N/A",
         "storage_mb":  "N/A"
@@ -121,6 +121,10 @@ def refresh_hw_cache():
             temp = tel.get("temp_c")
             if temp is not None:
                 HW_CACHE["data"]["temp_c"] = str(round(temp, 1))
+            # Link status — written by orchestrator on successful TCP connect
+            link = state.get("link_status")
+            if link:
+                HW_CACHE["data"]["link_status"] = link
         except (json.JSONDecodeError, OSError) as e:
             log.warning("HW_CACHE state refresh failed: %s", e)
 

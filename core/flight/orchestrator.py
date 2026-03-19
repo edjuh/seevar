@@ -460,6 +460,8 @@ class Orchestrator:
                 "charger_status": t.charger_status,
                 "charge_online":  t.charge_online,
             }
+        # Link status — ONLINE if telemetry parsed successfully, else WAITING
+        link_status = "ONLINE" if (t and not t.parse_error) else "WAITING"
 
         payload = {
             "state":          state or self._state,
@@ -468,6 +470,7 @@ class Orchestrator:
             "timestamp":      datetime.now(timezone.utc).isoformat(),
             "flight_log":     list(self._flight_log),
             "telemetry":      tel,
+            "link_status":    link_status,
             "current_target": getattr(self, "_current_target", None),
         }
         try:
