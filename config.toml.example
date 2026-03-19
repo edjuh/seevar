@@ -45,6 +45,8 @@ target_key    = ""
 # -----------------------------------------------------------------------------
 [planner]
 sun_altitude_limit = -18.0
+cadence_divisor      = 20    # period / cadence_divisor = observation interval (1/20th rule)
+cadence_fallback_days = 3.0   # fallback cadence (days) for targets without a known period
 simulation_mode    = false
 
 # -----------------------------------------------------------------------------
@@ -122,3 +124,19 @@ mount = "altaz"
 # model = "S50"
 # ip    = "TBD"
 # mount = "altaz"
+
+# -----------------------------------------------------------------------------
+# KNMI — optional but recommended for Netherlands observers
+# Real 10-minute measured data from the nearest KNMI weather station.
+# Register for a free API key at: https://developer.dataplatform.knmi.nl/register/
+# Find your nearest station ID via:
+#   https://api.dataplatform.knmi.nl/edr/v1/collections/10-minute-in-situ-meteorological-observations/locations
+# -----------------------------------------------------------------------------
+[knmi]
+edr_api_key   = ""                  # Your personal EDR API key
+station_id    = "0-20000-0-06240"   # Schiphol Airport (nearest to Haarlem)
+station_name  = "Schiphol"          # Human-readable label for logs
+okta_limit    = 6                   # Cloud cover abort threshold (0-9 oktas)
+vv_limit      = 5000                # Visibility abort threshold (metres)
+ww_rain_limit = 50                  # Present weather code >= 50 = rain abort
+ww_fog_limit  = 10                  # Present weather code >= 10 = fog warning
