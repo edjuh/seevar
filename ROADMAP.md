@@ -1,7 +1,7 @@
 🗺️ S30-PRO Development Roadmap: The Rommeldam Epic
 
 > **Objective:** Tracks the architectural journey and future versioning milestones of the Seestar Federation, mapped to the characters of Marten Toonder's universe.
-> **Version:** 1.4.0 (Snotolf)
+> **Version:** 1.5.0 (Fliep)
 
 This document outlines the architectural journey of the S30-PRO autonomous observatory, structurally mapped to the characters of Marten Toonder's universe.
 
@@ -40,10 +40,8 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
   - dashboard.py — config path fixed (seestar_organizer fossil removed)
   - GPLv3 LICENSE added — cgobat's recommendation accepted
   - CONTRIBUTING.md — public facing, Asthonising Automated Variable Star Observatory tagline
-  - ROADMAP.md v1.3.0
   - GitHub topics, description, INSTALL one-liner
-  - Testers: Arenda (tester #1), Boyce-Astro introduction
-  - Seed catalog: 442 targets + reference stars (40°–60°N)
+  - Testers: Arenda (tester #1), Boyce-Astro introduction, Metius presentation
 
 ---
 
@@ -51,6 +49,8 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
 *The invisible, tireless workers in the background. Focuses on system resilience and background magic.*
 
 * **v1.8 Snotolf:** **The Hardware Whisperer.** An authentic, slightly spicy underlying system change.
+  - ✅ Weather veto wired into orchestrator _run_idle — RAIN/FOGGY/CLOUDY/WINDY abort session
+  - ✅ link_status wired from orchestrator telemetry into dashboard (WAITING → ONLINE at first light)
   - Hardware auto-detection via Alpaca UDP + HTTP fingerprint — confirm FIRST LIGHT markers
   - Camera-based automatic horizon profiling at first light
     - S30-Pro pans 360° at low altitude during session init
@@ -63,12 +63,38 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
   - All-sky camera — wide angle, one frame/min, cloud cover from brightness variance
   - INA219 power monitoring — current draw, motor stall detection
   - GPS on one Seestar, broadcast fix over LAN to all federation instances
+  - Weather forced refresh at dusk — sentinel wakes 30min before dark window
 
-* **v1.9 Fliep:** **The Deployment Master.**
+* **v1.9 Fliep:** **The Deployment Master — Global Edition.**
   - `config_wizard.py` — re-runnable interactive config tool using tomli_w
   - Kiosk display service (Pi 4 — Pi 3 too slow)
-  - `catalog_localiser.py` — latitude check, pulls extra objects and reference charts for tester's sky
   - KNMI waarschuwingen-nederland-48h — weather warnings as hard abort trigger
+
+  **Southern Hemisphere Support:**
+  - `hemisphere` flag in config.toml (`northern` / `southern`, auto-detected from lat)
+  - Westward priority flips to Eastward in Southern hemisphere (targets transit North)
+  - `catalog_localiser.py` — declination-band aware, pulls targets for observer's actual sky
+    - Northern: 40°–60°N seed catalog (current)
+    - Southern: 20°–50°S catalog to be built
+    - Equatorial: 20°S–20°N overlap band
+  - Weather sources — regional selection based on location:
+    - Netherlands: KNMI EDR (current)
+    - Australia/NZ: BOM API
+    - South Africa: SAWS
+    - Elsewhere: open-meteo + Clear Outside only (always available)
+  - Moon avoidance — Southern hemisphere moon rises in North, avoidance logic correct but
+    azimuth labelling needs hemisphere awareness
+  - Dashboard flight window — local time display correct globally via astimezone()
+
+  **General Deployment Gaps:**
+  - `clear-outside-apy` — coverage limited to Europe/N.America, fallback needed for other regions
+  - bootstrap.sh — add hemisphere auto-detection from lat, warn if Southern
+  - INSTALL.md — Southern hemisphere section
+  - Bortle map — current default (8) is Haarlem-specific, config wizard should prompt
+  - Timezone handling — all internal times UTC, display times via tzlocal (correct globally)
+  - astrometry index files — FOV-matched, correct globally but download guidance
+    needs updating for S30/S50 in Southern sky (different bright star density)
+  - First light checklist — hemisphere-specific verification steps
 
 ---
 
