@@ -36,7 +36,7 @@
 | core/flight/fsm.py | 1.0.0 | The Finite State Machine governing S30-PRO Sovereign Operations. |
 | core/flight/mission_chronicle.py | 4.2.0 | Orchestrates the Preflight Funnel (Janitor -> Librarian -> Auditor -> Planner). |
 | core/flight/neutralizer.py | 3.0.1 | Hardware reset — stops any active S30-Pro session and verifies idle state before handing control to the pilot. |
-| core/flight/orchestrator.py | 1.6.0 | Full pipeline state machine wired to the TCP Diamond Sequence. M4: DarkLibrary wired into post-session flow. |
+| core/flight/orchestrator.py | 1.6.1 | Full pipeline state machine wired to the TCP Diamond Sequence. M4: DarkLibrary wired into post-session flow. |
 | core/flight/pilot.py | 1.6.2 | Direct TCP control of ZWO S30-Pro for AAVSO-compliant Sovereign RAW acquisition. Dynamically routes network IP from config. |
 | core/flight/sim_runner.py | 1.0.0 | Execute a full realtime nightly simulation against tonights_plan.json |
 | core/flight/vault_manager.py | 1.4.1 | Secure metadata access with actual bi-directional tomli_w syncing. |
@@ -51,7 +51,7 @@
 | core/preflight/gps.py | 1.5.1 | Bi-directional GPS provider with lazy initialization. Reads from RAM status and actively syncs to config.toml via VaultManager to maintain a live last_refresh heartbeat. |
 | core/preflight/hardware_audit.py | 2.0.0 | Sovereign TCP hardware audit via get_device_state on port 4700. |
 | core/preflight/horizon.py | 2.0.0 | Veto targets based on local obstructions using Az/Alt mapping. |
-| core/preflight/ledger_manager.py | 2.1.2 | The High-Authority Mission Brain. Manages target cadence and observation history. |
+| core/preflight/ledger_manager.py | 2.2.1 | The High-Authority Mission Brain. Manages dynamic target cadence |
 | core/preflight/librarian.py | 4.3.0 | The Single Source of Truth. Parses raw AAVSO haul, checks for VSP charts, and writes the Federation Catalog. |
 | core/preflight/nightly_planner.py | 2.6.1 | Filters the audited Federation Catalog by Cadence, Horizon, and Altitude (Unified Config). |
 | core/preflight/preflight_checklist.py | 2.0.0 | Sovereign preflight gate — verifies hardware is alive and at |
@@ -59,7 +59,7 @@
 | core/preflight/state_flusher.py | 1.1.1 | Preflight utility to flush stale system state and reset the dashboard to IDLE before a new flight. |
 | core/preflight/target_evaluator.py | 1.0.2 | Audits the nightly plan for freshness and quantity to update dashboard UI. |
 | core/preflight/vsx_catalog.py | 2.0.1 | Fetch magnitude ranges from AAVSO VSX for all campaign targets. |
-| core/preflight/weather.py | 1.5.1 | Dual-source weather consensus daemon. |
+| core/preflight/weather.py | 1.7.0 | Tri-source weather consensus daemon. Evaluates conditions only |
 | core/utils/aavso_client.py | 1.2.2 | Low-level API client for authenticated AAVSO VSX and WebObs data retrieval. Returns JSON-ready dictionaries with #objective tags. |
 | core/utils/astro.py | 1.2.1 | Core library for RA/Dec parsing, sidereal time, and coordinate math. |
 | core/utils/coordinate_converter.py | 1.2.2 | Ensures data validity by converting sexagesimal AAVSO coordinates into decimal degrees, appending #objective to JSON writes. |
