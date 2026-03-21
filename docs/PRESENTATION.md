@@ -10,7 +10,7 @@ This document pairs the SeeVar presentation slides with the architectural narrat
 ![SeeVar: Automated Variable Star Observatory](2.jpg)
 
 **Narrative:**
-* **The Pitch:** SeeVar isn't just about taking pretty pictures of the night sky; it is a relentless, autonomous science machine. 
+* **The Pitch:** SeeVar isn't just about taking pretty pictures of the night sky; it is a relentless, autonomous science machine.
 * **The Context:** It took 6 weeks and 17 architectural revisions to achieve full "Sovereign" autonomy. One telescope. One endless loop. One mission.
 
 ---
@@ -37,7 +37,7 @@ This document pairs the SeeVar presentation slides with the architectural narrat
 
 **Narrative:**
 * **The Problem:** Standard alt-azimuth mounts and basic slew commands are highly inefficient for rapid-fire targeting.
-* **The Solution:** The Orchestrator groups the night's plan strictly by Western → Southern → Eastern sectors. This minimizes dome and mount travel time, maximizing actual photon-gathering time.
+* **The Solution:** The Orchestrator groups the night's plan strictly by Western → Southern → Eastern sectors. This minimises dome and mount travel time, maximising actual photon-gathering time.
 
 ---
 
@@ -74,3 +74,63 @@ This document pairs the SeeVar presentation slides with the architectural narrat
 
 **Narrative:**
 * **The Conclusion:** While the world sleeps, SeeVar is out there quietly and relentlessly building a pristine ledger of scientific data, night after night.
+
+---
+
+## Pipeline Animation — Kaspar
+
+A 1080p60 animation of the full SeeVar pipeline.
+
+> **[▶ Watch SeeVar_The_Movie on YouTube](https://youtu.be/qG439gE7UBo)**
+
+Rendered with Manim on Pi 5. Pipeline: checkerboard → ring → conveyor belt → results.
+*"Helder, Kaspar?"*
+
+---
+
+## Session Notes — v1.8 Snotolf (March 2026)
+
+### Weather logic redesign (`weather.py` v1.8.0)
+
+The tri-source consensus was redesigned around a fundamental scientific
+principle: **cloud cover is not a reason to stop imaging.**
+
+**Hard abort conditions (telescope in):**
+- Measured precipitation — KNMI `ww` >= 50 (rain, snow, hail, showers)
+- Measured fog/mist — KNMI `ww` 10-12
+- Thunderstorm — KNMI `ww` 17, 29, 91-99
+- Poor visibility — KNMI `vv` < configured limit
+- Forecast fog — Clear Outside `fog` > 0
+- Forecast precipitation — open-meteo `precip` > limit
+- Wind — open-meteo `wind_speed_10m` > limit
+
+**Warning only — telescope keeps imaging:**
+- Cloud cover at any level (low / mid / high) — all sources
+- KNMI oktas — display only
+- Humidity — dew heater cue only
+
+The previous `window_max()` approach evaluated the worst hour across the
+entire dark window and aborted on any cloud. The new per-hour evaluation
+finds the best contiguous imaging block within the dark period and reports
+it as `imaging_window_start` / `imaging_window_end` in `weather_state.json`.
+
+The orchestrator reads `imaging_go: true/false` — not the status string —
+to make the go/no-go decision.
+
+### `pilot.py` analysis (v1.6.2 -> v1.7 pending first light)
+
+The peer review confirmed that port 4700 is a stateful event stream, not
+a classic request/response API. The current `recv_response()` method reads
+the first `\r\n`-terminated line and may catch an unsolicited telemetry
+push instead of the command ACK. The `time.sleep(SETTLE_SECONDS)` at T2
+and fire-and-forget `start_auto_focuse` at T3 are acknowledged gaps,
+documented as FIRST LIGHT REQUIRED in `logic/FLIGHT.MD`.
+
+The fix — `wait_for_event()` on `ControlSocket` with timeout fallback to
+the existing sleep — will be implemented once `ssh_monitor.py` confirms
+the real event field names from Wilhelmina's logs at first light (April 2026).
+
+### Testers & outreach
+- Metius (Amstelveen) — presentation given March 2026, well received
+- Arenda — tester #1, SD card ready
+- Boyce-Astro Observatory — introduction made
