@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-core/preflight/schedule_compiler.py
-Version: 1.0.1
+Filename: core/preflight/schedule_compiler.py
+Version: 1.0.2
 Objective: Translates tonights_plan.json into a native SSC JSON payload using the 1x1 mosaic hack for dithering.
 """
 
@@ -33,13 +33,9 @@ def convert_to_seestar_coords(ra_deg, dec_deg):
     """Converts decimal degrees to the strict HHhMMmSS.Ss format required by the SSC."""
     coord = SkyCoord(ra=ra_deg*u.deg, dec=dec_deg*u.deg, frame='icrs')
     
-    ra_h, ra_m, ra_s = coord.ra.hms
-    dec_d, dec_m, dec_s = coord.dec.dms
-    
-    # Seestar expects strict zero-padding and specific sign placement
-    ra_str = f"{int(ra_h):02d}h{int(ra_m):02d}m{ra_s:.1f}s"
-    sign = "+" if dec_d >= 0 else "-"
-    dec_str = f"{sign}{abs(int(dec_d)):02d}d{abs(int(dec_m)):02d}m{abs(dec_s):.1f}s"
+    # Let Astropy handle the formatting and sign logic safely
+    ra_str = coord.ra.to_string(unit=u.hour, sep=('h', 'm', 's'), precision=1, pad=True)
+    dec_str = coord.dec.to_string(sep=('d', 'm', 's'), precision=1, alwayssign=True, pad=True)
     
     return ra_str, dec_str
 
@@ -48,7 +44,6 @@ def compile_schedule():
         logger.error(f"❌ {TONIGHTS_PLAN.name} not found.")
         sys.exit(1)
 
-    # Load Config to determine Intended State
     with open(CONFIG_PATH, "rb") as f:
         cfg = tomllib.load(f)
     
@@ -58,7 +53,6 @@ def compile_schedule():
     
     logger.info(f"⚙️ Compiling for Intended State: {mount_mode} | Dithering: {dithering}")
 
-    # Exposure Logic Gates
     if mount_mode == "ALT/AZ":
         exp_time = 60
     elif mount_mode == "EQ" and not dithering:
@@ -66,7 +60,7 @@ def compile_schedule():
     elif mount_mode == "EQ" and dithering:
         exp_time = 60
     else:
-        exp_time = 60 # Safe fallback
+        exp_time = 60 
 
     with open(TONIGHTS_PLAN, "r") as f:
         plan = json.load(f)
@@ -76,7 +70,6 @@ def compile_schedule():
         logger.warning("⚠️ No targets in plan. Aborting compilation.")
         return
 
-    # Build the Payload
     payload = {
         "#objective": "Compiled native SSC JSON payload for Seestar execution.",
         "version": 1.0,
@@ -86,7 +79,6 @@ def compile_schedule():
         "list": []
     }
 
-    # Block 1: Startup Sequence
     payload["list"].append({
         "action": "start_up_sequence",
         "params": {
@@ -97,7 +89,6 @@ def compile_schedule():
         "schedule_item_id": str(uuid.uuid4())
     })
 
-    # Block 2: The Targets (Using 1x1 Mosaic Hack)
     for t in targets:
         ra_str, dec_str = convert_to_seestar_coords(t["ra"], t["dec"])
         duration = t.get("duration", 600)
@@ -124,7 +115,6 @@ def compile_schedule():
             "schedule_item_id": str(uuid.uuid4())
         })
 
-    # Block 3: Safe Shutdown
     payload["list"].append({
         "action": "scope_park",
         "params": {},
@@ -136,7 +126,6 @@ def compile_schedule():
         "schedule_item_id": str(uuid.uuid4())
     })
 
-    # Export
     with open(OUTPUT_PAYLOAD, "w") as f:
         json.dump(payload, f, indent=4)
         
