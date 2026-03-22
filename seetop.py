@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 Filename: seetop.py
-Version: 1.1.0
+Version: 1.1.1
 Objective: Ncurses live dashboard for SeeVar — orchestrator state, weather
            consensus, catalog statistics, tonight's plan, and interleaved
-           log tail. Two-column layout. Refreshes every 10 seconds.
-           Press q to quit.
+           log tail. Two-column layout. Atomic screen updates via doupdate
+           eliminate SSH flicker. Refreshes every 10 seconds. Press q to quit.
 """
 
 import curses
@@ -40,7 +40,7 @@ LOG_FILES = [
 
 REFRESH_S  = 10
 LOG_LINES  = 10
-VERSION    = "1.1.0"
+VERSION    = "1.1.1"
 
 # ---------------------------------------------------------------------------
 # Data readers
@@ -48,15 +48,14 @@ VERSION    = "1.1.0"
 
 def _read_json(path: Path) -> dict | list:
     try:
-        raw = json.loads(path.read_text())
-        return raw
+        return json.loads(path.read_text())
     except Exception:
         return {}
 
 
 def read_orchestrator() -> dict:
     s = _read_json(STATE_FILE)
-    if not isinstance(s, dict) or not s or s == {}:
+    if not isinstance(s, dict) or not s:
         return {"empty": True}
     return {
         "empty":   False,
@@ -69,7 +68,7 @@ def read_orchestrator() -> dict:
 
 def read_weather() -> dict:
     w = _read_json(WEATHER_FILE)
-    if not isinstance(w, dict) or not w or w == {}:
+    if not isinstance(w, dict) or not w:
         return {"empty": True}
     return {
         "empty":        False,
@@ -101,28 +100,20 @@ def read_plan() -> dict:
 
 
 def read_catalog_stats() -> dict:
-    # Campaign targets
     c = _read_json(CAMPAIGN_FILE)
-    campaign_list = c if isinstance(c, list) else c.get("targets", [])
+    campaign_list  = c if isinstance(c, list) else c.get("targets", [])
     campaign_total = len(campaign_list)
 
-    # VSX enriched
     v = _read_json(VSX_FILE)
-    vsx_stars = v.get("stars", {}) if isinstance(v, dict) else {}
+    vsx_stars    = v.get("stars", {}) if isinstance(v, dict) else {}
     vsx_enriched = len(vsx_stars)
-    vsx_pending  = max(0, campaign_total - vsx_enriched)
 
-    # Comparison charts (reference_stars/*.json)
-    charts = 0
-    if CHARTS_DIR.exists():
-        charts = len(list(CHARTS_DIR.glob("*.json")))
+    charts = len(list(CHARTS_DIR.glob("*.json"))) if CHARTS_DIR.exists() else 0
 
-    # Federation catalog
     f = _read_json(FED_FILE)
-    fed_list = f if isinstance(f, list) else f.get("targets", [])
+    fed_list  = f if isinstance(f, list) else f.get("targets", [])
     fed_total = len(fed_list)
 
-    # Tonight's plan (reuse plan file for deferred count)
     p = _read_json(PLAN_FILE)
     plan_list = p if isinstance(p, list) else p.get("targets", [])
     tonight   = len(plan_list)
@@ -131,7 +122,6 @@ def read_catalog_stats() -> dict:
     return {
         "campaign":  campaign_total,
         "vsx":       vsx_enriched,
-        "vsx_pend":  vsx_pending,
         "charts":    charts,
         "fed":       fed_total,
         "tonight":   tonight,
@@ -164,19 +154,17 @@ C_WARN   = 3
 C_ABORT  = 4
 C_DIM    = 5
 C_BORDER = 6
-C_STATE  = 7
 
 
 def init_colours():
     curses.start_color()
     curses.use_default_colors()
-    curses.init_pair(C_TITLE,  curses.COLOR_CYAN,    -1)
-    curses.init_pair(C_GOOD,   curses.COLOR_GREEN,   -1)
-    curses.init_pair(C_WARN,   curses.COLOR_YELLOW,  -1)
-    curses.init_pair(C_ABORT,  curses.COLOR_RED,     -1)
-    curses.init_pair(C_DIM,    curses.COLOR_WHITE,   -1)
-    curses.init_pair(C_BORDER, curses.COLOR_BLUE,    -1)
-    curses.init_pair(C_STATE,  curses.COLOR_MAGENTA, -1)
+    curses.init_pair(C_TITLE,  curses.COLOR_CYAN,   -1)
+    curses.init_pair(C_GOOD,   curses.COLOR_GREEN,  -1)
+    curses.init_pair(C_WARN,   curses.COLOR_YELLOW, -1)
+    curses.init_pair(C_ABORT,  curses.COLOR_RED,    -1)
+    curses.init_pair(C_DIM,    curses.COLOR_WHITE,  -1)
+    curses.init_pair(C_BORDER, curses.COLOR_BLUE,   -1)
 
 
 # ---------------------------------------------------------------------------
@@ -223,7 +211,7 @@ def weather_colour(status: str, imaging_go) -> int:
     if imaging_go is False:
         return curses.color_pair(C_ABORT) | curses.A_BOLD
     s = status.upper()
-    if s == "CLEAR":                    return curses.color_pair(C_GOOD) | curses.A_BOLD
+    if s == "CLEAR":                     return curses.color_pair(C_GOOD) | curses.A_BOLD
     if s in ("CLOUDY", "HAZY", "HUMID"): return curses.color_pair(C_WARN)
     return curses.color_pair(C_DIM)
 
@@ -254,7 +242,7 @@ def draw_orchestrator(win, data: dict):
         waiting(win)
         return
     state = data["state"]
-    safe_addstr(win, 1, 2, "State  : ", curses.color_pair(C_DIM))
+    safe_addstr(win, 1, 2,  "State  : ", curses.color_pair(C_DIM))
     safe_addstr(win, 1, 11, f"{state:<12}", state_colour(state))
     if data["sub"]:
         safe_addstr(win, 1, 24, f"({data['sub']})", curses.color_pair(C_DIM))
@@ -269,7 +257,8 @@ def draw_weather(win, data: dict):
     draw_border(win, "Weather")
     if data.get("empty"):
         waiting(win)
-        safe_addstr(win, 2, 2, "run: .venv/bin/python3 core/preflight/weather.py",
+        safe_addstr(win, 2, 2,
+                    "start seevar-weather service or run weather.py",
                     curses.color_pair(C_DIM) | curses.A_DIM)
         return
 
@@ -284,16 +273,15 @@ def draw_weather(win, data: dict):
     safe_addstr(win, 1, 11, f"{status:<10}", weather_colour(status, imaging_go))
     safe_addstr(win, 1, 22, "Imaging: ", curses.color_pair(C_DIM))
     safe_addstr(win, 1, 31, go_str, go_attr)
-
     safe_addstr(win, 2, 2,  "Dark   : ", curses.color_pair(C_DIM))
     safe_addstr(win, 2, 11,
-                f"{data['dark_start']} → {data['dark_end']}",
+                f"{data['dark_start']} -> {data['dark_end']}",
                 curses.color_pair(C_DIM))
 
     if data["win_start"] and data["win_end"]:
         safe_addstr(win, 3, 2,  "Window : ", curses.color_pair(C_DIM))
         safe_addstr(win, 3, 11,
-                    f"{data['win_start']} → {data['win_end']}  "
+                    f"{data['win_start']} -> {data['win_end']}  "
                     f"({data['clear_hours']}h clear / {data['abort_hours']}h abort)",
                     curses.color_pair(C_GOOD))
     else:
@@ -317,25 +305,25 @@ def draw_catalog(win, data: dict):
     draw_border(win, "Catalog")
 
     def stat_row(row, label, val, total=None, warn_zero=False):
-        safe_addstr(win, row, 2, f"{label:<18}", curses.color_pair(C_DIM))
-        if total is not None:
-            pct  = int(val / total * 100) if total > 0 else 0
-            attr = curses.color_pair(C_GOOD) if pct >= 80 \
-                   else curses.color_pair(C_WARN) if pct >= 40 \
+        safe_addstr(win, row, 2, f"{label:<20}", curses.color_pair(C_DIM))
+        if total is not None and total > 0:
+            pct  = int(val / total * 100)
+            attr = curses.color_pair(C_GOOD)  if pct >= 80 \
+                   else curses.color_pair(C_WARN)  if pct >= 40 \
                    else curses.color_pair(C_ABORT)
-            safe_addstr(win, row, 20, f"{val:>4} / {total:<4} ({pct:>3}%)", attr)
+            safe_addstr(win, row, 22, f"{val:>4} / {total:<4} ({pct:>3}%)", attr)
         else:
-            attr = curses.color_pair(C_ABORT) if (warn_zero and val == 0) \
-                   else curses.color_pair(C_GOOD) if val > 0 \
-                   else curses.color_pair(C_DIM)
-            safe_addstr(win, row, 20, str(val), attr)
+            attr = (curses.color_pair(C_ABORT) if warn_zero and val == 0
+                    else curses.color_pair(C_GOOD) if val > 0
+                    else curses.color_pair(C_DIM))
+            safe_addstr(win, row, 22, str(val), attr)
 
-    stat_row(1, "Campaign targets",  data["campaign"])
-    stat_row(2, "VSX enriched",      data["vsx"],      data["campaign"])
-    stat_row(3, "Comp charts",       data["charts"],   data["campaign"])
-    stat_row(4, "Federation catalog",data["fed"])
-    stat_row(5, "Tonight's plan",    data["tonight"],  warn_zero=True)
-    stat_row(6, "Cadence deferred",  data["deferred"])
+    stat_row(1, "Campaign targets",   data["campaign"])
+    stat_row(2, "VSX enriched",       data["vsx"],     data["campaign"])
+    stat_row(3, "Comp charts",        data["charts"],  data["campaign"])
+    stat_row(4, "Federation catalog", data["fed"])
+    stat_row(5, "Tonight's plan",     data["tonight"], warn_zero=True)
+    stat_row(6, "Cadence deferred",   data["deferred"])
 
 
 def draw_plan(win, data: dict):
@@ -343,9 +331,9 @@ def draw_plan(win, data: dict):
     if data.get("empty") or data["total"] == 0:
         waiting(win)
         return
-    attr = curses.color_pair(C_GOOD) | curses.A_BOLD
     safe_addstr(win, 1, 2,  "Targets: ", curses.color_pair(C_DIM))
-    safe_addstr(win, 1, 11, str(data["total"]), attr)
+    safe_addstr(win, 1, 11, str(data["total"]),
+                curses.color_pair(C_GOOD) | curses.A_BOLD)
     safe_addstr(win, 2, 2,  "Next   : ", curses.color_pair(C_DIM))
     safe_addstr(win, 2, 11, data["next"],
                 curses.color_pair(C_WARN) | curses.A_BOLD)
@@ -353,35 +341,29 @@ def draw_plan(win, data: dict):
 
 def draw_log_tail(win, lines: list):
     draw_border(win, "Log Tail — orchestrator / weather / dashboard")
-    max_y, max_x = win.getmaxyx()
     if not lines:
         waiting(win)
         return
+    max_y, _ = win.getmaxyx()
     row = 1
     for source, line in lines:
         if row >= max_y - 1:
             break
-        tag  = f"[{source[:4]}] "
+        tag = f"[{source[:4]}] "
         safe_addstr(win, row, 2, tag, log_colour(source))
         safe_addstr(win, row, 2 + len(tag), line, curses.color_pair(C_DIM))
         row += 1
 
 
 # ---------------------------------------------------------------------------
-# Layout constants
+# Layout
 # ---------------------------------------------------------------------------
-# Row 0          : header
-# Rows 1–5       : LEFT col — Orchestrator (5 rows)  |  RIGHT col — Catalog (8 rows)
-# Rows 6–12      : LEFT col — Weather (7 rows)        |  RIGHT col — Plan (4 rows)
-# Rows 13–end-1  : Log tail full width
-# Row end        : footer
-
-ORCH_H   = 5
-WX_H     = 7
-CAT_H    = 8
-PLAN_H   = 4
-TOP_H    = max(ORCH_H + WX_H, CAT_H + PLAN_H)   # 12
-LOG_TOP  = 1 + TOP_H                              # 13
+ORCH_H  = 5
+WX_H    = 7
+CAT_H   = 8
+PLAN_H  = 4
+TOP_H   = max(ORCH_H + WX_H, CAT_H + PLAN_H)
+LOG_TOP = 1 + TOP_H
 
 
 # ---------------------------------------------------------------------------
@@ -390,11 +372,26 @@ LOG_TOP  = 1 + TOP_H                              # 13
 
 def main(stdscr):
     curses.curs_set(0)
+    curses.noecho()
     stdscr.nodelay(True)
     stdscr.timeout(1000)
     init_colours()
 
     last_refresh = 0.0
+    last_rows = last_cols = 0
+    wins = {}
+
+    def make_wins(rows, cols):
+        left_w  = cols // 2
+        right_w = cols - left_w
+        log_h   = max(4, rows - LOG_TOP - 1)
+        return {
+            "orch": curses.newwin(ORCH_H, left_w,  1,          0),
+            "wx":   curses.newwin(WX_H,   left_w,  1 + ORCH_H, 0),
+            "cat":  curses.newwin(CAT_H,  right_w, 1,          left_w),
+            "plan": curses.newwin(PLAN_H, right_w, 1 + CAT_H,  left_w),
+            "log":  curses.newwin(log_h,  cols,    LOG_TOP,     0),
+        }
 
     while True:
         key = stdscr.getch()
@@ -406,66 +403,62 @@ def main(stdscr):
             continue
         last_refresh = now
 
-        stdscr.erase()
         rows, cols = stdscr.getmaxyx()
 
         if rows < 28 or cols < 80:
+            stdscr.erase()
             safe_addstr(stdscr, 0, 0,
-                        "Terminal too small — need 80×28 minimum.",
+                        f"Terminal too small ({cols}x{rows}) — need 80x28 minimum.",
                         curses.A_BOLD)
             stdscr.refresh()
             continue
 
-        # Data
+        # Recreate windows only on resize
+        if rows != last_rows or cols != last_cols or not wins:
+            wins = make_wins(rows, cols)
+            last_rows, last_cols = rows, cols
+
+        # Fetch data
         orch    = read_orchestrator()
         weather = read_weather()
         catalog = read_catalog_stats()
         plan    = read_plan()
         logs    = read_log_tail(LOG_LINES)
 
-        left_w  = cols // 2
-        right_w = cols - left_w
+        # Clear all surfaces
+        stdscr.erase()
+        for w in wins.values():
+            try:
+                w.erase()
+            except curses.error:
+                pass
 
+        # Draw into surfaces
         draw_header(stdscr, cols)
 
-        try:
-            # Left column — Orchestrator
-            orch_win = curses.newwin(ORCH_H, left_w, 1, 0)
-            draw_orchestrator(orch_win, orch)
-            orch_win.refresh()
-
-            # Left column — Weather
-            wx_win = curses.newwin(WX_H, left_w, 1 + ORCH_H, 0)
-            draw_weather(wx_win, weather)
-            wx_win.refresh()
-
-            # Right column — Catalog
-            cat_win = curses.newwin(CAT_H, right_w, 1, left_w)
-            draw_catalog(cat_win, catalog)
-            cat_win.refresh()
-
-            # Right column — Plan
-            plan_win = curses.newwin(PLAN_H, right_w, 1 + CAT_H, left_w)
-            draw_plan(plan_win, plan)
-            plan_win.refresh()
-
-            # Log tail — full width
-            log_h = max(4, rows - LOG_TOP - 1)
-            log_win = curses.newwin(log_h, cols, LOG_TOP, 0)
-            draw_log_tail(log_win, logs)
-            log_win.refresh()
-
-        except curses.error:
-            pass
-
-        # Footer
         footer = f" [q] quit  |  refresh: {REFRESH_S}s  |  seetop v{VERSION} "
         safe_addstr(stdscr, rows - 1, 0, "─" * cols,
                     curses.color_pair(C_BORDER))
         safe_addstr(stdscr, rows - 1, 2, footer,
                     curses.color_pair(C_DIM) | curses.A_DIM)
 
-        stdscr.refresh()
+        try:
+            draw_orchestrator(wins["orch"], orch)
+            draw_weather(wins["wx"],        weather)
+            draw_catalog(wins["cat"],       catalog)
+            draw_plan(wins["plan"],         plan)
+            draw_log_tail(wins["log"],      logs)
+        except curses.error:
+            pass
+
+        # Atomic paint — all windows to screen in one shot, no flicker
+        stdscr.noutrefresh()
+        for w in wins.values():
+            try:
+                w.noutrefresh()
+            except curses.error:
+                pass
+        curses.doupdate()
 
 
 def run():
