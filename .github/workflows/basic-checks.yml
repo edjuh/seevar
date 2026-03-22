@@ -1,0 +1,55 @@
+# Filename: .github/workflows/basic-checks.yml
+# Objective: Verify Python syntax on every pull request and push to main.
+#            Catches import errors and syntax failures before they reach
+#            the observatory. Does not run hardware tests — those require
+#            Wilhelmina and are FIRST LIGHT REQUIRED.
+
+name: basic-checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  syntax:
+    name: Python syntax check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Check syntax on all Python files
+        run: python3 -m py_compile $(git ls-files '*.py')
+
+      - name: Verify Garmt headers present
+        run: |
+          echo "Checking Garmt headers (Filename / Version / Objective)..."
+          failed=0
+          while IFS= read -r f; do
+            if ! head -10 "$f" | grep -q "Filename:"; then
+              echo "MISSING Garmt header: $f"
+              failed=1
+            fi
+          done < <(git ls-files '*.py' | grep -v '__init__')
+          if [ "$failed" -eq 1 ]; then
+            echo "One or more files missing Garmt header — see CONTRIBUTING.md"
+            exit 1
+          fi
+          echo "All headers present."
+
+      - name: Reject Alpaca imports
+        run: |
+          echo "Checking for Alpaca imports..."
+          if git ls-files '*.py' | xargs grep -l "alpaca" 2>/dev/null | grep -v "ALPACA_BRIDGE"; then
+            echo "ERROR: Alpaca import detected in source file."
+            echo "SeeVar uses sovereign TCP only. See dev/logic/CORE.MD"
+            exit 1
+          fi
+          echo "No Alpaca imports found."
