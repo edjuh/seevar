@@ -111,7 +111,7 @@ def read_catalog_stats() -> dict:
     charts = len(list(CHARTS_DIR.glob("*.json"))) if CHARTS_DIR.exists() else 0
 
     f = _read_json(FED_FILE)
-    fed_list  = f if isinstance(f, list) else f.get("targets", [])
+    fed_list  = f if isinstance(f, list) else f.get("data", f.get("targets", []))
     fed_total = len(fed_list)
 
     p = _read_json(PLAN_FILE)
