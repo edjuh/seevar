@@ -69,3 +69,5 @@ venv/
 *.wcs
 *.xlsx
 *.xyls
+catalogs/reference_stars/
+dev/media/
