@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-core/utils/gps_monitor.py
+Filename: core/utils/gps_monitor.py
 Version: 1.5.0
 Objective: Continuous native GPSD socket monitor with full resource safety,
            atomic writes, SIGTERM handling, Null Island guard, and --once mode.
 
-Canonical location: core/utils/gps_monitor.py
+Canonical location: Filename: core/utils/gps_monitor.py
 Replaces:          core/preflight/gps_monitor.py (stale v1.3.0 duplicate — retire with git rm)
 
 Changes vs 1.4.1:

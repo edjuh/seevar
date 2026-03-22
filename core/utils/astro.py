@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-core/utils/astro.py
+Filename: core/utils/astro.py
 Version: 1.2.1
 Objective: Core library for RA/Dec parsing, sidereal time, and coordinate math.
 """

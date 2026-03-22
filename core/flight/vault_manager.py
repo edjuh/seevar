@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-core/flight/vault_manager.py
+Filename: core/flight/vault_manager.py
 Version: 1.4.1
 Objective: Secure metadata access with actual bi-directional tomli_w syncing.
 """
