@@ -1,7 +1,7 @@
 # 🗺️ S30-PRO Development Roadmap: The Rommeldam Epic
 
 > **Objective:** Tracks the architectural journey and future versioning milestones of the Seestar Federation, mapped to the characters of Marten Toonder's universe.
-> **Version:** 1.6.0 (Snotolf)
+> **Version:** 1.7.0 (Snotolf)
 
 This document outlines the architectural journey of the S30-PRO autonomous observatory, structurally mapped to the characters of Marten Toonder's universe.
 
@@ -61,6 +61,18 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
   - ✅ bootstrap.sh v1.4.0 — full preflight pipeline runs on install (librarian → audit → planner → compiler)
   - ✅ kaspar_animation.py v2.0.0 — Manim 1080p60 pipeline animation, YouTube: https://youtu.be/qG439gE7UBo
   - ✅ PRESENTATION.md — speaker's guide + session notes, docs/PRESENTATION.md
+  - ✅ pilot.py v1.7.0 — ID-matched ControlSocket, Event telemetry filtering
+    - send() returns Tuple[bool, int] — failure detection + cmd_id for matching
+    - recv_response() loops stream, drops unsolicited Event packets, matches by cmd_id
+    - Eliminates stray PiStatus/ViewState race conditions on port 4700
+  - ✅ seetop.py v1.1.1 — ncurses live observatory dashboard
+    - Two-column layout: orchestrator+weather left, catalog stats+plan right
+    - Catalog panel: campaign/VSX/charts/federation/tonight/deferred with % progress
+    - Atomic noutrefresh/doupdate — no SSH flicker
+    - Empty-state placeholders on all panels
+  - ✅ .github/workflows/basic-checks.yml — CI on every PR
+    - Python syntax check, Garmt header enforcement, Alpaca import rejection
+  - ✅ CONTRIBUTING.md updated — Garmt header format, architecture rules explicit
   - Hardware auto-detection via Alpaca UDP + HTTP fingerprint — confirm FIRST LIGHT markers
   - Camera-based automatic horizon profiling at first light
     - S30-Pro pans 360° at low altitude during session init
@@ -81,26 +93,25 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
     - `bayer_photometry.py`: add `check_green_balance()` — run once per session on bright star
     - Log G1/G2 ratio; if consistently >1% apply as calibration constant
     - Systematic offset would introduce photometry bias across all frames
-  - **pilot.py v1.7.0 hardening** — peer review (March 2026)
-    - Port 4700 is a stateful event stream, not request/response
-    - `recv_response()` ID-matching fix — loops stream, drops unsolicited Event packets,
-      returns only when matching cmd_id found — eliminates stray telemetry race condition
-    - `send()` returns `tuple[bool, int]` — failure detection + ID for matching
-    - `send_and_recv()` updated to use ID-matched receiver
-    - ✅ Implementable now — structural fix, no hardware required
   - **pilot.py wait_for_event() — FIRST LIGHT REQUIRED**
     - T2 slew: replace time.sleep(SETTLE_SECONDS) with event-driven wait
     - T3 autofocus: replace fire-and-forget with poll until complete
     - Requires real event field names from ssh_monitor.py on Wilhelmina
     - SETTLE_SECONDS retained as hard timeout ceiling until confirmed
-    - Implement in v1.8 post-first-light (April 2026)
-    - `vsx_catalog.py` restart resilience — nohup job dies on reboot, no auto-restart
+    - Implement post-first-light (April 2026)
+  - `vsx_catalog.py` restart resilience — nohup job dies on reboot, no auto-restart
 
 * **v1.9 Fliep:** **The Deployment Master — Global Edition.**
   - `config_wizard.py` — re-runnable interactive config tool using tomli_w
   - Kiosk display service (Pi 4 — Pi 3 too slow)
   - KNMI waarschuwingen-nederland-48h — weather warnings as hard abort trigger
   - `vsx_catalog.py` — add systemd service for restart resilience (currently nohup only)
+  - **Bortle auto-resolve from GPS coordinates**
+    - `bortle_resolver.py` — lat/lon → SQM/Bortle via light pollution API or offline table
+    - GPS fix triggers auto-resolve on first boot if Bortle not yet set
+    - `config_wizard.py` prompts for Bortle if auto-resolve fails or user overrides
+    - `config.toml [planner] bortle` replaces hardcoded `8` in `exposure_planner.py`
+    - Current default (8) is Haarlem-specific — global deployments need site-accurate value
 
   **Southern Hemisphere Support:**
   - `hemisphere` flag in config.toml (`northern` / `southern`, auto-detected from lat)
@@ -122,7 +133,6 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
   - `clear-outside-apy` — coverage limited to Europe/N.America, fallback needed for other regions
   - bootstrap.sh — add hemisphere auto-detection from lat, warn if Southern
   - INSTALL.md — Southern hemisphere section
-  - Bortle map — current default (8) is Haarlem-specific, config wizard should prompt
   - Timezone handling — all internal times UTC, display times via tzlocal (correct globally)
   - astrometry index files — FOV-matched, correct globally but download guidance
     needs updating for S30/S50 in Southern sky (different bright star density)

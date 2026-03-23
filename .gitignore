@@ -8,6 +8,7 @@
 *.bak.*
 catalogs/campaign_targets.json
 catalogs/federation_catalog.json
+de421.bsp
 # Catalogs — populated at runtime by fetcher, not shipped
 config.toml
 config.toml.ed
@@ -73,5 +74,4 @@ catalogs/reference_stars/
 dev/media/
 catalogs/reference_stars/
 dev/media/
-daily_preflight.sh
-git.txt
+*.mp4
