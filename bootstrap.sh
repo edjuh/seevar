@@ -57,7 +57,24 @@ function validate_access {
     error "Unsupported architecture: $ARCH. SeeVar requires aarch64 or x86_64."
   fi
  
-  info "Environment validated — user: $(whoami), arch: $ARCH"
+  # Python version check
+  PY_MAJOR=$(python3 -c "import sys; print(sys.version_info.major)")
+  PY_MINOR=$(python3 -c "import sys; print(sys.version_info.minor)")
+  PY_VERSION="${PY_MAJOR}.${PY_MINOR}"
+ 
+  if [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -eq 11 ]; then
+    info "Python ${PY_VERSION} — fully supported."
+  elif [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -ge 13 ]; then
+    warn "Python ${PY_VERSION} detected (Trixie?). SeeVar is tested on 3.11."
+    warn "Most features will work. RPi.GPIO replaced by rpi-lgpio automatically."
+    warn "opencv-python wheels may lag on aarch64 — install may take longer."
+  elif [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -eq 12 ]; then
+    info "Python ${PY_VERSION} — should work, not formally tested."
+  else
+    warn "Python ${PY_VERSION} — untested. Proceed with caution."
+  fi
+ 
+  info "Environment validated — user: $(whoami), arch: $ARCH, python: ${PY_VERSION}"
 }
  
 # -----------------------------------------------------------------------------
@@ -149,7 +166,6 @@ function create_venv {
     "tomlkit>=0.12" \
     "tomli-w>=1.0" \
     "python-dotenv>=1.0" \
-    "RPi.GPIO>=0.7" \
     "gps>=3.19" \
     "sdnotify>=0.3" \
     "watchdog>=4.0" \
@@ -161,6 +177,17 @@ function create_venv {
     "tzlocal>=5.0" \
     "tzdata>=2023.3" \
     "clear-outside-apy>=1.0.0"
+ 
+  # GPIO — optional, fog/cloud sensor only. rpi-lgpio is the 3.13+ compatible drop-in.
+  if [ "$PY_MINOR" -ge 13 ] 2>/dev/null; then
+    "$VENV/bin/pip" install "rpi-lgpio" \
+      && info "GPIO: rpi-lgpio installed (Python 3.13+ compatible)." \
+      || warn "GPIO: rpi-lgpio install failed — fog sensor disabled."
+  else
+    "$VENV/bin/pip" install "RPi.GPIO>=0.7" \
+      && info "GPIO: RPi.GPIO installed." \
+      || warn "GPIO: RPi.GPIO install failed — fog sensor disabled. Expected on x86_64."
+  fi
  
   info "Python environment ready — $("$VENV/bin/python3" --version)"
 }
@@ -681,4 +708,3 @@ function setup {
  
 (return 0 2>/dev/null) && sourced=1 || sourced=0
 [ "${sourced}" = 0 ] && setup
- 
