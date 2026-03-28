@@ -2,8 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/dashboard/dashboard.py
-Version: 4.5.3
-Objective: Remove hardcoded local coordinates; fallback to Greenwich.
+Version: 4.6.0
+Objective: Wire wilhelmina_state.json (WilhelminaMonitor event stream)
+           into hardware cache as Source 3. Dashboard now shows real
+           link_status, battery, temp_c from port 4700 event stream
+           without requiring orchestrator preflight.
 """
 import json
 import logging
@@ -22,15 +25,17 @@ from astropy.time import Time
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-BASE_DIR     = Path(__file__).resolve().parent
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR     = PROJECT_ROOT / "data"
-PLAN_FILE    = DATA_DIR / "tonights_plan.json"
-STATE_FILE   = DATA_DIR / "system_state.json"
-LEDGER_FILE  = DATA_DIR / "ledger.json"
-WEATHER_FILE = DATA_DIR / "weather_state.json"
-SIRIL_LOG    = PROJECT_ROOT / "logs" / "siril_extraction.log"
-ENV_STATUS   = Path("/dev/shm/env_status.json")
+BASE_DIR          = Path(__file__).resolve().parent
+PROJECT_ROOT      = Path(__file__).resolve().parents[2]
+DATA_DIR          = PROJECT_ROOT / "data"
+PLAN_FILE         = DATA_DIR / "tonights_plan.json"
+STATE_FILE        = DATA_DIR / "system_state.json"
+LEDGER_FILE       = DATA_DIR / "ledger.json"
+WEATHER_FILE      = DATA_DIR / "weather_state.json"
+SIRIL_LOG         = PROJECT_ROOT / "logs" / "siril_extraction.log"
+ENV_STATUS        = Path("/dev/shm/env_status.json")
+WILHELMINA_STATE  = Path("/dev/shm/wilhelmina_state.json")
+WILHELMINA_EMMC   = Path("/mnt/wilhelmina")
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -53,13 +58,13 @@ except ImportError:
         return "UNKNOWN"
 
 # ---------------------------------------------------------------------------
-# Flask 
+# Flask
 # ---------------------------------------------------------------------------
 TEMPLATE_DIR = BASE_DIR / "templates"
 app = Flask(__name__, template_folder=str(TEMPLATE_DIR))
 
 # ---------------------------------------------------------------------------
-# Hardware cache 
+# Hardware cache
 # ---------------------------------------------------------------------------
 HW_CACHE = {
     "timestamp": 0,
@@ -67,16 +72,21 @@ HW_CACHE = {
         "link_status": "WAITING",
         "battery":     "N/A",
         "temp_c":      "N/A",
-        "storage_mb":  "N/A"
+        "storage_mb":  "N/A",
+        "tracking":    False,
+        "slewing":     False,
+        "level_angle": None,
+        "level_ok":    True,
     }
 }
-HW_CACHE_TTL = 10 
+HW_CACHE_TTL = 10
 
 def refresh_hw_cache():
-    """Refresh hardware cache from two sources:
-    - link_status, storage_mb : env_status.json (GPS/network daemon)
-    - battery, temp_c         : system_state.json telemetry block
-                                (written by orchestrator from TelemetryBlock)
+    """Refresh hardware cache from three sources:
+    - Source 1 : env_status.json       (GPS/network daemon)
+    - Source 2 : system_state.json     (orchestrator TelemetryBlock)
+    - Source 3 : wilhelmina_state.json (WilhelminaMonitor event stream)
+    Source 3 takes priority for link_status, battery, temp_c.
     """
     now = time.time()
     if now - HW_CACHE["timestamp"] < HW_CACHE_TTL:
@@ -93,21 +103,20 @@ def refresh_hw_cache():
         except (json.JSONDecodeError, OSError) as e:
             log.warning("HW_CACHE env_status refresh failed: %s", e)
 
-    # Source 1b: storage_mb fallback — measure local_buffer if not in env_status
-    if HW_CACHE["data"]["storage_mb"] in ("N/A", None):
-        try:
-            local_buffer = DATA_DIR / "local_buffer"
-            if local_buffer.exists():
-                total_bytes = sum(
-                    f.stat().st_size
-                    for f in local_buffer.rglob("*")
-                    if f.is_file()
-                )
-                HW_CACHE["data"]["storage_mb"] = round(total_bytes / (1024 * 1024), 1)
-            else:
-                HW_CACHE["data"]["storage_mb"] = 0.0
-        except OSError:
-            pass
+    # Source 1b: Wilhelmina eMMC free space via SMB mount
+    try:
+        import shutil
+        if WILHELMINA_EMMC.exists():
+            usage = shutil.disk_usage(WILHELMINA_EMMC)
+            free_gb = round(usage.free / (1024 ** 3), 1)
+            total_gb = round(usage.total / (1024 ** 3), 1)
+            HW_CACHE["data"]["storage_mb"] = free_gb * 1024  # keep mb field for JS
+            HW_CACHE["data"]["storage_free_gb"] = free_gb
+            HW_CACHE["data"]["storage_total_gb"] = total_gb
+        else:
+            HW_CACHE["data"]["storage_mb"] = None
+    except OSError:
+        HW_CACHE["data"]["storage_mb"] = None
 
     # Source 2: TelemetryBlock from orchestrator via system_state.json
     if STATE_FILE.exists():
@@ -121,12 +130,41 @@ def refresh_hw_cache():
             temp = tel.get("temp_c")
             if temp is not None:
                 HW_CACHE["data"]["temp_c"] = str(round(temp, 1))
-            # Link status — written by orchestrator on successful TCP connect
             link = state.get("link_status")
             if link:
                 HW_CACHE["data"]["link_status"] = link
         except (json.JSONDecodeError, OSError) as e:
             log.warning("HW_CACHE state refresh failed: %s", e)
+
+    # Source 3: WilhelminaMonitor event stream (highest priority for telescope data)
+    if WILHELMINA_STATE.exists():
+        try:
+            with open(WILHELMINA_STATE, 'r') as f:
+                w = json.load(f)
+
+            # Link status — always trust the live monitor
+            link = w.get("link_status")
+            if link:
+                HW_CACHE["data"]["link_status"] = link
+
+            # Battery — only update if monitor has a real value
+            batt = w.get("battery_pct")
+            if batt is not None:
+                HW_CACHE["data"]["battery"] = f"{batt}%"
+
+            # Temperature
+            temp = w.get("temp_c")
+            if temp is not None:
+                HW_CACHE["data"]["temp_c"] = str(temp)
+
+            # Mount state
+            HW_CACHE["data"]["tracking"]    = w.get("tracking", False)
+            HW_CACHE["data"]["slewing"]     = w.get("slewing", False)
+            HW_CACHE["data"]["level_angle"] = w.get("level_angle")
+            HW_CACHE["data"]["level_ok"]    = w.get("level_ok", True)
+
+        except (json.JSONDecodeError, OSError) as e:
+            log.warning("HW_CACHE wilhelmina_state refresh failed: %s", e)
 
     HW_CACHE["timestamp"] = now
 
@@ -167,7 +205,6 @@ FLIGHT_WINDOW_CACHE = {"date": None, "text": "CALCULATING..."}
 DUSK_CACHE = {"date": None, "dt": None}
 
 def get_dusk_utc(lat: float, lon: float, elev: float):
-    """Return astronomical dusk as UTC datetime for the current night, or None."""
     today_str = datetime.now().strftime("%Y-%m-%d")
     if DUSK_CACHE["date"] == today_str:
         return DUSK_CACHE["dt"]
@@ -196,24 +233,19 @@ def get_flight_window(lat: float, lon: float, elev: float) -> str:
     today_str = datetime.now().strftime("%Y-%m-%d")
     if FLIGHT_WINDOW_CACHE["date"] == today_str:
         return FLIGHT_WINDOW_CACHE["text"]
-        
     try:
         loc = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=elev*u.m)
         utc_now = datetime.now(timezone.utc)
-        
         start_time = datetime(utc_now.year, utc_now.month, utc_now.day, 12, 0, tzinfo=timezone.utc)
         if utc_now.hour < 12:
             start_time -= timedelta(days=1)
-            
         dusk_str, dawn_str = None, None
         is_night = False
-        
         for m in range(0, 24 * 60, 5):
             t_dt = start_time + timedelta(minutes=m)
             t = Time(t_dt)
             frame = AltAz(obstime=t, location=loc)
             sun_alt = get_sun(t).transform_to(frame).alt.deg
-            
             if sun_alt <= -18.0 and not is_night:
                 is_night = True
                 dusk_str = t_dt.astimezone().strftime("%H:%M")
@@ -221,12 +253,10 @@ def get_flight_window(lat: float, lon: float, elev: float) -> str:
                 is_night = False
                 dawn_str = t_dt.astimezone().strftime("%H:%M")
                 break
-                
         if dusk_str and dawn_str:
             res = f"{dusk_str} - {dawn_str}"
         else:
             res = "NO ASTRONOMICAL NIGHT"
-            
         FLIGHT_WINDOW_CACHE["date"] = today_str
         FLIGHT_WINDOW_CACHE["text"] = res
         return res
@@ -286,9 +316,9 @@ def build_postflight(ledger: dict, dusk_dt) -> dict:
         snr     = e.get("last_snr")
         zp      = e.get("last_zp")
 
-        mag_str = f"{mag:.3f} ±{err:.3f}" if mag is not None and err is not None else status.replace("FAILED_","")
-        snr_str = f"{snr:.0f}" if snr is not None else "—"
-        zp_str  = f"{zp:.2f}±{zp_std:.2f}" if zp is not None and zp_std is not None else "—"
+        mag_str  = f"{mag:.3f} ±{err:.3f}" if mag is not None and err is not None else status.replace("FAILED_","")
+        snr_str  = f"{snr:.0f}" if snr is not None else "—"
+        zp_str   = f"{zp:.2f}±{zp_std:.2f}" if zp is not None and zp_std is not None else "—"
         time_str = ts.strftime("%H:%M")
 
         log_rows.append({
@@ -313,8 +343,8 @@ def build_postflight(ledger: dict, dusk_dt) -> dict:
     else:
         overall = "green" if observed > 0 else "grey"
 
-    phot_led   = "green" if observed > 0 else ("orange" if attempted > 0 else "grey")
-    aavso_led  = "grey"
+    phot_led  = "green" if observed > 0 else ("orange" if attempted > 0 else "grey")
+    aavso_led = "grey"
 
     return {
         "scoreboard": {
@@ -337,20 +367,18 @@ def index():
     target_data = load_plan()
     config = load_config("~/seevar/config.toml")
     loc    = config.get('location', {})
-    
     fw_text = get_flight_window(
-        loc.get('lat', 51.4769), 
-        loc.get('lon', 0.0), 
+        loc.get('lat', 51.4769),
+        loc.get('lon', 0.0),
         loc.get('elevation', 0.0)
     )
-    
     return render_template('index.html', target_data=target_data, flight_window=fw_text)
 
 @app.route('/telemetry')
 def get_telemetry():
     config = load_config("~/seevar/config.toml")
     loc    = config.get('location', {})
-    
+
     state = {
         "gps_status": "NO-GPS-LOCK",
         "lat":        loc.get('lat', 51.4769),
@@ -358,16 +386,16 @@ def get_telemetry():
         "maidenhead": loc.get('maidenhead', "IO81qm"),
         "system_msg": "System Ready."
     }
-    
+
     env = load_json_file(ENV_STATUS, {})
     if env:
         state.update(env)
-        
+
     weather = {"status": "FETCHING", "icon": "❓"}
     weather_data = load_json_file(WEATHER_FILE, {})
     if weather_data:
         weather.update(weather_data)
-        
+
     science = {"photometry": "grey", "aavso_ready": "grey", "siril_tail": []}
     if SIRIL_LOG.exists():
         try:
@@ -375,7 +403,7 @@ def get_telemetry():
                 science["siril_tail"] = [line.strip() for line in f.readlines()[-5:]]
         except OSError as e:
             log.warning("SIRIL_LOG read failed: %s", e)
-            
+
     orchestrator = {
         "state":      "PARKED",
         "sub":        "OFF-DUTY",
@@ -385,37 +413,37 @@ def get_telemetry():
     state_data = load_json_file(STATE_FILE, {})
     if state_data:
         orchestrator.update({
-            "state":      state_data.get("state",      orchestrator["state"]),
-            "sub":        state_data.get("sub",        orchestrator["sub"]),
-            "msg":        state_data.get("msg",        orchestrator["msg"]),
-            "flight_log": state_data.get("flight_log", orchestrator["flight_log"]),
-            "current_target": state_data.get("current_target", None)
+            "state":          state_data.get("state",          orchestrator["state"]),
+            "sub":            state_data.get("sub",            orchestrator["sub"]),
+            "msg":            state_data.get("msg",            orchestrator["msg"]),
+            "flight_log":     state_data.get("flight_log",     orchestrator["flight_log"]),
+            "current_target": state_data.get("current_target", None),
         })
-        
-    ledger = load_json_file(LEDGER_FILE, {})
+
+    ledger     = load_json_file(LEDGER_FILE, {})
     last_audit = ledger.get("metadata", {}).get("last_updated", "N/A")
 
-    dusk_dt = get_dusk_utc(
+    dusk_dt    = get_dusk_utc(
         loc.get('lat', 51.4769),
         loc.get('lon', 0.0),
         loc.get('elevation', 0.0)
     )
     postflight = build_postflight(ledger, dusk_dt)
-        
+
     refresh_hw_cache()
-    
+
     return jsonify({
-        "gps_status":  state.get("gps_status"),
-        "lat":         state.get("lat"),
-        "lon":         state.get("lon"),
-        "maidenhead":  state.get("maidenhead"),
-        "system_msg":  state.get("system_msg"),
-        "weather":     weather,
-        "science":     science,
+        "gps_status":   state.get("gps_status"),
+        "lat":          state.get("lat"),
+        "lon":          state.get("lon"),
+        "maidenhead":   state.get("maidenhead"),
+        "system_msg":   state.get("system_msg"),
+        "weather":      weather,
+        "science":      science,
         "orchestrator": orchestrator,
-        "hardware":    HW_CACHE["data"],
-        "last_audit":  last_audit,
-        "postflight":  postflight,
+        "hardware":     HW_CACHE["data"],
+        "last_audit":   last_audit,
+        "postflight":   postflight,
     })
 
 if __name__ == "__main__":

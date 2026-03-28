@@ -127,7 +127,7 @@
             <h2>SYSTEM VITALS</h2>
             <div class="flight-window-row"><span class="label">FLIGHT WINDOW</span> <span class="fw-val">{{ flight_window }}</span></div>
             <div class="row"><span class="label">SEESTAR (LINK)</span> <span id="tel-link-val" class="val">WAITING...</span> <div id="tel-link-led" class="led grey"></div></div>
-            <div class="row"><span class="label">GPS (LOCK)</span> <span class="val"></span> <div class="led green"></div></div>
+            <div class="row"><span class="label">GPS (LOCK)</span> <span id="gps-val" class="val"></span> <div id="gps-led" class="led grey"></div></div>
             <div class="row"><span class="label">WEATHER (PRED)</span> <span id="weather-val" class="val">CLEAR</span> <div id="weather-icon-led" class="led weather-icon">⭐</div></div>
             <div class="row"><span class="label">FOG (VIS)</span> <span class="val">DISCONNECTED</span> <div class="led blue-grey"></div></div>
             
@@ -256,6 +256,22 @@
                 .then(data => {
                     if(data.maidenhead) document.getElementById('telemetry-mh').innerText = data.maidenhead;
 
+                    if(data.gps_status) {
+                        const gpsLed = document.getElementById('gps-led');
+                        const gpsVal = document.getElementById('gps-val');
+                        const locked = ['3D', 'FIX', 'LOCK', '3D_FIX'].some(s => data.gps_status.includes(s));
+                        if(locked) {
+                            gpsLed.className = 'led green';
+                            gpsVal.innerText = '3D LOCK';
+                        } else if(data.gps_status === 'NO-GPS-LOCK' || data.gps_status === 'NO-DATA') {
+                            gpsLed.className = 'led orange';
+                            gpsVal.innerText = 'ACQUIRING';
+                        } else {
+                            gpsLed.className = 'led grey';
+                            gpsVal.innerText = data.gps_status;
+                        }
+                    }
+
                     if(data.weather) {
                         const wVal = document.getElementById('weather-val');
                         const wLed = document.getElementById('weather-icon-led');
@@ -336,8 +352,8 @@
                         const battTxt = document.getElementById('bb-batt');
                         const storeTxt = document.getElementById('bb-store');
 
-                        if(data.hardware.link_status === "ACTIVE") {
-                            linkVal.innerText = "NATIVE COMMS UP";
+                        if(["ACTIVE","ONLINE"].includes(data.hardware.link_status)) {
+                            const statusLabels = {"ACTIVE": "NATIVE COMMS UP", "ONLINE": "ONLINE", "CONNECTING": "CONNECTING..."}; linkVal.innerText = statusLabels[data.hardware.link_status] || data.hardware.link_status;
                             linkLed.className = "led green";
                         } else {
                             linkVal.innerText = "NO SIGNAL";
@@ -356,7 +372,11 @@
                         }
 
                         const rawMb = parseFloat(data.hardware.storage_mb);
-                        storeTxt.innerText = isNaN(rawMb) ? '-- MB' : rawMb >= 1000 ? (rawMb / 1024).toFixed(1) + ' GB' : rawMb + ' MB';
+                        if(data.hardware.storage_free_gb != null) {
+                            storeTxt.innerText = data.hardware.storage_free_gb.toFixed(1) + ' GB free / ' + (data.hardware.storage_total_gb || '?') + ' GB';
+                        } else {
+                            storeTxt.innerText = isNaN(rawMb) ? '-- MB' : rawMb >= 1000 ? (rawMb / 1024).toFixed(1) + ' GB' : rawMb + ' MB';
+                        }
                     }
 
                     if (data.postflight) {

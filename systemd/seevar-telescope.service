@@ -1,0 +1,15 @@
+[Unit]
+Description=SeeVar Telescope Monitor (Wilhelmina)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/seevar
+ExecStart=%h/seevar/.venv/bin/python3 core/hardware/wilhelmina_monitor.py
+Restart=always
+RestartSec=10
+StandardOutput=append:%h/seevar/logs/telescope.log
+StandardError=append:%h/seevar/logs/telescope.err
+
+[Install]
+WantedBy=default.target

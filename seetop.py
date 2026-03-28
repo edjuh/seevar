@@ -2,16 +2,25 @@
 # -*- coding: utf-8 -*-
 """
 Filename: seetop.py
-Version: 1.1.1
+Version: 1.2.0
 Objective: Ncurses live dashboard for SeeVar — orchestrator state, weather
-           consensus, catalog statistics, tonight's plan, and interleaved
-           log tail. Two-column layout. Atomic screen updates via doupdate
-           eliminate SSH flicker. Refreshes every 10 seconds. Press q to quit.
+           consensus, full fleet telemetry (Wilhelmina + future Anna/Henrietta),
+           catalog statistics, tonight's plan, and deduplicated log tail.
+           Three-column layout. Atomic screen updates via doupdate.
+           Refreshes every 5 seconds. Press q to quit.
+Changes v1.2.0:
+  - Fleet panel: reads all [[seestars]] from config.toml, shows live
+    battery/temp/tracking/level from /dev/shm/wilhelmina_state.json
+  - GPS row: lat/lon/maidenhead from /dev/shm/env_status.json
+  - Log tail: deduplicates consecutive identical lines, adds telescope.log
+  - 3-column layout
+  - 5s refresh
 """
 
 import curses
 import json
 import time
+import tomllib
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,23 +33,27 @@ DATA_DIR      = SEEVAR_ROOT / "data"
 CATALOG_DIR   = SEEVAR_ROOT / "catalogs"
 LOG_DIR       = SEEVAR_ROOT / "logs"
 
-STATE_FILE    = DATA_DIR    / "system_state.json"
-WEATHER_FILE  = DATA_DIR    / "weather_state.json"
-PLAN_FILE     = DATA_DIR    / "tonights_plan.json"
-VSX_FILE      = DATA_DIR    / "vsx_catalog.json"
-CAMPAIGN_FILE = CATALOG_DIR / "campaign_targets.json"
-FED_FILE      = CATALOG_DIR / "federation_catalog.json"
-CHARTS_DIR    = CATALOG_DIR / "reference_stars"
+STATE_FILE       = DATA_DIR    / "system_state.json"
+WEATHER_FILE     = DATA_DIR    / "weather_state.json"
+PLAN_FILE        = DATA_DIR    / "tonights_plan.json"
+VSX_FILE         = DATA_DIR    / "vsx_catalog.json"
+CAMPAIGN_FILE    = CATALOG_DIR / "campaign_targets.json"
+FED_FILE         = CATALOG_DIR / "federation_catalog.json"
+CHARTS_DIR       = CATALOG_DIR / "reference_stars"
+CONFIG_FILE      = SEEVAR_ROOT / "config.toml"
+WILHELMINA_STATE = Path("/dev/shm/wilhelmina_state.json")
+ENV_STATUS       = Path("/dev/shm/env_status.json")
 
 LOG_FILES = [
     LOG_DIR / "orchestrator.log",
     LOG_DIR / "weather.log",
+    LOG_DIR / "telescope.log",
     LOG_DIR / "dashboard.log",
 ]
 
-REFRESH_S  = 10
+REFRESH_S  = 5
 LOG_LINES  = 10
-VERSION    = "1.1.1"
+VERSION    = "1.2.0"
 
 # ---------------------------------------------------------------------------
 # Data readers
@@ -129,7 +142,99 @@ def read_catalog_stats() -> dict:
     }
 
 
+def read_fleet() -> list:
+    """
+    Read [[seestars]] from config.toml and merge with live telemetry
+    from /dev/shm/wilhelmina_state.json (keyed by name).
+    Returns list of dicts — one per telescope, present or future.
+    """
+    fleet = []
+
+    # Load config
+    try:
+        with open(CONFIG_FILE, "rb") as f:
+            cfg = tomllib.load(f)
+        seestars = cfg.get("seestars", [])
+    except Exception:
+        seestars = []
+
+    # Load live telemetry (only Wilhelmina for now — extend when Anna arrives)
+    live = _read_json(WILHELMINA_STATE) if WILHELMINA_STATE.exists() else {}
+
+    # Future: map name -> state file when multiple monitors exist
+    live_by_name = {}
+    if live and isinstance(live, dict):
+        # Infer name from config — first scope with ip matching
+        for s in seestars:
+            if s.get("ip", "TBD") not in ("TBD", "10.0.0.1", ""):
+                live_by_name[s["name"]] = live
+                break
+
+    for s in seestars:
+        name   = s.get("name",  "Unknown")
+        model  = s.get("model", "S30-Pro")
+        ip     = s.get("ip",    "TBD")
+        active = ip not in ("TBD", "", "10.0.0.1")
+
+        t = live_by_name.get(name, {})
+        fleet.append({
+            "name":        name,
+            "model":       model,
+            "ip":          ip,
+            "active":      active,
+            "link":        t.get("link_status",  "OFFLINE" if not active else "WAITING"),
+            "battery":     t.get("battery_pct"),
+            "temp_c":      t.get("temp_c"),
+            "tracking":    t.get("tracking",     False),
+            "slewing":     t.get("slewing",      False),
+            "level_angle": t.get("level_angle"),
+            "level_ok":    t.get("level_ok",     True),
+            "last_event":  t.get("last_event"),
+            "event_counts": t.get("event_counts", {}),
+        })
+
+    # Add placeholder entries for known future scopes if not in config
+    known_future = [
+        {"name": "Anna",      "model": "S30-Pro", "ip": "TBD"},
+        {"name": "Henrietta", "model": "S50",     "ip": "TBD"},
+    ]
+    existing_names = {s["name"] for s in fleet}
+    for f in known_future:
+        if f["name"] not in existing_names:
+            fleet.append({
+                "name":        f["name"],
+                "model":       f["model"],
+                "ip":          "TBD",
+                "active":      False,
+                "link":        "—",
+                "battery":     None,
+                "temp_c":      None,
+                "tracking":    False,
+                "slewing":     False,
+                "level_angle": None,
+                "level_ok":    True,
+                "last_event":  None,
+                "event_counts": {},
+            })
+
+    return fleet
+
+
+def read_gps() -> dict:
+    e = _read_json(ENV_STATUS) if ENV_STATUS.exists() else {}
+    if not e:
+        return {"empty": True}
+    return {
+        "empty":      False,
+        "status":     e.get("gps_status", "NO-DATA"),
+        "lat":        e.get("lat"),
+        "lon":        e.get("lon"),
+        "maidenhead": e.get("maidenhead", "—"),
+    }
+
+
 def read_log_tail(n: int) -> list:
+    """Read last n lines across all log files, deduplicate consecutive repeats."""
     lines = deque(maxlen=n * len(LOG_FILES))
     for lf in LOG_FILES:
         if not lf.exists():
@@ -142,7 +247,37 @@ def read_log_tail(n: int) -> list:
                         lines.append((lf.stem, line))
         except OSError:
             continue
-    return list(lines)[-n:]
+
+    # Deduplicate consecutive identical log lines
+    raw = list(lines)[-n * 2:]
+    deduped = []
+    prev_line = None
+    repeat_count = 0
+    for source, line in raw:
+        # Strip timestamp prefix for comparison (first 25 chars)
+        core = line[25:] if len(line) > 25 else line
+        if core == prev_line:
+            repeat_count += 1
+        else:
+            if repeat_count > 0:
+                # Append repeat note to previous entry
+                if deduped:
+                    s, l = deduped[-1]
+                    deduped[-1] = (s, f"{l}  [×{repeat_count + 1}]")
+            repeat_count = 0
+            prev_line = core
+            deduped.append((source, line))
+
+    # Filter pure Flask startup noise
+    filtered = [(s, l) for s, l in deduped
+                if not any(noise in l for noise in [
+                    "Serving Flask app",
+                    "Debug mode:",
+                    "Running on http",
+                    " * Restarting",
+                ])]
+
+    return filtered[-n:]
 
 
 # ---------------------------------------------------------------------------
@@ -154,17 +289,19 @@ C_WARN   = 3
 C_ABORT  = 4
 C_DIM    = 5
 C_BORDER = 6
+C_CYAN   = 7
 
 
 def init_colours():
     curses.start_color()
     curses.use_default_colors()
-    curses.init_pair(C_TITLE,  curses.COLOR_CYAN,   -1)
-    curses.init_pair(C_GOOD,   curses.COLOR_GREEN,  -1)
-    curses.init_pair(C_WARN,   curses.COLOR_YELLOW, -1)
-    curses.init_pair(C_ABORT,  curses.COLOR_RED,    -1)
-    curses.init_pair(C_DIM,    curses.COLOR_WHITE,  -1)
-    curses.init_pair(C_BORDER, curses.COLOR_BLUE,   -1)
+    curses.init_pair(C_TITLE,  curses.COLOR_CYAN,    -1)
+    curses.init_pair(C_GOOD,   curses.COLOR_GREEN,   -1)
+    curses.init_pair(C_WARN,   curses.COLOR_YELLOW,  -1)
+    curses.init_pair(C_ABORT,  curses.COLOR_RED,     -1)
+    curses.init_pair(C_DIM,    curses.COLOR_WHITE,   -1)
+    curses.init_pair(C_BORDER, curses.COLOR_BLUE,    -1)
+    curses.init_pair(C_CYAN,   curses.COLOR_CYAN,    -1)
 
 
 # ---------------------------------------------------------------------------
@@ -219,6 +356,7 @@ def weather_colour(status: str, imaging_go) -> int:
 def log_colour(source: str) -> int:
     if "orchestrator" in source: return curses.color_pair(C_GOOD)
     if "weather"      in source: return curses.color_pair(C_WARN)
+    if "telescope"    in source: return curses.color_pair(C_CYAN)
     return curses.color_pair(C_DIM)
 
 
@@ -226,12 +364,24 @@ def log_colour(source: str) -> int:
 # Panel drawers
 # ---------------------------------------------------------------------------
 
-def draw_header(stdscr, cols: int):
+def draw_header(stdscr, cols: int, gps: dict):
     now   = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     title = "seetop — SeeVar Observatory"
     safe_addstr(stdscr, 0, 0, "─" * cols, curses.color_pair(C_BORDER))
     safe_addstr(stdscr, 0, 2, f" {title} ",
                 curses.color_pair(C_TITLE) | curses.A_BOLD)
+
+    # GPS in header
+    if not gps.get("empty"):
+        status = gps["status"]
+        locked = any(s in status for s in ("3D", "FIX", "LOCK", "FIXED"))
+        gps_attr = curses.color_pair(C_GOOD) if locked else curses.color_pair(C_WARN)
+        mh   = gps.get("maidenhead", "—")
+        lat  = f"{gps['lat']:.4f}" if gps.get("lat") else "—"
+        lon  = f"{gps['lon']:.4f}" if gps.get("lon") else "—"
+        gps_str = f" GPS:{mh} ({lat},{lon}) "
+        safe_addstr(stdscr, 0, len(title) + 5, gps_str, gps_attr)
+
     safe_addstr(stdscr, 0, cols - len(now) - 3, f" {now} ",
                 curses.color_pair(C_DIM))
 
@@ -248,18 +398,12 @@ def draw_orchestrator(win, data: dict):
         safe_addstr(win, 1, 24, f"({data['sub']})", curses.color_pair(C_DIM))
     safe_addstr(win, 2, 2,  "Message: ", curses.color_pair(C_DIM))
     safe_addstr(win, 2, 11, data["msg"],  curses.color_pair(C_DIM))
-    if data["updated"]:
-        safe_addstr(win, 3, 2, f"Updated: {data['updated']}",
-                    curses.color_pair(C_DIM) | curses.A_DIM)
 
 
 def draw_weather(win, data: dict):
     draw_border(win, "Weather")
     if data.get("empty"):
         waiting(win)
-        safe_addstr(win, 2, 2,
-                    "start seevar-weather service or run weather.py",
-                    curses.color_pair(C_DIM) | curses.A_DIM)
         return
 
     status     = data["status"]
@@ -274,8 +418,7 @@ def draw_weather(win, data: dict):
     safe_addstr(win, 1, 22, "Imaging: ", curses.color_pair(C_DIM))
     safe_addstr(win, 1, 31, go_str, go_attr)
     safe_addstr(win, 2, 2,  "Dark   : ", curses.color_pair(C_DIM))
-    safe_addstr(win, 2, 11,
-                f"{data['dark_start']} -> {data['dark_end']}",
+    safe_addstr(win, 2, 11, f"{data['dark_start']} -> {data['dark_end']}",
                 curses.color_pair(C_DIM))
 
     if data["win_start"] and data["win_end"]:
@@ -299,6 +442,90 @@ def draw_weather(win, data: dict):
         age = int(time.time() - data["last_update"])
         safe_addstr(win, 5, 2, f"Updated: {age}s ago",
                     curses.color_pair(C_DIM) | curses.A_DIM)
+
+
+def draw_fleet(win, fleet: list):
+    draw_border(win, "Fleet")
+    row = 1
+    for scope in fleet:
+        name   = scope["name"]
+        model  = scope["model"]
+        link   = scope["link"]
+        active = scope["active"]
+
+        # Name + model
+        name_attr = curses.color_pair(C_GOOD) | curses.A_BOLD if active \
+                    else curses.color_pair(C_DIM) | curses.A_DIM
+        safe_addstr(win, row, 2, f"{name:<12}", name_attr)
+        safe_addstr(win, row, 14, f"{model:<10}", curses.color_pair(C_DIM) | curses.A_DIM)
+
+        if not active:
+            safe_addstr(win, row, 25, "— pending arrival —",
+                        curses.color_pair(C_DIM) | curses.A_DIM)
+            row += 2
+            continue
+
+        # Link status
+        if link == "ONLINE":
+            link_attr = curses.color_pair(C_GOOD)
+        elif link == "CONNECTING":
+            link_attr = curses.color_pair(C_WARN)
+        else:
+            link_attr = curses.color_pair(C_ABORT)
+        safe_addstr(win, row, 25, f"{link:<12}", link_attr)
+
+        # Battery
+        batt = scope["battery"]
+        if batt is not None:
+            batt_attr = curses.color_pair(C_GOOD)  if batt > 30 \
+                   else curses.color_pair(C_WARN)  if batt > 15 \
+                   else curses.color_pair(C_ABORT) | curses.A_BOLD
+            safe_addstr(win, row, 38, f"BAT:{batt:>3}%", batt_attr)
+        else:
+            safe_addstr(win, row, 38, "BAT: —  ", curses.color_pair(C_DIM) | curses.A_DIM)
+
+        # Temperature
+        temp = scope["temp_c"]
+        if temp is not None:
+            safe_addstr(win, row, 47, f"TMP:{temp:>5.1f}°C",
+                        curses.color_pair(C_DIM))
+        else:
+            safe_addstr(win, row, 47, "TMP:    —  ",
+                        curses.color_pair(C_DIM) | curses.A_DIM)
+
+        row += 1
+
+        # Mount state row
+        tracking = scope["tracking"]
+        slewing  = scope["slewing"]
+        angle    = scope["level_angle"]
+        level_ok = scope["level_ok"]
+
+        if slewing:
+            mount_str  = "SLEWING"
+            mount_attr = curses.color_pair(C_WARN) | curses.A_BOLD
+        elif tracking:
+            mount_str  = "TRACKING"
+            mount_attr = curses.color_pair(C_GOOD) | curses.A_BOLD
+        else:
+            mount_str  = "IDLE"
+            mount_attr = curses.color_pair(C_DIM)
+
+        safe_addstr(win, row, 4, f"Mount: ", curses.color_pair(C_DIM) | curses.A_DIM)
+        safe_addstr(win, row, 11, f"{mount_str:<10}", mount_attr)
+
+        if angle is not None:
+            level_attr = curses.color_pair(C_GOOD) if level_ok \
+                         else curses.color_pair(C_WARN) | curses.A_BOLD
+            safe_addstr(win, row, 22, f"Level: {angle:.2f}°", level_attr)
+
+        # Last event
+        last_ev = scope.get("last_event")
+        if last_ev:
+            safe_addstr(win, row, 38, f"Last: {last_ev}",
+                        curses.color_pair(C_DIM) | curses.A_DIM)
+
+        row += 2
 
 
 def draw_catalog(win, data: dict):
@@ -340,7 +567,7 @@ def draw_plan(win, data: dict):
 
 
 def draw_log_tail(win, lines: list):
-    draw_border(win, "Log Tail — orchestrator / weather / dashboard")
+    draw_border(win, "Log Tail — orchestrator / weather / telescope / dashboard")
     if not lines:
         waiting(win)
         return
@@ -358,12 +585,13 @@ def draw_log_tail(win, lines: list):
 # ---------------------------------------------------------------------------
 # Layout
 # ---------------------------------------------------------------------------
-ORCH_H  = 5
-WX_H    = 7
-CAT_H   = 8
-PLAN_H  = 4
-TOP_H   = max(ORCH_H + WX_H, CAT_H + PLAN_H)
-LOG_TOP = 1 + TOP_H
+ORCH_H   = 4
+WX_H     = 7
+FLEET_H  = 10   # 2 rows per scope (name+telemetry, mount+event) + spacing
+CAT_H    = 8
+PLAN_H   = 4
+TOP_H    = max(ORCH_H + WX_H, FLEET_H, CAT_H + PLAN_H)
+LOG_TOP  = 1 + TOP_H
 
 
 # ---------------------------------------------------------------------------
@@ -382,15 +610,17 @@ def main(stdscr):
     wins = {}
 
     def make_wins(rows, cols):
-        left_w  = cols // 2
-        right_w = cols - left_w
+        left_w  = cols // 3
+        mid_w   = cols // 3
+        right_w = cols - left_w - mid_w
         log_h   = max(4, rows - LOG_TOP - 1)
         return {
-            "orch": curses.newwin(ORCH_H, left_w,  1,          0),
-            "wx":   curses.newwin(WX_H,   left_w,  1 + ORCH_H, 0),
-            "cat":  curses.newwin(CAT_H,  right_w, 1,          left_w),
-            "plan": curses.newwin(PLAN_H, right_w, 1 + CAT_H,  left_w),
-            "log":  curses.newwin(log_h,  cols,    LOG_TOP,     0),
+            "orch":  curses.newwin(ORCH_H,  left_w,  1,               0),
+            "wx":    curses.newwin(WX_H,    left_w,  1 + ORCH_H,      0),
+            "fleet": curses.newwin(FLEET_H, mid_w,   1,               left_w),
+            "cat":   curses.newwin(CAT_H,   right_w, 1,               left_w + mid_w),
+            "plan":  curses.newwin(PLAN_H,  right_w, 1 + CAT_H,       left_w + mid_w),
+            "log":   curses.newwin(log_h,   cols,    LOG_TOP,          0),
         }
 
     while True:
@@ -405,15 +635,14 @@ def main(stdscr):
 
         rows, cols = stdscr.getmaxyx()
 
-        if rows < 28 or cols < 80:
+        if rows < 28 or cols < 100:
             stdscr.erase()
             safe_addstr(stdscr, 0, 0,
-                        f"Terminal too small ({cols}x{rows}) — need 80x28 minimum.",
+                        f"Terminal too small ({cols}x{rows}) — need 100x28 minimum.",
                         curses.A_BOLD)
             stdscr.refresh()
             continue
 
-        # Recreate windows only on resize
         if rows != last_rows or cols != last_cols or not wins:
             wins = make_wins(rows, cols)
             last_rows, last_cols = rows, cols
@@ -421,8 +650,10 @@ def main(stdscr):
         # Fetch data
         orch    = read_orchestrator()
         weather = read_weather()
+        fleet   = read_fleet()
         catalog = read_catalog_stats()
         plan    = read_plan()
+        gps     = read_gps()
         logs    = read_log_tail(LOG_LINES)
 
         # Clear all surfaces
@@ -433,8 +664,8 @@ def main(stdscr):
             except curses.error:
                 pass
 
-        # Draw into surfaces
-        draw_header(stdscr, cols)
+        # Draw
+        draw_header(stdscr, cols, gps)
 
         footer = f" [q] quit  |  refresh: {REFRESH_S}s  |  seetop v{VERSION} "
         safe_addstr(stdscr, rows - 1, 0, "─" * cols,
@@ -443,15 +674,15 @@ def main(stdscr):
                     curses.color_pair(C_DIM) | curses.A_DIM)
 
         try:
-            draw_orchestrator(wins["orch"], orch)
-            draw_weather(wins["wx"],        weather)
-            draw_catalog(wins["cat"],       catalog)
-            draw_plan(wins["plan"],         plan)
-            draw_log_tail(wins["log"],      logs)
+            draw_orchestrator(wins["orch"],  orch)
+            draw_weather(wins["wx"],         weather)
+            draw_fleet(wins["fleet"],        fleet)
+            draw_catalog(wins["cat"],        catalog)
+            draw_plan(wins["plan"],          plan)
+            draw_log_tail(wins["log"],       logs)
         except curses.error:
             pass
 
-        # Atomic paint — all windows to screen in one shot, no flicker
         stdscr.noutrefresh()
         for w in wins.values():
             try:
