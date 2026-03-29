@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/orchestrator.py
-Version: 1.6.1  # SeeVar-v1.6.1-header
-Objective: Full pipeline state machine wired to the TCP Diamond Sequence. M4: DarkLibrary wired into post-session flow.
-           v1.6.1: Weather veto wired into _run_idle — RAIN/FOGGY/CLOUDY/WINDY abort before PREFLIGHT.
+Version: 1.7.0
+Objective: Full pipeline state machine wired to the TCP Diamond Sequence via the SovereignFSM. 
+           M4: DarkLibrary wired into post-session flow.
+           v1.7.0: Integrated SovereignFSM to handle direct hardware execution and state transitions.
 """
 
 import json
@@ -24,13 +25,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config
-from core.flight.pilot import DiamondSequence, AcquisitionTarget, SEESTAR_HOST, GAIN
+from core.flight.pilot import DiamondSequence, AcquisitionTarget, SEESTAR_HOST, GAIN, TelemetryBlock, FrameResult
 from core.flight.exposure_planner import plan_exposure
 from core.flight.dark_library import DarkLibrary
 from core.flight.neutralizer import enforce_zero_state
 from core.preflight.vsx_catalog import get_target_mag
-from core.flight.pilot import FrameResult, write_fits, sovereign_stamp
-import core.ledger_manager as ledger_manager  # SeeVar-ledger-import
+from core.flight.pilot import write_fits, sovereign_stamp
+from core.flight.fsm import SovereignFSM
+import core.ledger_manager as ledger_manager
 
 LOG_DIR = PROJECT_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -44,7 +46,7 @@ logging.basicConfig(
         logging.FileHandler(LOG_DIR / "orchestrator.log", mode="a"),
     ],
 )
-log = logging.getLogger("Orchestrator")
+log = logging.getLogger("seevar.orchestrator")
 
 PLAN_FILE    = DATA_DIR / "tonights_plan.json"
 STATE_FILE   = DATA_DIR / "system_state.json"
@@ -62,63 +64,25 @@ class PipelineState:
     )
 
 class MockDiamondSequence:
-    """Mock hardware sequence for the Full Mission Simulator with 12-step telemetry."""
-    def init_session(self, level_ok: bool = True):  # SeeVar-mock-init-session-v2
-        """Return a synthetic healthy TelemetryBlock for simulation."""
-        from core.flight.pilot import TelemetryBlock
-        import time
+    """Mock hardware sequence for the Full Mission Simulator."""
+    def init_session(self, level_ok: bool = True) -> TelemetryBlock:
         t = TelemetryBlock(
             battery_pct=95, temp_c=22.5, charge_online=False,
             charger_status="Discharging", device_name="S30-Sim", firmware_ver=100,
         )
         t.level_ok = level_ok
-        log.info("[S1] SIM iscope_stop_view — clear session")
-        log.info("[S2] SIM set_user_location — GPS lat=52.3874 lon=4.6462")
-        log.info("[S3] SIM set_control_value — gain=80")
-        log.info(f"[S4] SIM get_device_state — bat=95% temp=22.5°C fw=100")  # SeeVar-pct-fix
-        log.info("[S5] SIM scope_get_track_state — tracking=False (parked)")
-        log.info("[S6] SIM scope_set_track_state [true] — unpark + tracking engaged")  # SeeVar-mock-s5-s7
-        log.info("[S7] SIM scope_get_ra_dec — mount position confirmed")
+        log.info("[SIM] init_session — mock telemetry generated")
         return t
 
-    def acquire(self, target: AcquisitionTarget, status_cb=None) -> FrameResult:  # SeeVar-mock-status-cb
+    def acquire(self, target: AcquisitionTarget, status_cb=None, telemetry: Optional[TelemetryBlock] = None) -> FrameResult:
         def step(tag, msg):
             log.info(f"  [{tag}] SIM {msg}")
-            if status_cb:
-                status_cb(f"[{tag}] {msg}")
+            if status_cb: status_cb(f"[{tag}] {msg}")
 
-        # T1 — set exposure time
-        step("T1", f"set_setting exp_ms={target.exp_ms} for {target.name}")
-        time.sleep(0.3)
-
-        # T2 — slew to target + settle
-        step("T2", f"scope_goto RA={target.ra_hours:.4f}h DEC={target.dec_deg:.4f}°")
-        time.sleep(0.3)
-        step("T2", f"settling 8s...")
-        time.sleep(0.5)
-
-        # T3 — autofocus (firmware typo preserved)
-        step("T3", "start_auto_focuse")
-        time.sleep(0.3)
-
-        # T4 — open frame stream
-        step("T4", "iscope_start_view mode=star — waiting 2s for first frame")
-        time.sleep(0.3)
-
-        # T5 — receive science frame (60s real exposure simulated)
-        step("T5", f"port 4801 — waiting for frame_id=21 ({target.exp_ms}ms exposure)...")
-        time.sleep(60.0)
-        step("T5", "frame_id=21 received — payload validated 3840x2160x2 bytes")
-
-        # T6 — close stream + health check
-        step("T6", "iscope_stop_view")
-        step("T6", "get_device_state — bat=95% temp=22.5°C — SAFE")
-        time.sleep(0.3)
-
-        # T7 — write FITS
-        step("T7", f"write_fits — AUID={target.auid} sovereign_stamp → RAID1")
+        step("T1", f"Simulating {target.exp_ms}ms exposure for {target.name}")
+        time.sleep(2.0)
         
-        # Generate a valid mock FITS frame with a "star" in the middle for the Accountant
+        # Generate a valid mock FITS frame with a "star" in the middle
         width, height = 2160, 3840
         array = np.random.normal(100, 10, (height, width)).astype(np.uint16)
         cy, cx = height // 2, width // 2
@@ -135,8 +99,8 @@ class MockDiamondSequence:
         header = sovereign_stamp(target, utc_obs, width, height)
         write_fits(array, header, out_path)
         
+        step("T7", f"write_fits — SIM payload saved to {out_path}")
         return FrameResult(success=True, path=out_path, width=width, height=height, elapsed_s=4.0)
-
 
 class Orchestrator:
     SUN_LIMIT_DEG    = -18.0 
@@ -162,25 +126,27 @@ class Orchestrator:
         self._state          = PipelineState.IDLE
         self._targets        = []
         self._flight_log     = []
-        self._current_target = None  # SeeVar-current-target
+        self._current_target = None
         self._session_stats = {
             "targets_attempted": 0, "targets_completed": 0, "exposures_total": 0,
         }
         
-        self._dark_library       = DarkLibrary(host=SEESTAR_HOST)  # SeeVar-dedup-darklibrary
+        self._dark_library       = DarkLibrary(host=SEESTAR_HOST)
         self._tonights_sequences = set()  # (exp_ms, gain) pairs acquired tonight
-        self._last_telemetry     = None    # updated by init_session in preflight
+        self._last_telemetry     = None   
+        
         self.simulation_mode = "--simulate" in sys.argv
+        
+        # Initialize FSM
+        self.fsm = SovereignFSM()
+        
         if self.simulation_mode:
-            self.diamond = MockDiamondSequence()
+            self.fsm.sequence = MockDiamondSequence()
             self.LOOP_SLEEP_SEC = 0  
             log.info("🚀 SIMULATION MODE ENGAGED - Hardware checks disabled.")
-        else:
-            self.diamond = DiamondSequence(host=SEESTAR_HOST)
-        self._last_telemetry = None  # updated by init_session in _run_preflight
 
     def run(self):
-        log.info("🔭 Orchestrator starting — SeeVar Federation v2.0.0 (Telemetry-Aware)")
+        log.info("🔭 Orchestrator starting — SeeVar Federation v2.0.0 (FSM-Governed)")
         self._write_state(sub="Daemon starting", msg="Federation online.")
         while True:
             try: 
@@ -206,12 +172,7 @@ class Orchestrator:
         elif self._state == PipelineState.ABORTED: self._run_aborted()
 
     def _check_weather_veto(self) -> tuple[bool, str]:
-        """
-        Read weather_state.json and return (go, reason).
-        Hard abort: RAIN, FOGGY, CLOUDY, WINDY.
-        Warnings only (session proceeds): HAZY, HUMID, CLEAR.
-        Fails open if weather_state.json is missing or stale.
-        """
+        """Read weather_state.json and return (go, reason)."""
         HARD_ABORT = {"RAIN", "FOGGY", "CLOUDY", "WINDY"}
         try:
             if not WEATHER_FILE.exists():
@@ -225,7 +186,6 @@ class Orchestrator:
             icon   = w.get("icon",   "")
             age_s  = time.time() - w.get("last_update", 0)
 
-            # Warn if weather data is older than 6 hours
             if age_s > 21600:
                 log.warning("Weather data is %.0fh old — proceeding with caution", age_s / 3600)
 
@@ -238,8 +198,7 @@ class Orchestrator:
                 )
                 return False, reason
 
-            log.info("Weather GO: %s %s (age: %.0fmin)",
-                     status, icon, age_s / 60)
+            log.info("Weather GO: %s %s (age: %.0fmin)", status, icon, age_s / 60)
             return True, status
 
         except Exception as e:
@@ -252,48 +211,38 @@ class Orchestrator:
         self._write_state(sub="Standing by", msg=msg)
         
         if self.simulation_mode or sun_alt < self.SUN_LIMIT_DEG:
-            # Weather veto — check before committing to PREFLIGHT
             if not self.simulation_mode:
                 go, reason = self._check_weather_veto()
                 if not go:
                     self._write_state(sub="Weather Hold", msg=reason)
                     log.warning("🌧️ %s", reason)
-                    time.sleep(self.LOOP_SLEEP_SEC * 4)  # wait 4 ticks before re-checking
+                    time.sleep(self.LOOP_SLEEP_SEC * 4)  
                     return
-            self._transition(PipelineState.PREFLIGHT,
-                             msg="Night sky confirmed (or forced by Simulation).")
+            self._transition(PipelineState.PREFLIGHT, msg="Night sky confirmed (or forced by Simulation).")
         else:
             time.sleep(self.LOOP_SLEEP_SEC)
 
     def _run_preflight(self):
         self._log_flight("🛫 PREFLIGHT sequence initiated.")
         
-        if self.simulation_mode:  # SeeVar-preflight-sim-init-session
-            self._log_flight("[SIM] init_session — executing S1-S4 against MockDiamondSequence")
-            self._last_telemetry = self.diamond.init_session(level_ok=True)
-            self._log_flight(f"[SIM] Telemetry: {self._last_telemetry.summary()}")
-            if not self._last_telemetry.is_safe():
-                reason = self._last_telemetry.veto_reason()
-                self._log_flight(f"🛑 VETO at preflight: {reason}")
-                self._transition(PipelineState.ABORTED, msg=f"Preflight veto: {reason}")
-                return
-        else:
+        if not self.simulation_mode:
             self._log_flight("[B1] enforce_zero_state...")
             zero = enforce_zero_state()
             if not zero:
                 self._log_flight("[B1] ❌ zero-state failed — aborting")
-                self._transition(PipelineState.ABORTED,
-                    msg="Hardware zero-state not secured")
+                self._transition(PipelineState.ABORTED, msg="Hardware zero-state not secured")
                 return
             self._log_flight("[B1] ✅ zero-state secured")
-            self._log_flight("[S1-S4] init_session...")
-            self._last_telemetry = self.diamond.init_session(level_ok=True)
-            self._log_flight(f"  Telemetry: {self._last_telemetry.summary()}")
-            if not self._last_telemetry.is_safe():
-                reason = self._last_telemetry.veto_reason()
-                self._log_flight(f"🛑 VETO at preflight: {reason}")
-                self._transition(PipelineState.ABORTED, msg=f"Preflight veto: {reason}")
-                return
+
+        # Perform one initial hardware check to populate _last_telemetry for the UI
+        self._log_flight("Validating hardware baseline via FSM...")
+        self._last_telemetry = self.fsm.sequence.init_session(level_ok=True)
+        
+        if not self._last_telemetry.is_safe():
+            reason = self._last_telemetry.veto_reason()
+            self._log_flight(f"🛑 VETO at preflight: {reason}")
+            self._transition(PipelineState.ABORTED, msg=f"Preflight veto: {reason}")
+            return
 
         self._transition(PipelineState.PLANNING, msg="Preflight complete.")
 
@@ -310,7 +259,6 @@ class Orchestrator:
 
         for target in mission:
             try:
-                # SeeVar-planning-ra-fix-v2: RA in plan is decimal degrees
                 coord = SkyCoord(
                     ra=float(target.get("ra")) * u.deg,
                     dec=float(target.get("dec")) * u.deg
@@ -329,9 +277,8 @@ class Orchestrator:
             return
 
         scored.sort(key=lambda t: t["_score"], reverse=True)
-
-        # Cadence filter — ledger_manager removes targets observed too recently
         scored = ledger_manager.filter_by_cadence(scored)
+        
         if not scored:
             self._transition(PipelineState.ABORTED, msg="No targets due tonight by cadence.")
             return
@@ -350,13 +297,21 @@ class Orchestrator:
         ra_str  = target.get("ra")
         dec_str = target.get("dec")
 
-        # ra/dec in tonights_plan.json are decimal degrees — convert directly
         ra_deg_val  = float(ra_str)  if isinstance(ra_str,  (int, float)) else float(SkyCoord(ra=ra_str,  dec=dec_str, unit=(u.hourangle, u.deg)).ra.hour * 15)
         dec_deg_val = float(dec_str) if isinstance(dec_str, (int, float)) else float(SkyCoord(ra=ra_str,  dec=dec_str, unit=(u.hourangle, u.deg)).dec.deg)
         ra_hours_val = ra_deg_val / 15.0
+        
+        # Determine exposure parameters
+        try:
+            exp_plan = plan_exposure(get_target_mag(name), sky_bortle=self._sky_bortle())
+            exp_ms = exp_plan.exp_ms
+        except Exception:
+            exp_ms = 5000 # Default fallback
+            
         acq_target = AcquisitionTarget(
             name=name, ra_hours=ra_hours_val, dec_deg=dec_deg_val,
-            auid=target.get("auid", ""), exp_ms=plan_exposure(get_target_mag(name), sky_bortle=self._sky_bortle()).exp_ms, observer_code=self._obs["observer_id"]
+            auid=target.get("auid", ""), exp_ms=exp_ms, 
+            observer_code=self._obs["observer_id"], n_frames=1
         )
 
         self._session_stats["targets_attempted"] += 1
@@ -370,50 +325,52 @@ class Orchestrator:
             "period_days": target.get("period_days"),
             "auid":        target.get("auid", ""),
         }
-        self._write_state(state="SLEWING", sub=name, msg=f"Diamond Sequence executing: {name}")
-        self._log_flight(f"[T1-T2] {name} RA={acq_target.ra_hours:.2f}h")
+        
+        self._write_state(state="SLEWING", sub=name, msg=f"FSM Handing over: {name}")
+        self._log_flight(f"Executing target via FSM: {name} RA={acq_target.ra_hours:.2f}h")
 
         ledger_manager.record_attempt(name)
 
-        def _status_cb(msg):  # SeeVar-flight-status-cb
-            self._write_state(state="FLIGHT", sub=name, msg=msg)
+        # Handoff to the Finite State Machine
+        success = self.fsm.execute_target(acq_target)
 
-        result = self.diamond.acquire(acq_target, status_cb=_status_cb)
+        # Update telemetry context from the FSM for UI display
+        if self.fsm.telemetry:
+            self._last_telemetry = self.fsm.telemetry
 
-        if result.success:
+        if success:
             self._session_stats["targets_completed"] += 1
-            ledger_manager.record_success(name, fits_path=str(result.path or ""))
-            self._log_flight(f"[T7] ✅ {name} {result.elapsed_s:.1f}s")
+            # In a multi-frame scenario, the ledger manager might need updating to handle multiple paths.
+            # Assuming success means at least one frame was captured.
+            ledger_manager.record_success(name, fits_path="LOCAL_BUFFER") 
+            self._log_flight(f"✅ FSM Sequence complete for {name}")
             self._write_state(state="TRACKING", sub=name, msg=f"Observation complete.")
             self._tonights_sequences.add((acq_target.exp_ms, GAIN))
         else:
-            self._log_flight(f"[ERR] ❌ {name}: {result.error[:40]}")
+            self._log_flight(f"❌ FSM Sequence failed for {name}")
+            # If the FSM transitions to ERROR, we can abort the entire flight or continue.
+            # Currently continuing to the next target.
 
     def _run_postflight(self):
         self._log_flight("📊 Flight operations concluded.")
         if self._tonights_sequences and not self.simulation_mode:
             seqs = sorted(self._tonights_sequences)
-            self._log_flight(
-                f"🌑 Acquiring darks for {len(seqs)} sequence(s): {seqs}"
-            )
-            self._write_state(
-                state="POSTFLIGHT", sub="dark_acquisition",
-                msg=f"Acquiring darks: {seqs}"
-            )
+            self._log_flight(f"🌑 Acquiring darks for {len(seqs)} sequence(s): {seqs}")
+            self._write_state(state="POSTFLIGHT", sub="dark_acquisition", msg=f"Acquiring darks: {seqs}")
+            
             dark_results = self._dark_library.acquire_darks(
                 sequences=seqs,
                 telemetry=getattr(self, "_last_telemetry", None),
             )
             for key, res in dark_results.items():
-                self._log_flight(
-                    f"  dark {key}: {res['status']} ({res['n_frames']} frames)"
-                )
+                self._log_flight(f"  dark {key}: {res['status']} ({res['n_frames']} frames)")
         else:
             if self.simulation_mode:
                 self._log_flight("  [simulation] dark acquisition skipped")
             else:
                 self._log_flight("  no sequences recorded — dark acquisition skipped")
-        self._log_flight("Handing over to Accountant.")  # SeeVar-accountant-wired
+                
+        self._log_flight("Handing over to Accountant.") 
         if not self.simulation_mode:
             try:
                 from core.postflight.accountant import process_buffer
@@ -423,6 +380,7 @@ class Orchestrator:
                 self._log_flight(f"⚠️ Accountant error: {e}")
         else:
             self._log_flight("  [simulation] accountant skipped")
+            
         self._transition(PipelineState.PARKED, msg="Mission Complete.")
 
     def _run_parked(self):
@@ -446,65 +404,3 @@ class Orchestrator:
 
     def _transition(self, new_state: str, sub: str = "", msg: str = ""):
         log.info("STATE: %s → %s", self._state, new_state)
-        self._state = new_state
-        self._write_state(state=new_state, sub=sub, msg=msg)
-
-    def _write_state(self, state: str = None, sub: str = "", msg: str = "", **kwargs):
-        # Build telemetry block from last known hardware state
-        tel = {}
-        t = getattr(self, "_last_telemetry", None)
-        if t and not t.parse_error:
-            tel = {
-                "battery_pct":    t.battery_pct,
-                "temp_c":         t.temp_c,
-                "charger_status": t.charger_status,
-                "charge_online":  t.charge_online,
-            }
-        # Link status — ONLINE if telemetry parsed successfully, else WAITING
-        link_status = "ONLINE" if (t and not t.parse_error) else "WAITING"
-
-        payload = {
-            "state":          state or self._state,
-            "sub":            sub,
-            "msg":            msg,
-            "timestamp":      datetime.now(timezone.utc).isoformat(),
-            "flight_log":     list(self._flight_log),
-            "telemetry":      tel,
-            "link_status":    link_status,
-            "current_target": getattr(self, "_current_target", None),
-        }
-        try:
-            STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            with open(STATE_FILE, 'w') as f: json.dump(payload, f, indent=2)
-        except OSError: pass
-
-    def _write_plan(self, targets: list):
-        try:
-            with open(PLAN_FILE, 'w') as f: json.dump(targets, f, indent=2, default=str)
-        except OSError: pass
-
-    def _log_flight(self, line: str):
-        log.info(line)
-        self._flight_log.append(line)
-        if len(self._flight_log) > 5: self._flight_log.pop(0)
-
-    def _sky_bortle(self) -> int:
-        """Return Bortle class from config, default 7 (Haarlem)."""
-        cfg = load_config()
-        return int(cfg.get("location", {}).get("bortle", 7))
-
-
-def _safe_load_json(path: Path, default):
-    if path.exists():
-        try:
-            with open(path, 'r') as f: return json.load(f)
-        except Exception: pass
-    return default
-
-# SeeVar-v5-M4-orchestrator
-# SeeVar-v5-M5-orchestrator
-# SeeVar-v5-M6-orchestrator
-if __name__ == "__main__":
-    Orchestrator().run()
-# SeeVar-v5-M6-patch04
-# SeeVar-sim-ra-fix

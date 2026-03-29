@@ -1,89 +1,79 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: ~/seevar/dev/tools/rpc_client.py
-Version: 2.0.0
+Filename: dev/tools/rpc_client.py
+Version: 2.0.1
 Objective: Interactive JSON-RPC client for Seestar port 4700 using pre-built sovereign payloads.
 """
+
 import socket
 import json
-import os
 import sys
+from pathlib import Path
+import tomllib
 
-def load_target_ip():
-    config_path = os.path.expanduser("~/seevar/config.toml")
-    try:
-        import tomllib
-        with open(config_path, "rb") as f:
-            return tomllib.load(f).get("seestar", {}).get("ip_address", "10.0.0.1")
-    except ImportError:
-        import tomli
-        with open(config_path, "rb") as f:
-            return tomli.load(f).get("seestar", {}).get("ip_address", "10.0.0.1")
-    except Exception as e:
-        print(f"Error reading config.toml: {e}")
+def get_telescope_ip():
+    config_path = Path.home() / "seevar" / "config.toml"
+    if not config_path.exists():
+        print(f"Error: Could not find {config_path}")
         sys.exit(1)
-
-def load_payloads():
-    payloads_path = os.path.expanduser("~/seevar/data/sovereign_payloads.json")
-    try:
-        with open(payloads_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading payloads: {e}\nPlease run sovereign_payload_builder.py first.")
-        sys.exit(1)
-
-def send_command(ip, payload):
-    port = 4700
-    print(f"\n[>] Sending to {ip}:{port}:\n{json.dumps(payload, indent=2)}")
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(5.0)
-            s.connect((ip, port))
-            s.sendall(json.dumps(payload).encode('utf-8'))
-            
-            response = s.recv(4096)
-            print("[<] Response:")
-            print(json.dumps(json.loads(response.decode('utf-8')), indent=2))
-    except Exception as e:
-        print(f"[!] Connection failed: {e}")
-
-def main():
-    ip = load_target_ip()
-    categories = load_payloads()
     
-    # Flatten the payload dictionary for the interactive menu
-    flat_payloads = []
-    for cat, methods in categories.items():
-        for method_name, payload in methods.items():
-            flat_payloads.append((cat, method_name, payload))
-            
-    while True:
-        print("\n--- Seestar Sovereign RPC Client ---")
-        print(f"Target IP: {ip}")
-        print("0. Exit")
-        print("1. Custom Handshake (pi_is_verified)")
+    with open(config_path, "rb") as f:
+        config = tomllib.load(f)
         
-        for idx, (cat, method, _) in enumerate(flat_payloads, start=2):
-            print(f"{idx}. [{cat}] {method}")
+    try:
+        return config["seestars"][0]["ip"]
+    except (KeyError, IndexError):
+        print("Error: Could not parse [[seestars]] ip from config.toml")
+        sys.exit(1)
+
+class SeestarRPCClient:
+    def __init__(self, host, port=4700):
+        self.host = host
+        self.port = port
+        self.msg_id = 10000
+
+    def _send(self, method, params=None):
+        payload = {
+            "id": self.msg_id,
+            "method": method
+        }
+        if params is not None:
+            payload["params"] = params
             
-        choice = input("\nSelect a command to send: ")
+        self.msg_id += 1
+        wire = (json.dumps(payload) + "\r\n").encode("utf-8")
         
-        if choice == '0':
-            print("Exiting.")
-            break
-        elif choice == '1':
-            send_command(ip, {"id": 0, "method": "pi_is_verified", "jsonrpc": "2.0"})
-        else:
-            try:
-                idx = int(choice) - 2
-                if 0 <= idx < len(flat_payloads):
-                    _, _, payload = flat_payloads[idx]
-                    send_command(ip, payload)
-                else:
-                    print("Invalid selection.")
-            except ValueError:
-                print("Please enter a valid number.")
+        try:
+            with socket.create_connection((self.host, self.port), timeout=5) as sock:
+                sock.sendall(wire)
+                response = sock.recv(4096)
+                if not response:
+                    return {"error": "Empty response from device"}
+                return json.loads(response.decode("utf-8"))
+        except Exception as e:
+            return {"error": str(e)}
+
+    def check_health(self):
+        """Method: get_device_state"""
+        return self._send("get_device_state")
+
+    def stop_all(self):
+        """Method: iscope_stop_view"""
+        return self._send("iscope_stop_view")
+
+    def goto(self, ra, dec):
+        """Method: scope_goto [ra_hours, dec_deg]"""
+        return self._send("scope_goto", [ra, dec])
+
+    def autofocus(self):
+        """Method: start_auto_focuse (Note firmware typo)"""
+        return self._send("start_auto_focuse")
 
 if __name__ == "__main__":
-    main()
+    telescope_ip = get_telescope_ip()
+    client = SeestarRPCClient(telescope_ip)
+    
+    print(f"--- Probing Seestar at {telescope_ip} ---")
+    state = client.check_health()
+    print(json.dumps(state, indent=2))

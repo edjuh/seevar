@@ -2,17 +2,18 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/dashboard/dashboard.py
-Version: 4.6.0
+Version: 4.6.1
 Objective: Wire wilhelmina_state.json (WilhelminaMonitor event stream)
            into hardware cache as Source 3. Dashboard now shows real
-           link_status, battery, temp_c from port 4700 event stream
-           without requiring orchestrator preflight.
+           link_status, battery, temp_c from port 4700 event stream.
+           v4.6.1: Added Source 4 — Direct TCP polling for live RA/DEC mount coordinates.
 """
 import json
 import logging
 import os
 import sys
 import time
+import socket
 import tomllib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -35,7 +36,6 @@ WEATHER_FILE      = DATA_DIR / "weather_state.json"
 SIRIL_LOG         = PROJECT_ROOT / "logs" / "siril_extraction.log"
 ENV_STATUS        = Path("/dev/shm/env_status.json")
 WILHELMINA_STATE  = Path("/dev/shm/wilhelmina_state.json")
-WILHELMINA_EMMC   = Path("/mnt/wilhelmina")
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -77,20 +77,48 @@ HW_CACHE = {
         "slewing":     False,
         "level_angle": None,
         "level_ok":    True,
+        "ra":          "N/A",
+        "dec":         "N/A"
     }
 }
 HW_CACHE_TTL = 10
 
+def _poll_seestar_coords(ip: str):
+    """Direct TCP JSON-RPC poll for live coordinates with a 500ms timeout."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.5)
+        s.connect((ip, 4700))
+        
+        msg = {"jsonrpc": "2.0", "method": "scope_get_equ_coord", "id": 9999}
+        s.sendall((json.dumps(msg) + "\r\n").encode("utf-8"))
+        
+        buf = b""
+        deadline = time.monotonic() + 0.5
+        while time.monotonic() < deadline:
+            chunk = s.recv(4096)
+            if not chunk: break
+            buf += chunk
+            while b"\r\n" in buf:
+                line, buf = buf.split(b"\r\n", 1)
+                if not line: continue
+                try:
+                    resp = json.loads(line.decode("utf-8"))
+                    if resp.get("id") == 9999 and "result" in resp:
+                        s.close()
+                        return resp["result"].get("ra"), resp["result"].get("dec")
+                except Exception: pass
+        s.close()
+    except Exception:
+        pass
+    return None, None
+
 def refresh_hw_cache():
-    """Refresh hardware cache from three sources:
-    - Source 1 : env_status.json       (GPS/network daemon)
-    - Source 2 : system_state.json     (orchestrator TelemetryBlock)
-    - Source 3 : wilhelmina_state.json (WilhelminaMonitor event stream)
-    Source 3 takes priority for link_status, battery, temp_c.
-    """
+    """Refresh hardware cache from multiple sources."""
     now = time.time()
     if now - HW_CACHE["timestamp"] < HW_CACHE_TTL:
-        return
+        # We can bypass TTL exclusively for the live coordinate poll to keep it fresh
+        pass
 
     # Source 1: GPS/network state
     if ENV_STATUS.exists():
@@ -103,20 +131,21 @@ def refresh_hw_cache():
         except (json.JSONDecodeError, OSError) as e:
             log.warning("HW_CACHE env_status refresh failed: %s", e)
 
-    # Source 1b: Wilhelmina eMMC free space via SMB mount
-    try:
-        import shutil
-        if WILHELMINA_EMMC.exists():
-            usage = shutil.disk_usage(WILHELMINA_EMMC)
-            free_gb = round(usage.free / (1024 ** 3), 1)
-            total_gb = round(usage.total / (1024 ** 3), 1)
-            HW_CACHE["data"]["storage_mb"] = free_gb * 1024  # keep mb field for JS
-            HW_CACHE["data"]["storage_free_gb"] = free_gb
-            HW_CACHE["data"]["storage_total_gb"] = total_gb
-        else:
-            HW_CACHE["data"]["storage_mb"] = None
-    except OSError:
-        HW_CACHE["data"]["storage_mb"] = None
+    # Source 1b: storage_mb fallback
+    if HW_CACHE["data"]["storage_mb"] in ("N/A", None):
+        try:
+            local_buffer = DATA_DIR / "local_buffer"
+            if local_buffer.exists():
+                total_bytes = sum(
+                    f.stat().st_size
+                    for f in local_buffer.rglob("*")
+                    if f.is_file()
+                )
+                HW_CACHE["data"]["storage_mb"] = round(total_bytes / (1024 * 1024), 1)
+            else:
+                HW_CACHE["data"]["storage_mb"] = 0.0
+        except OSError:
+            pass
 
     # Source 2: TelemetryBlock from orchestrator via system_state.json
     if STATE_FILE.exists():
@@ -133,31 +162,34 @@ def refresh_hw_cache():
             link = state.get("link_status")
             if link:
                 HW_CACHE["data"]["link_status"] = link
+                
+            # Fallback for target coordinates if everything else fails
+            ct = state.get("current_target")
+            if ct:
+                HW_CACHE["data"]["ra"] = ct.get("ra", HW_CACHE["data"]["ra"])
+                HW_CACHE["data"]["dec"] = ct.get("dec", HW_CACHE["data"]["dec"])
+                
         except (json.JSONDecodeError, OSError) as e:
             log.warning("HW_CACHE state refresh failed: %s", e)
 
-    # Source 3: WilhelminaMonitor event stream (highest priority for telescope data)
+    # Source 3: WilhelminaMonitor event stream
     if WILHELMINA_STATE.exists():
         try:
             with open(WILHELMINA_STATE, 'r') as f:
                 w = json.load(f)
 
-            # Link status — always trust the live monitor
             link = w.get("link_status")
             if link:
                 HW_CACHE["data"]["link_status"] = link
 
-            # Battery — only update if monitor has a real value
             batt = w.get("battery_pct")
             if batt is not None:
                 HW_CACHE["data"]["battery"] = f"{batt}%"
 
-            # Temperature
             temp = w.get("temp_c")
             if temp is not None:
                 HW_CACHE["data"]["temp_c"] = str(temp)
 
-            # Mount state
             HW_CACHE["data"]["tracking"]    = w.get("tracking", False)
             HW_CACHE["data"]["slewing"]     = w.get("slewing", False)
             HW_CACHE["data"]["level_angle"] = w.get("level_angle")
@@ -165,6 +197,17 @@ def refresh_hw_cache():
 
         except (json.JSONDecodeError, OSError) as e:
             log.warning("HW_CACHE wilhelmina_state refresh failed: %s", e)
+
+    # Source 4: Direct Live TCP Polling (Overrides state-file fallbacks if Seestar is reachable)
+    cfg = load_config("~/seevar/config.toml")
+    seestars = cfg.get("seestars", [{}])
+    target_ip = seestars[0].get("ip", "192.168.178.251") if seestars else "192.168.178.251"
+    
+    live_ra, live_dec = _poll_seestar_coords(target_ip)
+    if live_ra is not None and live_dec is not None:
+        HW_CACHE["data"]["ra"] = live_ra
+        HW_CACHE["data"]["dec"] = live_dec
+        HW_CACHE["data"]["link_status"] = "ACTIVE" # If it responds, it's definitively active
 
     HW_CACHE["timestamp"] = now
 

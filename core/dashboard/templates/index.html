@@ -133,6 +133,7 @@
             
             <div class="row"><span class="label">BATTERY</span> <span id="bb-batt" class="val stat-val">--%</span></div>
             <div class="row"><span class="label">STORAGE</span> <span id="bb-store" class="val stat-val">-- MB</span></div>
+            <div class="row"><span class="label">MOUNT POS</span> <span id="bb-mount" class="val stat-val">--</span></div>
             
             <div class="target-card">
                 <div class="row" style="padding-bottom: 5px;">
@@ -259,16 +260,18 @@
                     if(data.gps_status) {
                         const gpsLed = document.getElementById('gps-led');
                         const gpsVal = document.getElementById('gps-val');
-                        const locked = ['3D', 'FIX', 'LOCK', '3D_FIX'].some(s => data.gps_status.includes(s));
-                        if(locked) {
-                            gpsLed.className = 'led green';
-                            gpsVal.innerText = '3D LOCK';
-                        } else if(data.gps_status === 'NO-GPS-LOCK' || data.gps_status === 'NO-DATA') {
-                            gpsLed.className = 'led orange';
-                            gpsVal.innerText = 'ACQUIRING';
-                        } else {
-                            gpsLed.className = 'led grey';
-                            gpsVal.innerText = data.gps_status;
+                        if(gpsLed && gpsVal) {
+                            const locked = ['3D','FIX','LOCK','FIXED'].some(s => data.gps_status.includes(s));
+                            if(locked) {
+                                gpsLed.className = 'led green';
+                                gpsVal.innerText = '3D LOCK';
+                            } else if(data.gps_status === 'NO-GPS-LOCK' || data.gps_status === 'NO-DATA') {
+                                gpsLed.className = 'led orange';
+                                gpsVal.innerText = 'ACQUIRING';
+                            } else {
+                                gpsLed.className = 'led grey';
+                                gpsVal.innerText = data.gps_status;
+                            }
                         }
                     }
 
@@ -351,9 +354,11 @@
                         const linkLed = document.getElementById('tel-link-led');
                         const battTxt = document.getElementById('bb-batt');
                         const storeTxt = document.getElementById('bb-store');
+                        const mountTxt = document.getElementById('bb-mount');
 
                         if(["ACTIVE","ONLINE"].includes(data.hardware.link_status)) {
-                            const statusLabels = {"ACTIVE": "NATIVE COMMS UP", "ONLINE": "ONLINE", "CONNECTING": "CONNECTING..."}; linkVal.innerText = statusLabels[data.hardware.link_status] || data.hardware.link_status;
+                            const statusLabels = {"ACTIVE": "NATIVE COMMS UP", "ONLINE": "ONLINE", "CONNECTING": "CONNECTING..."};
+                            linkVal.innerText = statusLabels[data.hardware.link_status] || data.hardware.link_status;
                             linkLed.className = "led green";
                         } else {
                             linkVal.innerText = "NO SIGNAL";
@@ -361,7 +366,7 @@
                         }
 
                         const batt = data.hardware.battery;
-                        if (batt !== "N/A") {
+                        if (batt !== "N/A" && batt !== undefined) {
                             battTxt.innerText = batt + "%";
                             if (parseInt(batt) > 30) battTxt.className = "val stat-val";
                             else if (parseInt(batt) > 15) battTxt.className = "val stat-val batt-warn";
@@ -376,6 +381,15 @@
                             storeTxt.innerText = data.hardware.storage_free_gb.toFixed(1) + ' GB free / ' + (data.hardware.storage_total_gb || '?') + ' GB';
                         } else {
                             storeTxt.innerText = isNaN(rawMb) ? '-- MB' : rawMb >= 1000 ? (rawMb / 1024).toFixed(1) + ' GB' : rawMb + ' MB';
+                        }
+                        
+                        // New Live Mount Coordinate handling
+                        if (data.hardware.ra !== undefined && data.hardware.dec !== undefined && data.hardware.ra !== "N/A") {
+                            const ra = parseFloat(data.hardware.ra).toFixed(3);
+                            const dec = parseFloat(data.hardware.dec).toFixed(3);
+                            mountTxt.innerText = `${ra}h, ${dec}°`;
+                        } else {
+                            mountTxt.innerText = "--";
                         }
                     }
 

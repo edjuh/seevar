@@ -2,12 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/pilot.py
-Version: 1.7.0
-Objective: Direct TCP control of ZWO S30-Pro for AAVSO-compliant Sovereign RAW
-           acquisition. Dynamically routes network IP from config.
-           v1.7.0: ControlSocket hardened — send() returns Tuple[bool, int],
-           recv_response() is ID-matched and drops unsolicited Event telemetry,
-           eliminating stray PiStatus/ViewState race conditions on port 4700.
+Version: 1.7.1
+Objective: Direct TCP control of ZWO S30-Pro for AAVSO-compliant Sovereign RAW acquisition. Dynamically routes network IP from config.
 """
 
 import json
@@ -16,6 +12,7 @@ import socket
 import struct
 import time
 import math
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -66,7 +63,7 @@ APERTURE        = 30            # mm
 PIXSCALE        = 3.74          # arcsec/pixel
 RDNOISE         = 1.6           # IMX585 read noise estimate (e-)
 PEDESTAL        = 0             # No pedestal applied
-SWCREATE        = "SeeVar v1.7.0"
+SWCREATE        = "SeeVar v1.7.1"
 
 SETTLE_SECONDS  = 8             # Post-slew settle — FIRST LIGHT: replace with
                                 # wait_for_event() once event names confirmed
@@ -191,6 +188,11 @@ class ControlSocket:
         self.host, self.port, self.timeout = host, port, timeout
         self._sock: Optional[socket.socket] = None
         self._cmdid: int = 10000
+        
+        # Concurrency protections
+        self._send_lock = threading.Lock()
+        self._stop_hb = threading.Event()
+        self._hb_thread: Optional[threading.Thread] = None
 
     def connect(self) -> bool:
         try:
@@ -198,11 +200,21 @@ class ControlSocket:
             s.settimeout(self.timeout)
             s.connect((self.host, self.port))
             self._sock = s
+            
+            # Ignite Heartbeat thread
+            self._stop_hb.clear()
+            self._hb_thread = threading.Thread(target=self._heartbeat_worker, daemon=True)
+            self._hb_thread.start()
+            
             return True
         except socket.error:
             return False
 
     def disconnect(self):
+        self._stop_hb.set()
+        if self._hb_thread and self._hb_thread.is_alive():
+            self._hb_thread.join(timeout=2.0)
+            
         if self._sock:
             try: self._sock.close()
             except Exception: pass
@@ -214,6 +226,22 @@ class ControlSocket:
 
     def __exit__(self, *_):
         self.disconnect()
+        
+    def _heartbeat_worker(self):
+        """Background loop pushing get_app_state every 5 seconds to bypass idle drop."""
+        payload = json.dumps({"jsonrpc": "2.0", "method": "get_app_state", "id": 99999}) + "\r\n"
+        cmd_bytes = payload.encode("utf-8")
+
+        while not self._stop_hb.is_set():
+            try:
+                with self._send_lock:
+                    if self._sock:
+                        self._sock.sendall(cmd_bytes)
+            except Exception as e:
+                logger.debug("Heartbeat transmission failure: %s", e)
+                break
+            
+            self._stop_hb.wait(5.0)
 
     def send(self, method: str, params=None) -> Tuple[bool, int]:
         """
@@ -228,8 +256,10 @@ class ControlSocket:
         if params is not None:
             msg["params"] = params
         self._cmdid += 1
+        
         try:
-            self._sock.sendall((json.dumps(msg) + "\r\n").encode("utf-8"))
+            with self._send_lock:
+                self._sock.sendall((json.dumps(msg) + "\r\n").encode("utf-8"))
             return True, cmd_id
         except socket.error:
             return False, -1
@@ -419,7 +449,7 @@ def write_fits(array: np.ndarray, header_dict: dict, output_path: Path) -> bool:
     priority_keys = ["SIMPLE", "BITPIX", "NAXIS", "NAXIS1", "NAXIS2", "BZERO", "BSCALE"]
     records  = [card(k, header_dict[k]) for k in priority_keys if k in header_dict]
     records += [card(k, v) for k, v in header_dict.items() if k not in priority_keys]
-    records.append("COMMENT   SeeVar v1.7.0 -- BZERO Signed-Integer Protected".ljust(80))
+    records.append("COMMENT   SeeVar v1.7.1 -- BZERO Signed-Integer Protected".ljust(80))
     records.append("END".ljust(80))
 
     while (len(records) * 80) % 2880 != 0:
@@ -588,3 +618,4 @@ def _deg_to_dms(deg: float) -> str:
 
 if __name__ == "__main__":
     pass
+
