@@ -57,7 +57,7 @@ log = logging.getLogger("WilhelminaMonitor")
 
 CTRL_PORT       = 4700
 STATE_PATH      = Path("/dev/shm/wilhelmina_state.json")
-RECONNECT_DELAY = 2
+RECONNECT_DELAY = 12
 RECV_TIMEOUT    = 5.0
 SILENCE_LIMIT   = 60
 
