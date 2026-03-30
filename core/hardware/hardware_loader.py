@@ -22,7 +22,7 @@ MODELS_DIR   = PROJECT_ROOT / "core" / "hardware" / "models"
 CONFIG_PATH  = PROJECT_ROOT / "config.toml"
 
 ALPACA_DISCOVERY_PORT = 32227
-ALPACA_DISCOVERY_MSG  = b"alpacadiscovery1"
+ALPACA_DISCOVERY_MSG  = bytes.fromhex("616c70616361646973636f7665727931")
 ALPACA_CLIENT_PARAMS  = {"ClientID": 1, "ClientTransactionID": 42}
 
 
