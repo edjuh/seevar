@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-# ==============================================================================
-# 🔭 SeeVar: Sovereign Heartbeat Monitor
-# Path: dev/tools/seestar_heartbeat.py
-# Objective: Maintain persistent TCP connection to Seestar via 5-second polling
-#            Dynamically parses configuration from ~/seevar/config.toml
-# ==============================================================================
+# -*- coding: utf-8 -*-
+"""
+Filename: dev/tools/seestar_heartbeat.py
+Version: 1.0.0
+Objective: Maintain persistent TCP connection to Seestar via 5-second polling
+           Dynamically parses configuration from ~/seevar/config.toml
+"""
 
 import socket
 import json
