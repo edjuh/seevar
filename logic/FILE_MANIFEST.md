@@ -16,7 +16,7 @@
 | core/hardware/hardware_loader.py | 1.2.0 | Auto-detect Seestar hardware via Alpaca UDP discovery beacon (port 32227), fingerprint sensor via HTTP Alpaca API, load the matching hardware profile. |
 | core/hardware/ladies.txt | N/A | No objective defined. |
 | core/hardware/ssh_monitor.py | 1.1.0 | Establish an SSH connection to the Seestar SOC (ARM) to stream real-time logs for reverse-engineering port 4700 Sovereign commands. Includes an interactive menu for log selection. |
-| core/hardware/wilhelmina_monitor.py | 1.0.1 | Persistent event stream listener for ZWO Seestar port 4700. |
+| core/hardware/wilhelmina_monitor.py | 1.0.2 | Persistent event stream listener for ZWO Seestar port 4700. |
 | core/hardware/models/S30-Pro.json | JSON | Data/Configuration file. |
 | core/hardware/models/S30.json | JSON | Data/Configuration file. |
 | core/hardware/models/S50.json | JSON | Data/Configuration file. |
@@ -79,6 +79,7 @@
 | dev/tools/edfilx.mp4 | N/A | No objective defined. |
 | dev/tools/postflight_movie.py | 1.0.1 | Manim script visualizing the SeeVar Postflight pipeline: FITS ingestion, differential photometry, and AAVSO reporting. |
 | dev/tools/rpc_client.py | 2.0.1 | Interactive JSON-RPC client for Seestar port 4700 using pre-built sovereign payloads. |
+| dev/tools/seestar_active_poll.py | 1.3.0 | Actively poll the Seestar Sovereign telemetry by first breaking the session lock (S1). |
 | dev/tools/seestar_heartbeat.py | N/A | Maintain persistent TCP connection to Seestar via 5-second polling |
 | dev/tools/seestar_telemetry_poll.py | 1.0.0 | Standalone diagnostic tool to poll real-time JSON-RPC 2.0 telemetry and status data directly from the Seestar on port 4700. |
 | dev/tools/seestar_telemetry_top.py | 1.0.0 | Live, continuous CLI dashboard (like 'top') for Seestar Sovereign telemetry via JSON-RPC 2.0 on port 4700. |
