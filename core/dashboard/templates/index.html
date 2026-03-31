@@ -134,6 +134,7 @@
             <div class="row"><span class="label">BATTERY</span> <span id="bb-batt" class="val stat-val">--%</span></div>
             <div class="row"><span class="label">STORAGE</span> <span id="bb-store" class="val stat-val">-- MB</span></div>
             <div class="row"><span class="label">MOUNT POS</span> <span id="bb-mount" class="val stat-val">--</span></div>
+            <div class="row"><span class="label">FLEET</span> <span id="bb-fleet" class="val stat-val">--</span></div>
             
             <div class="target-card">
                 <div class="row" style="padding-bottom: 5px;">
@@ -390,6 +391,18 @@
                             mountTxt.innerText = `${ra}h, ${dec}°`;
                         } else {
                             mountTxt.innerText = "--";
+                        }
+
+                        // Fleet indicator
+                        if (data.fleet && data.fleet.length > 0) {
+                            const fleetTxt = document.getElementById("bb-fleet");
+                            if (fleetTxt) {
+                                const summary = data.fleet.map(f => {
+                                    const icon = f.link_status === "ACTIVE" ? "●" : "○";
+                                    return icon + " " + f.name;
+                                }).join("  ");
+                                fleetTxt.innerText = summary;
+                            }
                         }
                     }
 

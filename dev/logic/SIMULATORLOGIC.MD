@@ -1,7 +1,7 @@
 # 🛰️ SEESTAR SIMULATOR & ALP BRIDGE LOGIC
 
 > **Status:** RETIRED (historical record)
-> **Superseded by:** Direct TCP to S30-Pro on port 4700.
+> **Superseded by: Alpaca REST on port 32323. See ALPACA_BRIDGE.MD.
 > **Version:** 2.0.0 (Praw)
 > **Path:** `logic/SIMULATORLOGIC.MD`
 

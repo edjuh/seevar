@@ -17,7 +17,7 @@ TARGET_DIRECTORIES = ['core', 'logic', 'tests', 'dev', 'data', 'systemd', 'catal
 ROOT_FILES = ['requirements.txt', 'config.toml']
 IGNORE_DIRS = {'local_buffer', 'gaia_cache', 'reports', 'raw', 'archive', '__pycache__'}
 
-MANIFEST_FILE = PROJECT_ROOT / 'logic' / 'FILE_MANIFEST.md'
+MANIFEST_FILE = PROJECT_ROOT / 'dev/logic' / 'FILE_MANIFEST.md'
 NAS_MANIFEST = Path("/mnt/astronas/SEE_VAR_MANIFEST.md")
 
 def get_file_info(filepath):

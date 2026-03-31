@@ -1,7 +1,7 @@
 # 🗺️ S30-PRO Development Roadmap: The Rommeldam Epic
 
 > **Objective:** Tracks the architectural journey and future versioning milestones of the Seestar Federation, mapped to the characters of Marten Toonder's universe.
-> **Version:** 1.7.0 (Snotolf)
+> **Version:** 3.0.0 (Snotolf)
 
 This document outlines the architectural journey of the S30-PRO autonomous observatory, structurally mapped to the characters of Marten Toonder's universe.
 
@@ -62,43 +62,58 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
   - ✅ kaspar_animation.py v2.0.0 — Manim 1080p60 pipeline animation, YouTube: https://youtu.be/qG439gE7UBo
   - ✅ PRESENTATION.md — speaker's guide + session notes, docs/PRESENTATION.md
   - ✅ pilot.py v1.7.0 — ID-matched ControlSocket, Event telemetry filtering
-    - send() returns Tuple[bool, int] — failure detection + cmd_id for matching
-    - recv_response() loops stream, drops unsolicited Event packets, matches by cmd_id
-    - Eliminates stray PiStatus/ViewState race conditions on port 4700
   - ✅ seetop.py v1.1.1 — ncurses live observatory dashboard
-    - Two-column layout: orchestrator+weather left, catalog stats+plan right
-    - Catalog panel: campaign/VSX/charts/federation/tonight/deferred with % progress
-    - Atomic noutrefresh/doupdate — no SSH flicker
-    - Empty-state placeholders on all panels
   - ✅ .github/workflows/basic-checks.yml — CI on every PR
-    - Python syntax check, Garmt header enforcement, Alpaca import rejection
   - ✅ CONTRIBUTING.md updated — Garmt header format, architecture rules explicit
+  - ✅ **THE ALPACA BREAKTHROUGH (2026-03-30)**
+    - ZWO's official Alpaca driver (v1.2.0-3) runs inside the S30-Pro firmware on port 32323
+    - Full telescope control confirmed: slew, track, park, unpark, pulse guide
+    - Full camera control confirmed: gain, exposure, 8.3MP image download (2160×3840)
+    - Filter wheel, focuser, dew heater switch — all accessible
+    - **No phone app required. No session master lock. No JSON-RPC encryption.**
+    - Port 4700 lockout was a red herring — the official REST API was open the entire time
+    - Confirmed working without any ZWO cooperation or special access
+  - ✅ **pilot.py v3.0.0 — Full Alpaca REST rewrite**
+    - Replaces TCP ControlSocket (port 4700) and ImageSocket (port 4801)
+    - AlpacaTelescope, AlpacaCamera, AlpacaFilterWheel client classes
+    - Same DiamondSequence interface — FSM and orchestrator need zero changes
+    - Acquire sequence A1-A7: slew → settle → gain → expose → wait → download → FITS
+    - 33s JSON image transfer for 8.3MP (LAN) — acceptable for science cadence
+  - ✅ **Satellite files updated for Alpaca:**
+    - camera_control.py v3.0.0 — Alpaca management API health check
+    - hardware_audit.py v3.0.0 — Alpaca telescope/camera telemetry reads
+    - dark_library.py v2.0.0 — FilterWheel Dark position + Camera expose
+    - neutralizer.py v2.0.0 — Alpaca Park command
+    - hardware_loader.py — port 4700 → 32323
+    - fleet_mapper.py — alpaca_port added to schema
+  - ✅ **Confirmed S30-Pro Alpaca device map (port 32323):**
+    - Telescope #0: Seestar Wilhelmina Telescope
+    - Camera #0: Seestar Wilhelmina Telephoto Camera (IMX585, 3840×2160, 2.9µm)
+    - Camera #1: Seestar Wilhelmina Wide Angle Camera (IMX586, 3840×2160)
+    - Focuser #0: Seestar Wilhelmina Telephoto Focuser
+    - Focuser #1: Seestar Wilhelmina Wide Angle Focuser
+    - FilterWheel #0: Seestar Wilhelmina Filter Wheel (Dark/IR/LP)
+    - Switch #0: Seestar Wilhelmina Switch (dew heater)
+  - ✅ **Optics confirmed:**
+    - Telephoto: 160mm f/5.3, 30mm aperture, quadruplet APO with ED element
+    - Wide angle: 6mm, ultra-wide context camera
+    - Pixel scale: 3.74 arcsec/pixel (telephoto)
+    - Bayer: GRBG, offset (1,0)
+  - ✅ exposure_planner.py — FOCAL_LENGTH_MM corrected 150 → 160
   - Hardware auto-detection via Alpaca UDP + HTTP fingerprint — confirm FIRST LIGHT markers
   - Camera-based automatic horizon profiling at first light
-    - S30-Pro pans 360° at low altitude during session init
-    - pilot.py captures frames, skyline extracted per azimuth degree
-    - Writes `data/horizon_mask.json` with `source: camera_scan`
-    - horizon.py picks it up automatically — no user action required
-  - Flat frames pipeline (currently darks only) — peer review confirmed gap
-  - Dew heater control — 1% steps via ZWO API, driven by KNMI rh + temp delta
+  - Flat frames pipeline (currently darks only)
+  - Dew heater control — now accessible via Alpaca Switch #0
   - Pi Zero 2W / CM5 inside Seestar — sovereign at silicon level (research phase)
-    - ASIAIR Plus kernel build docs confirm ZWO uses standard RPi Linux base
-    - ssh_monitor.py passive log streaming is the correct discovery path
   - All-sky camera — wide angle, one frame/min, cloud cover from brightness variance
   - INA219 power monitoring — current draw, motor stall detection
   - GPS on one Seestar, broadcast fix over LAN to all federation instances
   - Weather forced refresh at dusk — sentinel wakes 30min before dark window
   - **G1/G2 green channel balance diagnostic** — peer review (March 2026)
-    - IMX585 GRBG pattern has two green pixels per Bayer quad
-    - `bayer_photometry.py`: add `check_green_balance()` — run once per session on bright star
-    - Log G1/G2 ratio; if consistently >1% apply as calibration constant
-    - Systematic offset would introduce photometry bias across all frames
-  - **pilot.py wait_for_event() — FIRST LIGHT REQUIRED**
-    - T2 slew: replace time.sleep(SETTLE_SECONDS) with event-driven wait
-    - T3 autofocus: replace fire-and-forget with poll until complete
-    - Requires real event field names from ssh_monitor.py on Wilhelmina
-    - SETTLE_SECONDS retained as hard timeout ceiling until confirmed
-    - Implement post-first-light (April 2026)
+  - **WilhelminaMonitor (port 4700) retained for battery/charger telemetry**
+    - Alpaca does not expose battery_pct or charger_status
+    - Event stream listener continues to feed dashboard vitals
+    - pilot.py TelemetryBlock.battery_pct populated from dashboard state, not Alpaca
   - `vsx_catalog.py` restart resilience — nohup job dies on reboot, no auto-restart
 
 * **v1.9 Fliep:** **The Deployment Master — Global Edition.**
@@ -107,36 +122,24 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
   - KNMI waarschuwingen-nederland-48h — weather warnings as hard abort trigger
   - `vsx_catalog.py` — add systemd service for restart resilience (currently nohup only)
   - **Bortle auto-resolve from GPS coordinates**
-    - `bortle_resolver.py` — lat/lon → SQM/Bortle via light pollution API or offline table
-    - GPS fix triggers auto-resolve on first boot if Bortle not yet set
-    - `config_wizard.py` prompts for Bortle if auto-resolve fails or user overrides
-    - `config.toml [planner] bortle` replaces hardcoded `8` in `exposure_planner.py`
-    - Current default (8) is Haarlem-specific — global deployments need site-accurate value
+  - **Binary image transfer** — Alpaca v3 ImageBytes for faster downloads
+    - Current: 33s JSON for 8.3MP
+    - Target: <5s binary transfer
+    - Requires Alpaca ImageBytes support in ZWO firmware (request via forum)
 
   **Southern Hemisphere Support:**
   - `hemisphere` flag in config.toml (`northern` / `southern`, auto-detected from lat)
   - Westward priority flips to Eastward in Southern hemisphere (targets transit North)
   - `catalog_localiser.py` — declination-band aware, pulls targets for observer's actual sky
-    - Northern: 40°–60°N seed catalog (current)
-    - Southern: 20°–50°S catalog to be built
-    - Equatorial: 20°S–20°N overlap band
-  - Weather sources — regional selection based on location:
-    - Netherlands: KNMI EDR (current)
-    - Australia/NZ: BOM API
-    - South Africa: SAWS
-    - Elsewhere: open-meteo + Clear Outside only (always available)
-  - Moon avoidance — Southern hemisphere moon rises in North, avoidance logic correct but
-    azimuth labelling needs hemisphere awareness
+  - Weather sources — regional selection based on location
+  - Moon avoidance — Southern hemisphere awareness
   - Dashboard flight window — local time display correct globally via astimezone()
 
   **General Deployment Gaps:**
   - `clear-outside-apy` — coverage limited to Europe/N.America, fallback needed for other regions
   - bootstrap.sh — add hemisphere auto-detection from lat, warn if Southern
   - INSTALL.md — Southern hemisphere section
-  - Timezone handling — all internal times UTC, display times via tzlocal (correct globally)
-  - astrometry index files — FOV-matched, correct globally but download guidance
-    needs updating for S30/S50 in Southern sky (different bright star density)
-  - First light checklist — hemisphere-specific verification steps
+  - astrometry index files — FOV-matched, correct globally
 
 ---
 
@@ -146,15 +149,11 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
 * **v2.0 Anne Marie Doddel:** **The Hardened Observatory.** Real-time photometric analysis, hardware hardening, and beautiful AAVSO light-curves. First light with Wilhelmina (S30-Pro, April 2026).
   - Vignetting correction — flat-field pipeline fully operational, per-frame correction in `aperture_flux`
   - G1/G2 balance constant applied if diagnostic confirms imbalance > 1%
-  - `numba @jit` benchmark on `aperture_flux` mask operations — peer review suggestion
-    - Target: 2-5x speedup on Pi 5 when processing hundreds of comp stars per frame
-    - Benchmark against numpy baseline on real IMX585 frames
+  - `numba @jit` benchmark on `aperture_flux` mask operations
   - **Comparison star reconciliation** — Gaia DR3 vs AAVSO VSP
-    - `calibration_engine.py` uses Gaia DR3 exclusively (correct for measurement)
-    - `chart_fetcher.py` fetches VSP sequences but they are not consumed — orphaned
-    - Cross-match Gaia comp stars to AAVSO VSP sequences for WebObs-compliant citation labels
-    - AAVSO reporter: Gaia for measurement, VSP label for submission
-    - Decision: wire chart_fetcher into calibration pipeline or deprecate
+  - **Alpaca plan upload** — tom-dd132's UploadSeestarPlan proposal (ZWO forum)
+    - If ZWO implements custom Alpaca Actions, SeeVar can push plans natively
+    - Current workaround: direct slew+expose per target (working)
 
 * **v2.1 Anne-Miebetje:** The classic first sub-version refinement.
 * **v2.2 Wobbe:** A highly stable, technical build.

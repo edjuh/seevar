@@ -1,10 +1,20 @@
 # 📡 COMMUNICATION PROTOCOL
 
+> **Status:** ⚠️ RETIRED (historical record)
+> **Superseded by:** Alpaca REST on port 32323. See `ALPACA_BRIDGE.MD`.
 > **Version:** 3.0.0
-> **Path:** `logic/COMMUNICATION.md`
 
-SeeVar controls the S30-Pro by sending JSON-RPC commands over a direct
-TCP connection. This document describes that communication layer — the
+The TCP JSON-RPC protocol described below was the operational path
+during the Sovereign era (v1.0–v1.7). As of v3.0.0 (2026-03-30), all
+hardware control uses the official ZWO ASCOM Alpaca REST API.
+
+Port 4700 is retained read-only for battery/charger telemetry via
+WilhelminaMonitor. No commands are sent to port 4700.
+
+---
+
+## Historical Record (below)
+
 wire format, the connection model, and the three tiers of control.
 
 For the full confirmed method list, response shapes, and error codes

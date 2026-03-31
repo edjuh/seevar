@@ -2,12 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/hardware_audit.py
-Version: 2.0.0
-Objective: Sovereign TCP hardware audit via get_device_state on port 4700.
-           Exports hardware_telemetry.json for dashboard vitals.
-           Confirmed fields only: battery_capacity, temp, charger_status
-           from pi_status block. No BalanceSensor (key unconfirmed on
-           S30-Pro — verify on first light via get_event_state response).
+Version: 3.0.0
+Objective: Alpaca REST hardware audit — reads telescope and camera state
+           via port 32323. Exports hardware_telemetry.json for dashboard.
 """
 
 import json
@@ -19,7 +16,10 @@ import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.flight.pilot import ControlSocket, TelemetryBlock, SEESTAR_HOST
+from core.flight.pilot import (
+    AlpacaTelescope, AlpacaCamera, TelemetryBlock,
+    SEESTAR_HOST, ALPACA_PORT,
+)
 from core.utils.env_loader import DATA_DIR
 
 logging.basicConfig(
@@ -29,81 +29,69 @@ logging.basicConfig(
 logger = logging.getLogger("HardwareAudit")
 
 TELEMETRY_PATH = DATA_DIR / "hardware_telemetry.json"
-
-# Veto thresholds — must match STATE_MACHINE.md and pilot.py
-VETO_BATTERY = 10    # %
-VETO_TEMP    = 55.0  # °C
+VETO_BATTERY = 10
+VETO_TEMP    = 55.0
 
 
 class HardwareAudit:
-    """
-    Sovereign hardware gate for preflight.
+    """Alpaca hardware gate for preflight."""
 
-    Sends get_device_state to port 4700, parses TelemetryBlock,
-    applies veto thresholds, writes hardware_telemetry.json.
-
-    BalanceSensor / tilt fields are NOT included — key names are
-    unconfirmed on the S30-Pro. Add after first-light get_event_state
-    response is captured and key names are verified.
-    """
-
-    def __init__(self, host: str = SEESTAR_HOST):
+    def __init__(self, host: str = SEESTAR_HOST, port: int = ALPACA_PORT):
         self.host = host
+        self.port = port
 
     def run_audit(self) -> bool:
-        """
-        Query hardware state and write telemetry file.
-        Returns True if hardware is safe to proceed, False if veto.
-        """
-        logger.info("Hardware audit starting — port 4700 get_device_state")
+        """Query hardware state via Alpaca and write telemetry file."""
+        logger.info("Hardware audit — Alpaca REST on %s:%d", self.host, self.port)
 
-        ctrl = ControlSocket(host=self.host)
-        telemetry = TelemetryBlock(parse_error="not yet queried")
+        telescope = AlpacaTelescope(self.host, self.port)
+        camera    = AlpacaCamera(self.host, self.port)
 
-        if not ctrl.connect():
-            logger.error("Cannot connect to %s:4700", self.host)
-            telemetry = TelemetryBlock(parse_error="connection failed")
-        else:
+        try:
+            telescope.connect()
+            camera.connect()
+            telemetry = TelemetryBlock.from_alpaca(telescope, camera)
+        except Exception as e:
+            telemetry = TelemetryBlock(parse_error=str(e))
+        finally:
             try:
-                resp = ctrl.send_and_recv("get_device_state")
-                telemetry = TelemetryBlock.from_response(resp)
-            except Exception as e:
-                telemetry = TelemetryBlock(parse_error=str(e))
-            finally:
-                ctrl.disconnect()
+                telescope.disconnect()
+                camera.disconnect()
+            except Exception:
+                pass
 
-        passed  = telemetry.parse_error is None
-        veto    = telemetry.veto_reason() if passed else None
-        safe    = passed and veto is None
+        passed = telemetry.parse_error is None
+        veto   = telemetry.veto_reason() if passed else None
+        safe   = passed and veto is None
 
         warnings = []
         if not passed:
             warnings.append(f"parse_error: {telemetry.parse_error}")
         if veto:
             warnings.append(veto)
-            passed = False
 
-        if passed and not veto:
+        if safe:
             logger.info("Audit PASSED — %s", telemetry.summary())
         else:
             logger.error("Audit FAILED — %s", warnings)
 
         payload = {
-            "#objective": "Sovereign hardware telemetry from get_device_state port 4700.",
+            "#objective": "Alpaca hardware telemetry from port 32323.",
             "timestamp":      datetime.now(timezone.utc).isoformat(),
             "passed":         safe,
-            "link_status":    "ACTIVE" if telemetry.parse_error is None else "OFFLINE",
+            "link_status":    "ACTIVE" if passed else "OFFLINE",
             "warnings":       warnings,
-            "battery_pct":    telemetry.battery_pct,
             "temp_c":         telemetry.temp_c,
-            "charger_status": telemetry.charger_status,
-            "charge_online":  telemetry.charge_online,
+            "tracking":       telemetry.tracking,
+            "at_park":        telemetry.at_park,
             "device_name":    telemetry.device_name,
-            "firmware_ver":   telemetry.firmware_ver,
-            # tilt_x / tilt_y: NOT included — BalanceSensor key unconfirmed
-            # on S30-Pro. Verify via get_event_state on first light and
-            # update TelemetryBlock + this audit accordingly.
-            # Ref: logic/STATE_MACHINE.md VETO LOGIC — level > 1.5 deg
+            "alpaca_version": telemetry.alpaca_version,
+            "ra_hours":       telemetry.ra_hours,
+            "dec_deg":        telemetry.dec_deg,
+            "altitude":       telemetry.altitude,
+            "azimuth":        telemetry.azimuth,
+            # battery_pct not available via Alpaca — dashboard reads
+            # from WilhelminaMonitor event stream instead
         }
 
         try:
@@ -116,8 +104,6 @@ class HardwareAudit:
         return safe
 
 
-# SeeVar-v5-M6-hardware_audit
 if __name__ == "__main__":
-    import sys
     audit = HardwareAudit()
     sys.exit(0 if audit.run_audit() else 1)

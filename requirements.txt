@@ -61,3 +61,4 @@ paramiko>=3.4.0
 
 # Clear Outside astronomy weather scraper
 clear-outside-apy>=1.0.0
+tomli-w

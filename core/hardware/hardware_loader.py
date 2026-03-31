@@ -73,7 +73,7 @@ def discover_seestar(timeout: float = 3.0) -> list:
 # STEP 2 — HTTP ALPACA FINGERPRINT
 # =============================================================================
 
-def get_sensor_fingerprint(ip: str, port: int = 4700) -> dict:
+def get_sensor_fingerprint(ip: str, port: int = 32323) -> dict:
     """
     Identify Seestar model via Alpaca HTTP API.
     Primary: cameraxsize (sensor width)

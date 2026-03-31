@@ -1,16 +1,13 @@
 # 🚀 PREFLIGHT
 
-> **Version:** 2026.03.12
-> **Path:** `logic/PREFLIGHT.MD`
+> **Version:** 2.0.0
+> **Path:** `dev/logic/PREFLIGHT.MD`
 
 Preflight is Phase 1 of the pipeline. Full phase diagram: `WORKFLOW.md`.
-This document covers implementation detail not in the workflow overview.
 
 ## Two Sub-Phases
 
 ### 1a — Data Pipeline (weekly / on-demand)
-
-Builds and maintains the observation catalog. Does not run nightly.
 
 | Script | Action | Output |
 |--------|--------|--------|
@@ -19,12 +16,7 @@ Builds and maintains the observation catalog. Does not run nightly.
 | `core/preflight/librarian.py` | Validate and cross-reference | `catalogs/federation_catalog.json` |
 | `core/preflight/audit.py` | Apply cadence rules per type | `catalogs/federation_catalog.json` (annotated) |
 
-**Note:** `chart_fetcher.py` FOV must be ~300' for the S30-Pro 4.6° field.
-The 90' value in earlier versions was wrong.
-
 ### 1b — Nightly Planning (daily @ 17:00)
-
-Runs every evening. Produces the night's target list.
 
 | Script | Action | Output |
 |--------|--------|--------|
@@ -34,19 +26,17 @@ Runs every evening. Produces the night's target list.
 
 ## Go / No-Go Gate
 
-All checks must return GREEN. Any RED = scrub. Mission does not proceed.
+All checks must return GREEN. Any RED = scrub.
 
 | Pillar | Script | Check |
 |--------|--------|-------|
 | 1 — Storage | `core/preflight/disk_monitor.py` | Local buffer + RAID1 space |
-| 2 — Hardware | `core/preflight/preflight_checklist.py` | `get_device_state` on port 4700 |
+| 2 — Hardware | `core/preflight/preflight_checklist.py` | Alpaca management API on port 32323 |
 | 3 — Time | `core/utils/gps_monitor.py` | GPS lock + PPS clock offset < 0.5s |
-| 4 — Weather | `core/preflight/weather.py` | Cloud cover below threshold |
+| 4 — Weather | `core/preflight/weather.py` | Tri-source consensus, imaging_go flag |
 | 5 — Fog | `core/preflight/fog_monitor.py` | MLX90614 IR sky temperature |
 
-## Cadence Rules (CADENCE.MD for full detail)
-
-Per-type cadence applied by `audit.py` and `ledger_manager.py`:
+## Cadence Rules
 
 | Type | Window |
 |------|--------|
@@ -54,6 +44,3 @@ Per-type cadence applied by `audit.py` and `ledger_manager.py`:
 | SR | 4 days |
 | SRC | 5 days |
 | CV / UG / RR | 1 day |
-
-Falls back to `recommended_cadence_days` in catalog entry, then type
-lookup, then default 3 days.

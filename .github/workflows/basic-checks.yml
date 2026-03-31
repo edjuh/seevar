@@ -43,13 +43,3 @@ jobs:
             exit 1
           fi
           echo "All headers present."
-
-      - name: Reject Alpaca imports
-        run: |
-          echo "Checking for Alpaca imports..."
-          if git ls-files '*.py' | xargs grep -l "alpaca" 2>/dev/null | grep -v "ALPACA_BRIDGE"; then
-            echo "ERROR: Alpaca import detected in source file."
-            echo "SeeVar uses sovereign TCP only. See dev/logic/CORE.MD"
-            exit 1
-          fi
-          echo "No Alpaca imports found."

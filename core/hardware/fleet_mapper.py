@@ -60,6 +60,7 @@ def map_fleet() -> dict:
             "model":        model,
             "ip":           ip,
             "ctrl_port":    4700,
+            "alpaca_port":  32323,
             "img_port":     4801,
             "mount":        mount,
             "telescope":    hw["telescope"],

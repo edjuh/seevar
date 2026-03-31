@@ -2,23 +2,23 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/dashboard/dashboard.py
-Version: 4.6.1
-Objective: Wire wilhelmina_state.json (WilhelminaMonitor event stream)
-           into hardware cache as Source 3. Dashboard now shows real
-           link_status, battery, temp_c from port 4700 event stream.
-           v4.6.1: Added Source 4 — Direct TCP polling for live RA/DEC mount coordinates.
+Version: 5.0.0
+Objective: Fleet-ready dashboard with Alpaca REST telemetry on port 32323.
+           Source 4 replaced: TCP port 4700 coord poll → Alpaca telescope reads.
+           Source 3 retained: WilhelminaMonitor for battery/charger (not in Alpaca).
+           Fleet-ready: iterates [[seestars]] for multi-telescope support.
 """
 import json
 import logging
 import os
 import sys
 import time
-import socket
 import tomllib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from flask import Flask, render_template, jsonify
 
+import requests as http_requests
 from astropy import units as u
 from astropy.coordinates import AltAz, EarthLocation, get_sun
 from astropy.time import Time
@@ -64,82 +64,169 @@ TEMPLATE_DIR = BASE_DIR / "templates"
 app = Flask(__name__, template_folder=str(TEMPLATE_DIR))
 
 # ---------------------------------------------------------------------------
-# Hardware cache
+# Alpaca REST poller (replaces TCP port 4700 coord poll)
+# ---------------------------------------------------------------------------
+ALPACA_TIMEOUT = 2.0  # seconds per HTTP request
+
+def _alpaca_get(ip: str, port: int, device_type: str, device_num: int,
+                prop: str):
+    """Quick Alpaca property read. Returns Value or None."""
+    try:
+        r = http_requests.get(
+            f"http://{ip}:{port}/api/v1/{device_type}/{device_num}/{prop}",
+            params={"ClientID": 42, "ClientTransactionID": 1},
+            timeout=ALPACA_TIMEOUT)
+        data = r.json()
+        if data.get("ErrorNumber", 0) == 0:
+            return data.get("Value")
+    except Exception:
+        pass
+    return None
+
+
+def _alpaca_poll_telescope(ip: str, port: int = 32323) -> dict:
+    """Poll Alpaca telescope for live state. Returns dict or empty."""
+    result = {}
+    try:
+        # Quick reachability check via management API
+        r = http_requests.get(
+            f"http://{ip}:{port}/management/v1/description",
+            timeout=ALPACA_TIMEOUT)
+        if r.status_code != 200:
+            return {}
+        desc = r.json().get("Value", {})
+        result["alpaca_version"] = desc.get("ManufacturerVersion", "unknown")
+
+        # Device count
+        r2 = http_requests.get(
+            f"http://{ip}:{port}/management/v1/configureddevices",
+            timeout=ALPACA_TIMEOUT)
+        if r2.status_code == 200:
+            devices = r2.json().get("Value", [])
+            result["device_count"] = len(devices)
+
+        # Telescope reads
+        result["ra"]       = _alpaca_get(ip, port, "telescope", 0, "rightascension")
+        result["dec"]      = _alpaca_get(ip, port, "telescope", 0, "declination")
+        result["tracking"] = _alpaca_get(ip, port, "telescope", 0, "tracking")
+        result["at_park"]  = _alpaca_get(ip, port, "telescope", 0, "atpark")
+        result["altitude"] = _alpaca_get(ip, port, "telescope", 0, "altitude")
+        result["azimuth"]  = _alpaca_get(ip, port, "telescope", 0, "azimuth")
+
+        # Camera temp
+        result["temp_c"]   = _alpaca_get(ip, port, "camera", 0, "ccdtemperature")
+
+        result["link_status"] = "ACTIVE"
+        return result
+
+    except Exception:
+        return {}
+
+
+# ---------------------------------------------------------------------------
+# Hardware cache (fleet-aware)
 # ---------------------------------------------------------------------------
 HW_CACHE = {
     "timestamp": 0,
     "data": {
-        "link_status": "WAITING",
-        "battery":     "N/A",
-        "temp_c":      "N/A",
-        "storage_mb":  "N/A",
-        "tracking":    False,
-        "slewing":     False,
-        "level_angle": None,
-        "level_ok":    True,
-        "ra":          "N/A",
-        "dec":         "N/A"
-    }
+        "link_status":    "WAITING",
+        "alpaca_version": "N/A",
+        "device_count":   0,
+        "battery":        "N/A",
+        "temp_c":         "N/A",
+        "storage_mb":     "N/A",
+        "tracking":       False,
+        "at_park":        False,
+        "level_angle":    None,
+        "level_ok":       True,
+        "ra":             "N/A",
+        "dec":            "N/A",
+        "altitude":       "N/A",
+        "azimuth":        "N/A",
+    },
+    "fleet": [],  # list of {name, ip, link_status, alpaca_version}
 }
-HW_CACHE_TTL = 10
+HW_CACHE_TTL = 5  # seconds
 
-def _poll_seestar_coords(ip: str):
-    """Direct TCP JSON-RPC poll for live coordinates with a 500ms timeout."""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.5)
-        s.connect((ip, 4700))
-        
-        msg = {"jsonrpc": "2.0", "method": "scope_get_equ_coord", "id": 9999}
-        s.sendall((json.dumps(msg) + "\r\n").encode("utf-8"))
-        
-        buf = b""
-        deadline = time.monotonic() + 0.5
-        while time.monotonic() < deadline:
-            chunk = s.recv(4096)
-            if not chunk: break
-            buf += chunk
-            while b"\r\n" in buf:
-                line, buf = buf.split(b"\r\n", 1)
-                if not line: continue
-                try:
-                    resp = json.loads(line.decode("utf-8"))
-                    if resp.get("id") == 9999 and "result" in resp:
-                        s.close()
-                        return resp["result"].get("ra"), resp["result"].get("dec")
-                except Exception: pass
-        s.close()
-    except Exception:
-        pass
-    return None, None
 
 def refresh_hw_cache():
-    """Refresh hardware cache from multiple sources."""
+    """Refresh hardware cache from all sources."""
     now = time.time()
     if now - HW_CACHE["timestamp"] < HW_CACHE_TTL:
-        # We can bypass TTL exclusively for the live coordinate poll to keep it fresh
-        pass
+        return
 
-    # Source 1: GPS/network state
+    cfg = load_config("~/seevar/config.toml")
+    seestars = cfg.get("seestars", [])
+
+    # --- Fleet polling (Alpaca REST) ---
+    fleet = []
+    primary = None
+
+    for entry in seestars:
+        name = entry.get("name", "Unknown")
+        ip   = entry.get("ip", "TBD")
+        port = entry.get("alpaca_port", 32323)
+
+        if ip == "TBD" or not ip:
+            fleet.append({"name": name, "ip": ip, "link_status": "UNCONFIGURED",
+                          "alpaca_version": "N/A"})
+            continue
+
+        state = _alpaca_poll_telescope(ip, port)
+        if state:
+            fleet.append({
+                "name":            name,
+                "ip":              ip,
+                "link_status":     "ACTIVE",
+                "alpaca_version":  state.get("alpaca_version", "?"),
+                "device_count":    state.get("device_count", 0),
+                "tracking":        state.get("tracking", False),
+                "at_park":         state.get("at_park", False),
+                "temp_c":          state.get("temp_c"),
+            })
+            if primary is None:
+                primary = state
+        else:
+            fleet.append({"name": name, "ip": ip, "link_status": "OFFLINE",
+                          "alpaca_version": "N/A"})
+
+    HW_CACHE["fleet"] = fleet
+
+    # --- Primary telescope data into main cache ---
+    if primary:
+        HW_CACHE["data"]["link_status"]    = "ACTIVE"
+        HW_CACHE["data"]["alpaca_version"] = primary.get("alpaca_version", "N/A")
+        HW_CACHE["data"]["device_count"]   = primary.get("device_count", 0)
+        HW_CACHE["data"]["tracking"]       = primary.get("tracking", False)
+        HW_CACHE["data"]["at_park"]        = primary.get("at_park", False)
+
+        if primary.get("ra") is not None:
+            HW_CACHE["data"]["ra"]  = primary["ra"]
+            HW_CACHE["data"]["dec"] = primary["dec"]
+        if primary.get("altitude") is not None:
+            HW_CACHE["data"]["altitude"] = primary["altitude"]
+            HW_CACHE["data"]["azimuth"]  = primary["azimuth"]
+        if primary.get("temp_c") is not None:
+            HW_CACHE["data"]["temp_c"] = str(round(primary["temp_c"], 1))
+
+    # --- Source 1: GPS/network state ---
     if ENV_STATUS.exists():
         try:
             with open(ENV_STATUS, 'r') as f:
                 env = json.load(f)
-            for key in ("link_status", "storage_mb"):
+            for key in ("storage_mb",):
                 if key in env:
                     HW_CACHE["data"][key] = env[key]
-        except (json.JSONDecodeError, OSError) as e:
-            log.warning("HW_CACHE env_status refresh failed: %s", e)
+        except (json.JSONDecodeError, OSError):
+            pass
 
-    # Source 1b: storage_mb fallback
+    # --- Source 1b: storage_mb fallback ---
     if HW_CACHE["data"]["storage_mb"] in ("N/A", None):
         try:
             local_buffer = DATA_DIR / "local_buffer"
             if local_buffer.exists():
                 total_bytes = sum(
-                    f.stat().st_size
-                    for f in local_buffer.rglob("*")
-                    if f.is_file()
+                    f.stat().st_size for f in local_buffer.rglob("*") if f.is_file()
                 )
                 HW_CACHE["data"]["storage_mb"] = round(total_bytes / (1024 * 1024), 1)
             else:
@@ -147,7 +234,7 @@ def refresh_hw_cache():
         except OSError:
             pass
 
-    # Source 2: TelemetryBlock from orchestrator via system_state.json
+    # --- Source 2: TelemetryBlock from orchestrator ---
     if STATE_FILE.exists():
         try:
             with open(STATE_FILE, 'r') as f:
@@ -156,60 +243,27 @@ def refresh_hw_cache():
             batt = tel.get("battery_pct")
             if batt is not None:
                 HW_CACHE["data"]["battery"] = str(batt)
-            temp = tel.get("temp_c")
-            if temp is not None:
-                HW_CACHE["data"]["temp_c"] = str(round(temp, 1))
-            link = state.get("link_status")
-            if link:
-                HW_CACHE["data"]["link_status"] = link
-                
-            # Fallback for target coordinates if everything else fails
-            ct = state.get("current_target")
-            if ct:
-                HW_CACHE["data"]["ra"] = ct.get("ra", HW_CACHE["data"]["ra"])
-                HW_CACHE["data"]["dec"] = ct.get("dec", HW_CACHE["data"]["dec"])
-                
-        except (json.JSONDecodeError, OSError) as e:
-            log.warning("HW_CACHE state refresh failed: %s", e)
+        except (json.JSONDecodeError, OSError):
+            pass
 
-    # Source 3: WilhelminaMonitor event stream
+    # --- Source 3: WilhelminaMonitor (port 4700 event stream — battery/charger) ---
     if WILHELMINA_STATE.exists():
         try:
             with open(WILHELMINA_STATE, 'r') as f:
                 w = json.load(f)
 
-            link = w.get("link_status")
-            if link:
-                HW_CACHE["data"]["link_status"] = link
-
             batt = w.get("battery_pct")
             if batt is not None:
                 HW_CACHE["data"]["battery"] = f"{batt}%"
 
-            temp = w.get("temp_c")
-            if temp is not None:
-                HW_CACHE["data"]["temp_c"] = str(temp)
-
-            HW_CACHE["data"]["tracking"]    = w.get("tracking", False)
-            HW_CACHE["data"]["slewing"]     = w.get("slewing", False)
             HW_CACHE["data"]["level_angle"] = w.get("level_angle")
             HW_CACHE["data"]["level_ok"]    = w.get("level_ok", True)
 
-        except (json.JSONDecodeError, OSError) as e:
-            log.warning("HW_CACHE wilhelmina_state refresh failed: %s", e)
-
-    # Source 4: Direct Live TCP Polling (Overrides state-file fallbacks if Seestar is reachable)
-    cfg = load_config("~/seevar/config.toml")
-    seestars = cfg.get("seestars", [{}])
-    target_ip = seestars[0].get("ip", "192.168.178.251") if seestars else "192.168.178.251"
-    
-    live_ra, live_dec = _poll_seestar_coords(target_ip)
-    if live_ra is not None and live_dec is not None:
-        HW_CACHE["data"]["ra"] = live_ra
-        HW_CACHE["data"]["dec"] = live_dec
-        HW_CACHE["data"]["link_status"] = "ACTIVE" # If it responds, it's definitively active
+        except (json.JSONDecodeError, OSError):
+            pass
 
     HW_CACHE["timestamp"] = now
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -221,56 +275,46 @@ def load_config(file_path: str) -> dict:
             with open(path, "rb") as f:
                 return tomllib.load(f)
         except (tomllib.TOMLDecodeError, OSError) as e:
-            log.warning("load_config failed for %s: %s", file_path, e)
+            log.error("Config load failed: %s", e)
     return {}
 
-def load_json_file(path: Path, default):
-    if path.exists():
-        try:
-            with open(path, 'r') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError) as e:
-            log.warning("load_json_file failed for %s: %s", path, e)
-    return default
 
-def load_plan() -> list:
+def load_json_file(path, default=None):
+    if not path.exists():
+        return default if default is not None else {}
+    try:
+        with open(path, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return default if default is not None else {}
+
+
+def load_plan():
     data = load_json_file(PLAN_FILE, [])
-    if isinstance(data, list):
-        return data
-    if isinstance(data, dict):
-        return data.get("targets", [])
-    return []
+    return data if isinstance(data, list) else data.get("targets", [])
 
-# ---------------------------------------------------------------------------
-# Astronomical Twilight Engine (-18.0°)
-# ---------------------------------------------------------------------------
-FLIGHT_WINDOW_CACHE = {"date": None, "text": "CALCULATING..."}
-DUSK_CACHE = {"date": None, "dt": None}
 
-def get_dusk_utc(lat: float, lon: float, elev: float):
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    if DUSK_CACHE["date"] == today_str:
-        return DUSK_CACHE["dt"]
+FLIGHT_WINDOW_CACHE = {"date": None, "text": ""}
+
+
+def get_dusk_utc(lat, lon, elev):
     try:
         loc = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=elev*u.m)
         utc_now = datetime.now(timezone.utc)
         start_time = datetime(utc_now.year, utc_now.month, utc_now.day, 12, 0, tzinfo=timezone.utc)
         if utc_now.hour < 12:
             start_time -= timedelta(days=1)
-        is_night = False
-        for m in range(0, 24 * 60, 5):
+        for m in range(0, 24*60, 5):
             t_dt = start_time + timedelta(minutes=m)
             t = Time(t_dt)
             frame = AltAz(obstime=t, location=loc)
             sun_alt = get_sun(t).transform_to(frame).alt.deg
-            if sun_alt <= -18.0 and not is_night:
-                is_night = True
-                DUSK_CACHE["date"] = today_str
-                DUSK_CACHE["dt"]   = t_dt
+            if sun_alt <= -18.0:
                 return t_dt
     except Exception as e:
         log.error("get_dusk_utc failed: %s", e)
     return None
+
 
 def get_flight_window(lat: float, lon: float, elev: float) -> str:
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -306,6 +350,7 @@ def get_flight_window(lat: float, lon: float, elev: float) -> str:
     except Exception as e:
         log.error("Flight window calc failed: %s", e)
         return "ERR - CHECK LOGS"
+
 
 # ---------------------------------------------------------------------------
 # Postflight session builder
@@ -365,15 +410,9 @@ def build_postflight(ledger: dict, dusk_dt) -> dict:
         time_str = ts.strftime("%H:%M")
 
         log_rows.append({
-            "time":      time_str,
-            "name":      name,
-            "filter":    e.get("last_filter", "—"),
-            "mag_str":   mag_str,
-            "snr_str":   snr_str,
-            "zp_str":    zp_str,
-            "zp_class":  zp_class,
-            "row_class": row_class,
-            "ts":        ts.isoformat(),
+            "time": time_str, "name": name, "filter": e.get("last_filter", "—"),
+            "mag_str": mag_str, "snr_str": snr_str, "zp_str": zp_str,
+            "zp_class": zp_class, "row_class": row_class, "ts": ts.isoformat(),
         })
 
     log_rows.sort(key=lambda r: r["ts"], reverse=True)
@@ -390,17 +429,12 @@ def build_postflight(ledger: dict, dusk_dt) -> dict:
     aavso_led = "grey"
 
     return {
-        "scoreboard": {
-            "scheduled": scheduled,
-            "attempted": attempted,
-            "observed":  observed,
-            "failed":    failed,
-        },
-        "overall":   overall,
-        "phot_led":  phot_led,
-        "aavso_led": aavso_led,
-        "log":       log_rows,
+        "scoreboard": {"scheduled": scheduled, "attempted": attempted,
+                       "observed": observed, "failed": failed},
+        "overall": overall, "phot_led": phot_led, "aavso_led": aavso_led,
+        "log": log_rows,
     }
+
 
 # ---------------------------------------------------------------------------
 # Routes
@@ -416,6 +450,7 @@ def index():
         loc.get('elevation', 0.0)
     )
     return render_template('index.html', target_data=target_data, flight_window=fw_text)
+
 
 @app.route('/telemetry')
 def get_telemetry():
@@ -444,14 +479,12 @@ def get_telemetry():
         try:
             with open(SIRIL_LOG, 'r') as f:
                 science["siril_tail"] = [line.strip() for line in f.readlines()[-5:]]
-        except OSError as e:
-            log.warning("SIRIL_LOG read failed: %s", e)
+        except OSError:
+            pass
 
     orchestrator = {
-        "state":      "PARKED",
-        "sub":        "OFF-DUTY",
-        "msg":        "No state file found.",
-        "flight_log": []
+        "state": "PARKED", "sub": "OFF-DUTY",
+        "msg": "No state file found.", "flight_log": []
     }
     state_data = load_json_file(STATE_FILE, {})
     if state_data:
@@ -467,9 +500,7 @@ def get_telemetry():
     last_audit = ledger.get("metadata", {}).get("last_updated", "N/A")
 
     dusk_dt    = get_dusk_utc(
-        loc.get('lat', 51.4769),
-        loc.get('lon', 0.0),
-        loc.get('elevation', 0.0)
+        loc.get('lat', 51.4769), loc.get('lon', 0.0), loc.get('elevation', 0.0)
     )
     postflight = build_postflight(ledger, dusk_dt)
 
@@ -485,9 +516,11 @@ def get_telemetry():
         "science":      science,
         "orchestrator": orchestrator,
         "hardware":     HW_CACHE["data"],
+        "fleet":        HW_CACHE["fleet"],
         "last_audit":   last_audit,
         "postflight":   postflight,
     })
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5050, debug=False)

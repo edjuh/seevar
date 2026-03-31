@@ -1,54 +1,80 @@
-# 🌉 ALPACA BRIDGE (seestar.service)
+# 🔭 ALPACA REST INTERFACE
 
-> **Version:** 2026.03.12
-> **Path:** `logic/ALPACA_BRIDGE.MD`
+> **Version:** 2.0.0
+> **Path:** `dev/logic/ALPACA_BRIDGE.MD`
 
-## Role (Post-Diamond Revision)
+## Role (Post-Alpaca Breakthrough, 2026-03-30)
 
-The Alpaca bridge is **not** the capture path. Sovereign TCP (port 4700
-control, port 4801 frame stream) handles all science acquisition directly.
+The ZWO official ASCOM Alpaca driver is the **primary and sole** control
+interface for all science acquisition. It runs inside the Seestar firmware
+on port 32323, exposed via standard HTTP REST.
 
-The bridge remains useful for two things only:
-- Service health-check: `systemctl is-active seestar.service`
-- Scheduler toggle and mosaic JSON injection (Path A, optional)
+No phone app required. No session master lock. No JSON-RPC encryption.
+No seestar_alp middleware.
 
-## Service Reality
+Confirmed working: slew, track, park, unpark, expose, gain control,
+filter wheel, image download — all without any ZWO cooperation or
+special developer access.
 
-The bridge runs as an independent systemd service, outside the SeeVar
-virtualenv.
+## Device Map (Alpaca v1.2.0-3)
 
-```
-Service:   seestar.service  (PPID 1, systemd-managed)
-Execution: ~/.pyenv/versions/ssc-3.13.5/bin/python3
-```
-
-Before any Alpaca call, verify the service is alive:
-```bash
-systemctl is-active seestar.service
-```
+| Device | # | Name | Capabilities |
+|--------|---|------|-------------|
+| Telescope | 0 | Seestar Wilhelmina Telescope | Slew, track, park, unpark, pulse guide |
+| Camera | 0 | Seestar Wilhelmina Telephoto Camera | IMX585, 3840×2160, gain 0-600, expose |
+| Camera | 1 | Seestar Wilhelmina Wide Angle Camera | IMX586, context/finder |
+| Focuser | 0 | Seestar Wilhelmina Telephoto Focuser | Absolute position |
+| Focuser | 1 | Seestar Wilhelmina Wide Angle Focuser | Absolute position |
+| FilterWheel | 0 | Seestar Wilhelmina Filter Wheel | Dark(0), IR(1), LP(2) |
+| Switch | 0 | Seestar Wilhelmina Switch | Dew heater on/off |
 
 ## Port Architecture
 
-| Port | Purpose | Use |
-|------|---------|-----|
-| `127.0.0.1:5432` | Alpaca bridge (HTTP) | Health-check, scheduler only |
-| `192.168.178.55:4700` | S30-Pro JSON-RPC (TCP) | All sovereign control |
-| `192.168.178.55:4801` | Binary frame stream (TCP) | Science capture |
-| `192.168.178.55:4800` | Stack stream (TCP) | ZIP stacks (not used for science) |
+| Port | Host | Protocol | Purpose |
+|------|------|----------|---------|
+| `32323` | `<telescope_ip>` | HTTP REST (Alpaca) | **All hardware control and science acquisition** |
+| `4700` | `<telescope_ip>` | TCP event stream | Battery/charger telemetry via WilhelminaMonitor |
 
-**Never use port 5555. It was wrong. The correct Alpaca port is 5432.**
+Port 4700 is retained read-only for battery_pct and charger_status,
+which are not exposed via Alpaca. WilhelminaMonitor listens passively.
+No commands are sent to port 4700.
 
-## Alpaca Call Rules (when used)
+**Ports 4801, 4800, 5432, 5555 — no longer used.**
 
-- Device index: `/0/` (not `/1/`)
-- `ClientID`: integer `42` — never a string
+## Alpaca REST Conventions
+
+- Management API: `http://<ip>:32323/management/v1/configureddevices`
+- Device API: `http://<ip>:32323/api/v1/<device_type>/<device_number>/<property>`
+- `ClientID`: integer `42` (SeeVar)
 - `ClientTransactionID`: auto-incrementing integer per session
-- All action calls use **PUT** method
-- Endpoint base: `http://127.0.0.1:5432/api/v1/telescope/0/`
+- GET for property reads, PUT for commands and property writes
+- All responses are JSON with `ErrorNumber` and `Value` fields
 
-## What Alpaca Does NOT Do
+## Discovery
 
-- Does not trigger science capture (`iscope_start_view` goes to port 4700)
-- Does not receive frame data (frames come from port 4801)
-- `method_sync` does not exist — removed from seestar_alp
-- `start_exposure` is not a confirmed method — do not use
+UDP broadcast discovery on port 32227 does not work on the S30-Pro
+(no response observed). Use direct HTTP probe instead:
+
+```bash
+curl http://192.168.178.251:32323/management/apiversions
+```
+
+The IP is read from `config.toml [[seestars]] ip` at runtime.
+
+## Implementation
+
+All Alpaca client classes live in `core/flight/pilot.py` v3.0.0:
+- `AlpacaClient` — base HTTP REST wrapper
+- `AlpacaTelescope` — slew, track, park, unpark
+- `AlpacaCamera` — gain, expose, download image array
+- `AlpacaFilterWheel` — position control (Dark/IR/LP)
+
+## Known Limitations
+
+- **Image download speed:** ~33s for 8.3MP via JSON imagearray. Binary
+  ImageBytes transfer (Alpaca v3) not yet confirmed on ZWO firmware.
+- **LastExposureDuration:** Not implemented in driver. Use requested duration.
+- **SiteElevation:** Not implemented. Set via GPS in FITS header.
+- **SupportedActions:** Empty — no custom plan upload yet (see tom-dd132's
+  ZWO forum proposal for future UploadSeestarPlan action).
+- **Battery/charger:** Not available via Alpaca. Read from port 4700 event stream.

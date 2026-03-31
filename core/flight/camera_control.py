@@ -2,78 +2,70 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/camera_control.py
-Version: 2.0.0
-Objective: Hardware status interface for ZWO S30-Pro via Sovereign TCP.
-
-Replaces the v1.0.0 stub (capture() -> True).
-Primary role: preflight hardware gate in orchestrator._run_preflight().
-
-Protocol:
-  Port 4700  JSON-RPC control  (text, \\r\\n terminated)
-  Method: get_device_state  — returns device health dict
-  Method: iscope_stop_view  — safe park before session start
-
-Only imports from core.flight.pilot so there is a single wire-protocol
-source of truth (ControlSocket lives there).
+Version: 3.0.0
+Objective: Hardware status interface for ZWO S30-Pro via Alpaca REST.
+           Replaces TCP port 4700 health check with Alpaca management API.
 """
 
 import logging
+import requests
 from typing import Optional
 
-from core.flight.pilot import ControlSocket, SEESTAR_HOST, CTRL_PORT
+from core.flight.pilot import SEESTAR_HOST, ALPACA_PORT
 
 log = logging.getLogger("seevar.camera_control")
 
 
 class CameraControl:
     """
-    Thin wrapper around the S30-Pro control socket.
-    Used by orchestrator preflight to verify hardware is alive.
+    Thin Alpaca wrapper for preflight hardware gate.
+    Replaces TCP ControlSocket with HTTP management API ping.
     """
 
-    def __init__(self, host: str = SEESTAR_HOST, port: int = CTRL_PORT,
+    def __init__(self, host: str = SEESTAR_HOST, port: int = ALPACA_PORT,
                  timeout: float = 10.0):
         self.host    = host
         self.port    = port
         self.timeout = timeout
+        self._base   = f"http://{host}:{port}"
 
     def get_view_status(self) -> bool:
         """
-        Send get_device_state, expect a response dict.
-        Returns True if the device responds with any result payload.
-        Returns False on connection failure or timeout.
-
-        This is the preflight hardware gate — any valid JSON response
-        means the device is alive and accepting commands.
+        Ping Alpaca management API. Returns True if device responds.
+        This is the preflight hardware gate.
         """
         try:
-            with ControlSocket(self.host, self.port, self.timeout) as ctrl:
-                sent = ctrl.send("get_device_state")
-                if not sent:
-                    log.error("get_view_status: send failed")
-                    return False
-                resp = ctrl.recv_response()
-                if resp is None:
-                    log.error("get_view_status: no response")
-                    return False
-                # Any valid JSON response means the device is alive.
-                # Log what we got for visibility.
-                result = resp.get("result") or resp.get("params") or resp
-                log.info("get_device_state response: %s", result)
+            r = requests.get(
+                f"{self._base}/management/v1/configureddevices",
+                timeout=self.timeout)
+            if r.status_code == 200:
+                devices = r.json().get("Value", [])
+                log.info("Alpaca alive: %d devices on %s:%d",
+                         len(devices), self.host, self.port)
                 return True
+            log.error("Alpaca returned status %d", r.status_code)
+            return False
         except Exception as e:
-            log.error("get_view_status: exception: %s", e)
+            log.error("get_view_status: %s", e)
             return False
 
     def safe_stop(self) -> bool:
         """
-        Send iscope_stop_view — call before starting a new session
-        to clear any lingering exposure state.
-        Returns True if command was sent (not acknowledged — fire and forget).
+        Park telescope via Alpaca — replaces iscope_stop_view.
+        Returns True if park command accepted.
         """
         try:
-            with ControlSocket(self.host, self.port, self.timeout) as ctrl:
-                return ctrl.send("iscope_stop_view")
+            r = requests.put(
+                f"{self._base}/api/v1/telescope/0/park",
+                data={"ClientID": 42, "ClientTransactionID": 1},
+                timeout=self.timeout)
+            data = r.json()
+            err = data.get("ErrorNumber", 0)
+            if err:
+                log.warning("safe_stop park error %d: %s",
+                            err, data.get("ErrorMessage", ""))
+                return False
+            return True
         except Exception as e:
-            log.error("safe_stop: exception: %s", e)
+            log.error("safe_stop: %s", e)
             return False

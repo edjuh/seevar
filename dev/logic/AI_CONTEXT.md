@@ -1,14 +1,14 @@
-# AI Project Context - Sovereign SeeVar Federation
+# AI Project Context - SeeVar Federation
 
 > **Objective:** The absolute architectural law, environment standards, and logic constraints for AI-assisted development of the SeeVar Federation.
-> **Version:** 1.5.3
-> **Last verified against codebase:** 2026-03-13
+> **Version:** 2.0.0
+> **Last verified against codebase:** 2026-03-30
 
 ## 🛑 1. The Prime Directives (Rules of Engagement)
-1. **No "Vibe-Coding":** All logic must map directly to the defined schemas and protocols in `~/seevar/logic/`. No guessing API endpoints or hardware states.
+1. **No "Vibe-Coding":** All logic must map directly to the defined schemas and protocols in `~/seevar/dev/logic/`. No guessing API endpoints or hardware states.
 2. **Infrastructure as Code (IaC):** Python 3.13.5 environment is strictly locked via `bootstrap.sh` and `requirements.txt`.
 3. **The "Garmt" Header Standard:** Every script must contain a PEP 257 docstring stating: Filename, Version, and a single-sentence Objective.
-4. **The Sovereignty Principle:** All hardware control must bypass consumer UI via direct TCP port 4700 (JSON-RPC) to ensure deterministic RAW data capture.
+4. **The Alpaca Principle:** All hardware control uses the official ZWO ASCOM Alpaca REST API on port 32323. No proprietary TCP. No phone app. No session master lock.
 5. **Guiding Principle:** "Do not live in the moment. Plan for the astronomical night."
 6. **Deploy via Heredoc:** All new or modified files are deployed to the Pi via bash heredoc scripts. No manual editing on the Pi. Scripts are idempotent where possible.
 
@@ -17,26 +17,33 @@ The application stack is a strict, linear 3-Phase State Machine.
 * **Phase 1: Pre-Flight (The Funnel)**
   * **Harvest & Refine:** `targets.json` (Master) is filtered by `nightly_planner.py` to generate `tonights_plan.json`.
   * **Cadence Logic:** Target priority is calculated using the **1/20th Period Rule** (Miras 5-10d, SRs 3-5d).
-  * **AAVSO Throttling:** API calls must respect a strict **188.4s (Pi-Minute) delay**. Pi IP was hard-blocked by AAVSO at 3.14s on 2026-03-13. Corrected to 188.4s on 2026-03-15. Do not reduce. <!-- SeeVar-context-v1.6.0 -->
+  * **AAVSO Throttling:** API calls must respect a strict **188.4s (Pi-Minute) delay**. Do not reduce.
   * **Exposure Planning:** Per-target exposure via `exposure_planner.plan_exposure(get_target_mag(name))`. No hardcoded exposure times.
   * **Horizon Veto:** All targets gated against `data/horizon_mask.json` — 360° per-degree profile derived from site photos. West (240°–300°) blocked by own building.
 * **Phase 2: The Handover (The Gatekeeper)**
   * **System Audit:** 5-minute loop validating weather, disk vitals, and plan integrity. Passes control (GREEN) or scrubs mission (RED).
 * **Phase 3: Flight (The Acquisition Loop)**
-  * **Control Path:** Sovereign TCP port 4700 (JSON-RPC) for all science acquisition. No Alpaca bridge. seestar_alp used for simulation only.
-  * **Action:** Orchestrator commands slew, plate solve, and expose. FITS stream to Active Storage Path.
+  * **Control Path:** Alpaca REST on port 32323 — telescope, camera, filter wheel, focuser, dew heater. All confirmed working 2026-03-30.
+  * **Action:** Orchestrator commands slew, expose, download. FITS to Active Storage Path.
 
 ## 📡 3. Hardware & Network Logic
-* **Seestar S30-Pro:**
-  * **Science TCP:** Port 4700 (JSON-RPC), port 4801 (binary frame stream)
-  * **RTSP stream:** `rtsp://192.168.178.55:4554/stream`
-  * **IP:** Read from `config.toml [[seestars]] ip` — never hardcoded. Current lab value: 192.168.178.55 (DHCP reservation by MAC)
-  * **IMX585 sensor:** GRBG Bayer, 3840×2160, 16-bit unsigned (>u2), 3.75"/px
+* **Seestar S30-Pro (Wilhelmina):**
+  * **Alpaca REST:** Port 32323, v1.2.0-3 — 7 devices exposed
+  * **Telescope #0:** Slew, track, park, unpark, pulse guide
+  * **Camera #0 (Telephoto):** IMX585, 3840×2160, 2.9µm pixels, gain 0-600
+  * **Camera #1 (Wide Angle):** IMX586, 3840×2160 — context/finder
+  * **FilterWheel #0:** Dark (pos 0), IR (pos 1), LP (pos 2)
+  * **Focuser #0/1:** Telephoto and wide angle, absolute position
+  * **Switch #0:** Dew heater control
+  * **Event stream:** Port 4700 retained for battery/charger telemetry via WilhelminaMonitor
+  * **IP:** Read from `config.toml [[seestars]] ip` — never hardcoded
+  * **IMX585 sensor:** GRBG Bayer (offset 1,0), 3840×2160, 16-bit, 2.9µm, 3.74"/px
+  * **Optics:** 160mm f/5.3, 30mm aperture, quadruplet APO with ED element
   * **Science channel:** G → AAVSO filter TG
   * **Saturation ceiling:** 60000 ADU
-* **Veto Logic (Sovereignty Limits):**
-  * **Battery:** Mandatory Park at **< 10%**
-  * **Thermal:** Mandatory Park at **> 55.0°C**
+* **Veto Logic:**
+  * **Battery:** Mandatory Park at **< 10%** (from WilhelminaMonitor event stream)
+  * **Thermal:** Mandatory Park at **> 55.0°C** (from Alpaca CCD temperature)
   * **Leveling:** Mandatory Pre-flight FAIL at **> 1.5° (Science-grade cutoff)**
 * **Temporal & Positional Awareness:**
   * **Time:** GPS PPS (`/dev/pps0`) via `chrony`. Pre-flight FAILS if offset > 0.5s.
@@ -54,8 +61,6 @@ See `logic/PHOTOMETRICS.MD` for full rationale and roadmap.
   * Comp stars: Gaia DR3 via `gaia_resolver.py` (cached per field in `data/gaia_cache/`)
   * Returns: `{mag, err, snr, zp, zp_std, n_comps, filter, peak_adu}`
 * **Ledger:** `data/ledger.json` schema **v2026.2**
-  * New fields: `last_mag, last_err, last_snr, last_filter, last_comps,`
-    `last_zp, last_zp_std, last_peak_adu, last_obs_utc`
 * **Next improvement:** Sigma clipping on ZP ensemble (2.5σ iterative rejection)
 
 ## 🗂️ 5. Data Dictionary Rules

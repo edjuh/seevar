@@ -2,93 +2,68 @@
 
 > **Objective:** Defines the chain of command and guiding principles for
 > the SeeVar autonomous AAVSO photometry pipeline.
-> **Version:** 2.0.0 (Praw)
-> **Path:** `logic/CORE.MD`
+> **Version:** 3.0.0 (Alpaca)
+> **Path:** `dev/logic/CORE.MD`
 
 Full phase diagram and nightly timeline: `WORKFLOW.MD`.
-Hardware wire protocol: `API_PROTOCOL.MD`.
+Alpaca device map: `ALPACA_BRIDGE.MD`.
 Fleet naming and founding principles: `PICKERING_PROTOCOL.MD`.
 
-## 🛰️ Operational Pipeline
-
-The system follows a linear chain of command across three phases:
+## Operational Pipeline
 
 ### Phase 1 — Preflight (weekly catalog + nightly planning)
 
-1. **The Harvest** — `core/preflight/aavso_fetcher.py` pulls LPV, Mira,
-   SR, CV, and outburst alert targets from AAVSO TargetTool into
-   `catalogs/campaign_targets.json`.
-
-2. **The Curation** — `core/preflight/librarian.py` deduplicates,
-   validates, and stamps targets into `catalogs/federation_catalog.json`.
-   409 stars. Immutable source of truth.
-
-3. **The Audit** — `core/preflight/audit.py` applies per-type cadence
-   rules against `data/ledger.json`. Marks targets due tonight.
-   See `PREFLIGHT.MD` for cadence table.
-
-4. **The Plan** — `core/preflight/nightly_planner.py` filters to targets
-   above 30° during the astronomical dark window for Haarlem
-   (52.39°N, 4.65°E). Writes `data/tonights_plan.json`.
+1. **The Harvest** — `core/preflight/aavso_fetcher.py` pulls targets from AAVSO TargetTool.
+2. **The Curation** — `core/preflight/librarian.py` deduplicates and stamps into `federation_catalog.json`.
+3. **The Audit** — `core/preflight/audit.py` applies cadence rules against `data/ledger.json`.
+4. **The Plan** — `core/preflight/nightly_planner.py` filters to targets above 30° during astronomical dark.
 
 ### Phase 2 — Flight (autonomous nightly execution)
 
 5. **The Gate** — `core/flight/orchestrator.py` runs Go/No-Go checks:
-   storage, hardware (`get_device_state` on port 4700), GPS clock,
-   weather, fog. Any RED = scrub.
-
-6. **The Scoring** — Orchestrator scores observable targets by meridian-
-   aware priority: west-of-meridian targets get urgency boost, flip-zone
-   targets are deprioritised. See `API_PROTOCOL.MD` for mount geometry.
-
-7. **The Acquisition** — `core/flight/pilot.py` `DiamondSequence.acquire()`
-   executes per target via direct TCP to the S30-Pro:
-   - `iscope_stop_view` → `scope_sync` → settle → `iscope_start_view`
-   - Port 4801 binary stream → frame_id 21 → raw uint16 Bayer GRBG
-   - `sovereign_stamp()` → `write_fits()` → `data/local_buffer/`
-   No Alpaca. No intermediate layer.
-
-8. **The Handoff** — On acquisition success, orchestrator calls
-   `core/postflight/science_processor.py` for green channel extraction
-   (Johnson V proxy), then updates `data/ledger.json` with `last_success`.
+   storage, hardware (Alpaca management API on port 32323), GPS clock, weather, fog.
+6. **The Scoring** — Orchestrator scores observable targets by meridian-aware priority.
+7. **The Acquisition** — `core/flight/pilot.py` v3.0.0 `DiamondSequence.acquire()` executes
+   per target via Alpaca REST:
+   - SlewToCoordinatesAsync → settle → SetGain → StartExposure → poll imageready
+   - Download imagearray (2160×3840 int32) → sovereign_stamp() → write_fits()
+   - Output: `data/local_buffer/{TARGET}_{TS}_Raw.fits`
+8. **The Handoff** — On success, orchestrator updates ledger and triggers postflight.
 
 ### Phase 3 — Postflight (data custody)
 
-9. **The Custody** — NAS rsync moves FITS from `data/local_buffer/` to
-   `/mnt/astronas/` for long-term storage. Local buffer is transient.
+9. **The Custody** — NAS rsync moves FITS to `/mnt/astronas/`.
+10. **The Report** — Differential photometry via calibration_engine → AAVSO WebObs submission.
 
-10. **The Report** — Differential photometry via `PhotometryPipeline`
-    in `pilot.py`. AAVSO WebObs extended format submission.
-    Comp star sequences from `catalogs/reference_stars/`.
-
-## 🏛️ Guiding Principles
+## Guiding Principles
 
 *Do not live in the moment. Plan for the astronomical night.*
 
-*The Alpaca bridge is not the capture path. It is a health-check.*
+*The Alpaca REST API on port 32323 is the sole control path for all science acquisition.*
 
-*One source of truth per constant. Port numbers live in `pilot.py`.*
+*Port 4700 is retained read-only for battery/charger telemetry via WilhelminaMonitor.*
 
-## 🔭 Hardware Identity
+## Hardware Identity
 
 | Item | Value |
 |------|-------|
-| Instrument | ZWO S30-Pro |
-| Sensor | IMX585, 2160×3840, uint16 |
-| Bayer pattern | GRBG |
+| Instrument | ZWO Seestar S30-Pro |
+| Sensor | IMX585, 2160×3840, uint16, 2.9µm |
+| Bayer pattern | GRBG (offset 1,0) |
+| Optics | 160mm f/5.3, 30mm aperture, quadruplet APO |
 | Pixel scale | 3.74″/px |
 | Field of view | 4.6° (~276′) |
-| Control port | `192.168.178.55:4700` (JSON-RPC) |
-| Frame stream | `192.168.178.55:4801` (binary) |
+| Alpaca port | `<telescope_ip>:32323` (REST, v1.2.0-3) |
+| Event stream | `<telescope_ip>:4700` (TCP, read-only) |
 | Platform | Raspberry Pi 5, Debian Bookworm |
-| Observer | Haarlem, NL — 52.39°N 4.65°E — JO22hj |
+| Observer | Haarlem, NL — 52.38°N 4.60°E — JO22hj |
 
-## 🚢 Fleet
+## Fleet
 
 | Name | Unit | Status |
 |------|------|--------|
-| Wilhelmina | S30-Pro #1 | Arriving April 2026 |
-| Anna | S30-Pro #2 | Arriving April 2026 |
+| Wilhelmina | S30-Pro #1 | Active — Alpaca confirmed 2026-03-30 |
+| Anna | S30-Pro #2 | Arriving 2026 |
 | Henrietta | S30-Pro #3 | Future |
 | Annie | Spectrograph (Star Analyser 100) | Future |
 
