@@ -1,153 +1,360 @@
 # PHOTOMETRICS.MD
-# SeeVar Differential Photometry — Decisions, Rationale & Roadmap
-# Location: logic/PHOTOMETRICS.MD
-# Last updated: 2026-03-13
+# SeeVar Differential Photometry — Decisions, Standards & Roadmap
+# Location: dev/logic/PHOTOMETRICS.MD
+# Version: 1.9.0
+# Last updated: 2026-04-02
 
 ---
 
-## Current Implementation (v2.0.0)
+## Purpose
 
-### Channel Selection
-- Science channel: **G** (Bayer GRBG pattern, IMX585)
-- AAVSO filter tag: **TG** (transformed green)
-- Rationale: G pixels are 2× denser than R or B in the Bayer matrix,
-  giving better SNR and sampling. No debayering — direct channel extraction.
+This document defines the scientific rules for SeeVar photometry.
 
-### Aperture Photometry
-- Engine: `bayer_photometry.aperture_flux()`
-- Aperture: **dynamic** — 1.7 × Moffat PSF FWHM (from `psf_models.fit_psf()`)
-- Fallback: fixed 8px radius if PSF fit fails or does not converge
-- Sky annulus: r_in = max(r_sky_in, r_ap + 4), r_out = max(r_sky_out, r_ap + 10)
-  Annulus expands with aperture to stay clean
-- Saturation ceiling: **60000 ADU** (IMX585 16-bit linear limit)
-- Centroid: peak-pixel in 10px search box on luminance (all channels)
-- Comp stars measured at **same aperture radius as target** for consistency
+It exists to protect one outcome:
+a trustworthy differential magnitude that can be defended scientifically.
 
-### PSF Model
-- Production model: **Moffat** profile (`psf_models.fit_moffat()`)
-- Fallback: Gaussian (13% FWHM overestimate vs Moffat — acceptable for aperture sizing)
-- Moffat recovers FWHM to within 0.006px on synthetic stars
-- Pixel scale: 3.75"/px (IMX585 on S30-Pro, from CDELT header)
+Photometry is not just aperture math.
+It depends on three upstream truths:
 
-### Zero-Point Ensemble
-- Method: **SNR²-weighted mean** of all valid comp star ZPs
-- Weight: `w_i = SNR_i²` — high-SNR comps dominate, low-SNR suppressed
-- Minimum comp SNR: 5.0 (hard gate before inclusion)
-- Comp stars: Gaia DR3 via `gaia_resolver.py`, cached per field
-- Expected zp_std on real flat-fielded frames: **0.05–0.15 mag**
-- Synthetic test (126 targets × 2 runs): reproducibility excellent,
-  zp_std ~1.17 with simple mean (dominated by synthetic noise floor)
+- detector truth
+- astrometric truth
+- photometric truth
 
-### Error Budget
-- Total error: `sqrt(zp_std² + snr_err²)`
-- SNR noise term: `1.0857 / target_snr` (Pogson factor)
-- Typical error on real frames mag 10–14: **~0.02–0.05 mag** (estimated)
+These correspond directly to the postflight chain:
+- `P3` detector calibration
+- `P4` astrometric solve
+- `P5-P6` photometric measurement and ensemble calibration
 
-### Quality Gates
-- `MIN_SNR = 5.0` — target must exceed this in G channel
-- `SATURATION_CEILING = 60000 ADU` — target and comps
-- Out-of-frame rejection: target centroid must be > r_sky_out from edge
-- Status vocabulary: `OBSERVED | FAILED_QC | FAILED_QC_LOW_SNR |`
-  `FAILED_SATURATED | FAILED_NO_WCS | ERROR`
+If one of those is weak, the final magnitude is weak.
 
 ---
 
-## Known Limitations
+## Current Scientific Direction
 
-### Synthetic test anomalies (to investigate)
-- **T Peg**: 4.5 mag jump between runs — likely synthetic generator bug,
-  not a pipeline issue. Investigate `synthetic_fits_generator.py`.
-- **eps Aur**: err ~13 — ZP ensemble unstable, crowded/extended field.
-- **V0404 Cyg / V404 Cyg**: same object, two catalog entries — dedup needed.
+SeeVar does **not** use naive debayering for production photometry.
 
-### No colour transformation
-- TG filter is not standard V. Colour term correction (Tv_tg) not yet applied.
-- AAVSO accepts TG observations without transformation for LPV/Mira program.
-- Future: add `(B-V)` colour term from Gaia BP-RP when needed for precision work.
+The adopted direction is:
 
-### No airmass correction
-- Differential photometry partially self-corrects if comps are close in az/alt.
-- `nightly_planner.py` enforces minimum altitude (horizon mask) which limits
-  worst-case extinction. No explicit X·k correction applied yet.
+- direct Bayer-aware source measurement
+- common aperture placement across channels
+- green-channel science output for current AAVSO submission
+- differential photometry against a comparison-star ensemble
 
----
+This is the correct direction for OSC smart-scope photometry.
 
-## Roadmap — Photometry Improvements
+### Why not naive debayering
 
-### Next: Sigma clipping on ZP ensemble
-**Priority: HIGH**
-Add iterative sigma clipping before weighted mean:
-1. Compute weighted mean ZP
-2. Reject comps > 2.5σ from mean
-3. Recompute with survivors
-4. Repeat until stable (typically 2–3 iterations)
+Debayering interpolates pixel values and alters the native noise model.
+For scientific photometry, that is undesirable unless there is a strong reason.
 
-Removes genuine outliers: misidentified stars, galaxies, unresolved doubles.
-Even high SNR won't save a misidentified comp — sigma clipping catches them.
-File: `core/postflight/bayer_photometry.py` → `differential_magnitude()`
+SeeVar therefore measures directly on the Bayer mosaic where possible.
 
-### After that: Ensemble photometry (Honeycutt 1992)
-**Priority: MEDIUM — requires multi-night data**
-Solve simultaneously for all star magnitudes and nightly extinction coefficient.
-Standard approach in professional differential photometry pipelines.
-What AAVSO's own VPHOT does internally.
+### Current science channel
 
-Algorithm:
-- Build matrix of all pairwise magnitude differences across all frames
-- Solve least-squares system for best-fit magnitudes + nightly ZP + extinction
-- Iterate until convergence
+- Science channel: `G`
+- Bayer pattern: `GRBG`
+- AAVSO reporting code: `TG`
 
-Requires: multiple frames per field per night (currently 1 frame per target).
-Becomes worthwhile when S30-Pro is doing repeat visits on campaign targets.
-Reference: Honeycutt R.K. 1992, PASP 104, 435.
-
-### Colour transformation
-**Priority: LOW — AAVSO TG program does not require it**
-Apply standard AAVSO transformation equation:
-  `V = TG + Tv_tg × (B-V)`
-where `Tv_tg` is the nightly transformation coefficient.
-Requires: observations of standard fields (Landolt) on photometric nights.
-Bortle 8 Haarlem — photometric nights are rare, low priority.
-
-### PSF photometry (replace aperture)
-**Priority: LOW — aperture is adequate for uncrowded LPV fields**
-Fit PSF simultaneously to target + all comps in the field.
-Better than aperture for crowded fields or poor seeing.
-Overkill for Mira/SR program in uncrowded fields.
-Consider if crowded-field targets are added to campaign.
+Reason:
+- the green channel has the densest sampling on the IMX585 Bayer matrix
+- it gives the strongest balance of resolution and SNR
+- it is the best current proxy for TG-style reporting
 
 ---
 
-## Data Flow Summary
+## Core Measurement Law
 
-```
-FITS (GRBG uint16, IMX585)
-  → BayerFITS.load()
-  → BayerFITS.measure_star()
-      → _fit_aperture()  [Moffat PSF → dynamic r_ap]
-      → aperture_flux()  [G channel, sky-subtracted]
-  → differential_magnitude()
-      → measure_star() per comp [same r_ap]
-      → SNR²-weighted ZP ensemble
-      → mag ± err
-  → calibration_engine.calibrate()
-      → gaia_resolver (Gaia DR3 comps, cached)
-      → returns {mag, err, snr, zp, zp_std, n_comps, filter, peak_adu}
-  → accountant.py
-      → ledger.json schema v2026.2
-  → aavso_reporter.py  [AAVSO Extended Format]
-```
+### 1. Source placement must come from solved astrometry
+
+Header estimates alone are not enough.
+
+`CRVAL`, `CRPIX`, and `CDELT` may be useful hints, but they are not a substitute for a real solved WCS.
+Comparison-star placement must ultimately be based on astrometric truth.
+
+This means:
+
+- header-only world-to-pixel mapping is provisional
+- postflight science-grade photometry must use a real solved WCS
+- unsolved frames cannot be accepted as `OBSERVED`
+
+### 2. Detector calibration must happen before science photometry
+
+Photometry on untreated raw frames is acceptable only as engineering or diagnostic output.
+
+Science-grade postflight requires:
+- dark matching
+- dark subtraction
+- flat correction when flats exist
+
+Raw custody must remain untouched.
+Calibration products must be explicit derived artifacts.
+
+### 3. Differential photometry is an ensemble problem
+
+A single comparison star is not strong enough by default.
+
+The working model is:
+- multiple valid comparison stars
+- weighted ensemble zero point
+- outlier rejection
+- final magnitude from the ensemble, not from a single comp
+
+### 4. A high-SNR wrong star is still wrong
+
+High SNR is not enough.
+
+If comparison-star identification is wrong, or if a comp is variable, blended, saturated, or poorly placed, weighting alone will not save the result.
+
+This is why sigma clipping and comparison vetting are mandatory next steps.
 
 ---
 
-## Hardware Constants (IMX585 on S30-Pro)
-| Parameter | Value | Source |
-|-----------|-------|--------|
-| Bayer pattern | GRBG | confirmed pilot.py |
-| Pixel scale | 3.75"/px | CDELT header |
-| Saturation | 60000 ADU | pastinakel_math.py |
-| Read noise | 1.6 e⁻ | IMX585 datasheet |
-| Dark current | 0.005 e⁻/px/s | IMX585 datasheet |
-| Bit depth | 16-bit unsigned (>u2) | BITPIX header |
-| Frame size | 3840×2160 | NAXIS1/2 |
-| Science filter | TG (green Bayer) | AAVSO convention |
+## Current Implementation Standard
+
+### Channel handling
+
+- Bayer pattern: `GRBG`
+- Channels measured:
+  - `G`
+  - `R`
+  - `B`
+  - `ALL` / luminance
+- Current reporting channel:
+  - `G` -> `TG`
+
+### Aperture model
+
+- Primary PSF model: Moffat
+- Fallback PSF model: Gaussian
+- Aperture radius rule:
+  - `r_ap = 1.7 × FWHM`
+- Hard clipping:
+  - minimum aperture: `4 px`
+  - maximum aperture: `20 px`
+
+### Sky annulus
+
+The sky annulus must expand with aperture size so it remains outside the stellar core:
+
+- `r_sky_in = max(default_in, r_ap + 4)`
+- `r_sky_out = max(default_out, r_ap + 10)`
+
+### Saturation guard
+
+- Saturation ceiling: `60000 ADU`
+
+Any saturated target frame must not be accepted for science output.
+
+### Minimum acceptance gates
+
+Current hard gates:
+
+- target flux must be positive
+- target SNR must be at least `5.0`
+- minimum valid comparison stars: `3`
+- frame must not be saturated
+- frame must have a real solved WCS
+- detector calibration state must be known
+
+These are minimums, not ideals.
+
+---
+
+## Current Weak Points
+
+These are the places where the implementation is still behind the doctrine.
+
+### 1. Header-based source placement is still too trusting
+
+If photometry uses only header center and scale assumptions, then comp-star placement can be wrong even when the math looks clean.
+
+This is currently under scientific upgrade.
+
+### 2. Dark and flat calibration are not yet fully enforced
+
+The postflight chain must not quietly skip detector calibration forever.
+Dark calibration is the next required correction.
+Flat correction comes after that.
+
+### 3. No sigma clipping yet on the comparison ensemble
+
+Weighted means alone are not enough.
+Bad comps must be rejected explicitly.
+
+This is the next live photometry improvement.
+
+### 4. AAVSO report generation is formatter-ready, not fully science-integrated
+
+The formatter exists, but the full chain from accepted postflight result to deterministic report staging is not yet complete.
+
+---
+
+## Accepted Error Model
+
+Current total magnitude uncertainty should be modeled as:
+
+`total_err = sqrt(zp_std^2 + snr_err^2)`
+
+Where:
+
+- `zp_std` = ensemble zero-point scatter
+- `snr_err = 1.0857 / target_snr`
+
+This is acceptable as the current working model.
+
+Later additions may include:
+- solve-quality contribution
+- calibration-frame uncertainty contribution
+- transformation uncertainty if color terms are introduced
+
+---
+
+## Comparison Star Policy
+
+### Source
+
+Comparison stars currently come from Gaia DR3.
+
+### Current conversion
+
+Gaia `G` magnitudes are converted to approximate Johnson `V` using a color-based approximation.
+
+This is acceptable as a practical current step, but it is still an approximation.
+
+### Selection rules
+
+Comparison stars should be filtered by:
+
+- valid coordinates
+- valid magnitude
+- non-saturation range
+- sensible magnitude window around the target
+- minimum SNR
+- successful on-frame placement
+- no saturation in the measured frame
+
+### Future comparison-star hardening
+
+The ensemble should later support:
+
+- sigma clipping
+- explicit rejection logging
+- optional crowding rejection
+- optional edge-distance rejection
+- optional known-variable rejection if catalogs permit
+
+---
+
+## Roadmap 1.9.x
+
+### 1.9.0 — Doctrine freeze
+- freeze Bayer-aware photometry as the official direction
+- align `POSTFLIGHT.MD` and `PHOTOMETRICS.MD`
+- define the `P1-P8` postflight chain
+
+### 1.9.1 — Real solved WCS
+- require solved astrometry before final source measurement
+- stop treating header geometry as scientific truth
+
+### 1.9.2 — Dark-calibrated working frames
+- match darks by exposure, gain, and temperature bin
+- subtract dark before photometry
+- preserve raw custody separately
+
+### 1.9.3 — Sigma-clipped ensemble
+- compute initial weighted zero point
+- reject comparison stars outside tolerance
+- recompute with survivors
+- record survivor count and rejected comps
+
+### 1.9.4 — Deterministic reporting
+- accept only `P7`-passed frames into report staging
+- wire accepted results into AAVSO output products
+
+### Later
+- flat-field support
+- color transformation only if scientifically justified
+- optional multi-band output when standards and workflow are ready
+
+---
+
+## Sigma Clipping Standard
+
+This is the next required photometric upgrade.
+
+Recommended first implementation:
+
+1. measure all candidate comparison stars
+2. build zero-point list from valid comps
+3. compute weighted mean and scatter
+4. reject comps beyond `2.5 sigma`
+5. recompute
+6. repeat until stable or max iterations reached
+7. fail if survivors drop below minimum comp count
+
+Suggested defaults:
+- clip threshold: `2.5 sigma`
+- max iterations: `3`
+
+This should happen inside the ensemble calibration step, not later in reporting.
+
+---
+
+## Scientific Verdict Standard
+
+A frame may be marked `OBSERVED` only if all of the following are true:
+
+- detector calibration state is known
+- astrometric solve is real and accepted
+- target placement is valid
+- target is not saturated
+- target flux is positive
+- target SNR meets threshold
+- enough valid comps survive QC
+- zero-point solution is stable enough for acceptance
+
+If not, the frame must fail honestly.
+
+Possible statuses include:
+
+- `OBSERVED`
+- `FAILED_QC`
+- `FAILED_QC_LOW_SNR`
+- `FAILED_SATURATED`
+- `FAILED_NO_WCS`
+- `ERROR`
+
+---
+
+## Architectural Boundary
+
+Flight proves:
+- a trustworthy raw frame was captured
+
+Postflight proves:
+- that frame can support trustworthy science
+
+Photometry belongs to postflight, not flight.
+Astrometric truth and detector truth must be established before a magnitude is believed.
+
+---
+
+## Summary
+
+The direction is correct:
+
+- Bayer-aware photometry is the right path
+- green-channel TG reporting is the right current output
+- dynamic apertures and ensemble calibration are the right basis
+
+The next work is not changing philosophy.
+It is finishing the scientific custody chain around that philosophy:
+
+- solved WCS
+- dark calibration
+- sigma clipping
+- report wiring
+
+That is the `1.9.x` hardening chapter.
+
+<!-- SeeVar-PHOTOMETRICS-v1.9.0 -->

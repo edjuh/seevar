@@ -1,174 +1,189 @@
 # 🗺️ S30-PRO Development Roadmap: The Rommeldam Epic
 
 > **Objective:** Tracks the architectural journey and future versioning milestones of the Seestar Federation, mapped to the characters of Marten Toonder's universe.
-> **Version:** 3.0.0 (Snotolf)
+> **Version:** 1.9.0 (Snotolf)
 
-This document outlines the architectural journey of the S30-PRO autonomous observatory, structurally mapped to the characters of Marten Toonder's universe.
+# 🗺️ SeeVar Development Roadmap: The Rommeldam Epic
+
+> **Objective:** Track the architectural journey, scientific hardening, and future versioning milestones of the SeeVar observatory.
+> **Version:** 3.1.0 (Fliep)
+
+This roadmap records where SeeVar has been, where it is now, and what must
+be hardened next.
+
+SeeVar began as a helper around existing Seestar tooling and evolved into a
+sovereign observatory pipeline. That evolution was not linear. Some parts
+matured faster than others. The current roadmap reflects a shift from
+discovery and control toward scientific trust.
+
+---
 
 ## ✅ Past Milestones (The Foundation)
-* **v0.0 Beunhaas:** Environment Validation.
-* **v0.1 Brigadier Snuf:** The State Engine.
-* **v0.2 Zedekia Zwederkoorn:** The Alpaca Bridge Patch.
-* **v0.3 Joris Goedbloed:** Target Acquisition.
-* **v0.4 Zachtzalver:** Command Translation.
-* **v0.5 Hiep Hieper:** The Orchestrator (The Golden Bridge).
-* **v0.6 Insp. Priembickel:** Hardening and Git strictness.
-* **v0.7 Argus:** The all-seeing autonomous observer.
-* **v0.8 Lieven Brekel:** Mid-sequence weather aborts and WCS bridge hardening.
-* **v0.9 Terpen Tijn:** "Het is prut!" Westward priority active. Sub-pixel centroiding, dynamic CFA debayering, and stable Alpaca handshake for AAVSO targets.
-* **v1.0 Kwetal:** Converting the Orchestrator into a bulletproof `systemd` background daemon.
-* **v1.1 Pee Pastinakel:** Dynamic aperture scaling (PSF fitting) and saturation detection.
-* **v1.2 Garmt:** Unified PEP 257 standardization. "Standardization Reaper" and full-sentence objective integration.
-* **v1.3 Monkel:** The Discovery Phase. Daemon interruption fixes and Ziggo-subnet home/field detection.
-* **v1.4 Kriel:** gpsd integration, dynamic 6-char Maidenhead. Alpaca communication centralization. Sovereign TCP path established.
-* **v1.5 Humpie:** Storage and wear strategy. OS on SD, app and data on RAID1 USB array, live state in RAM (/dev/shm), NAS failover via rsync.
-* **v1.6 Jochem:** Giving the background workers a bigger role. Cadence filter, ledger_manager, fleet_mapper sovereign TCP, full simulation end-to-end confirmed S1–S7 and T1–T7.
-* **v1.7 Oene:** **The Clean Slate Milestone (March 2026).** Full reinstallation verified on fresh Bookworm SD card.
-  - bootstrap.sh v1.3.1 — user-level systemd, GPS service, clear-outside-apy, horizon mask seeded
-  - config.toml.example v2.0.0 — all sections complete, [weather] thresholds, [knmi] section, cadence config
-  - INSTALL.md — tester-facing installation guide
-  - AAVSO Extended Format reporter v1.2.0 — full 15-field format, WebObs 2.0 preview tested
-  - JD header added to sovereign_stamp in pilot.py
-  - BRIDGE LED removed from dashboard (ALP retired)
-  - Flat horizon mask (15° all-round) seeded at install — replaced at first light
-  - horizon.py v2.0.0 — per-degree profile, linear interpolation, best_windows()
-  - weather.py v1.7.0 — tri-source consensus: open-meteo + Clear Outside + KNMI EDR
-  - Weather evaluates only within astronomical dark window (skyfield)
-  - KNMI EDR API — measured cloud oktas, visibility, present weather from Schiphol
-  - ledger_manager.py v2.2.1 — dynamic 1/20th cadence from config.toml
-  - hardware_loader.py v1.1.0 — Alpaca UDP discovery + HTTP fingerprint (FIRST LIGHT REQUIRED)
-  - dashboard.py — config path fixed (seestar_organizer fossil removed)
-  - GPLv3 LICENSE added — cgobat's recommendation accepted
-  - CONTRIBUTING.md — public facing, Asthonising Automated Variable Star Observatory tagline
-  - GitHub topics, description, INSTALL one-liner
-  - Testers: Arenda (tester #1), Boyce-Astro introduction, Metius presentation (March 2026, well received)
+
+* **v0.0 Beunhaas:** Environment validation.
+* **v0.1 Brigadier Snuf:** The state engine.
+* **v0.2 Zedekia Zwederkoorn:** The Alpaca bridge patch.
+* **v0.3 Joris Goedbloed:** Target acquisition.
+* **v0.4 Zachtzalver:** Command translation.
+* **v0.5 Hiep Hieper:** The orchestrator.
+* **v0.6 Insp. Priembickel:** Hardening and git strictness.
+* **v0.7 Argus:** The autonomous observer.
+* **v0.8 Lieven Brekel:** Weather aborts and WCS bridge hardening.
+* **v0.9 Terpen Tijn:** Westward priority, centroiding, and stable control handshake.
+* **v1.0 Kwetal:** Orchestrator as a daemon.
+* **v1.1 Pee Pastinakel:** Dynamic aperture scaling and saturation detection.
+* **v1.2 Garmt:** Standardization and header discipline.
+* **v1.3 Monkel:** Discovery phase and subnet awareness.
+* **v1.4 Kriel:** gpsd integration and control centralization.
+* **v1.5 Humpie:** Storage and wear strategy.
+* **v1.6 Jochem:** Cadence filtering, ledger authority, and full simulation confirmation.
+* **v1.7 Oene:** Clean-slate reinstall milestone and installability restoration.
 
 ---
 
 ## 🌲 Epoch 1: Het Kleine Volkje (v1.x)
-*The invisible, tireless workers in the background. Focuses on system resilience and background magic.*
 
-* **v1.8 Snotolf:** **The Hardware Whisperer.** An authentic, slightly spicy underlying system change.
-  - ✅ Weather veto wired into orchestrator _run_idle — RAIN/FOGGY/WINDY abort session
-  - ✅ Weather logic redesigned — cloud cover is warning only, never abort (v1.8.0)
-    - Hard abort: rain, snow, hail, fog (measured + forecast), thunderstorm, wind
-    - Per-hour evaluation across dark window replaces window_max worst-case
-    - Best contiguous imaging window reported as imaging_window_start/end
-    - Orchestrator reads imaging_go: true/false — not status string
-  - ✅ link_status wired from orchestrator telemetry into dashboard (WAITING → ONLINE at first light)
-  - ✅ field_rotation.py v1.0.0 — Young's approximation, max safe exposure per az/alt/lat
-  - ✅ exposure_planner.py v1.2.0 — three-way cap (SNR/saturation/field rotation), chunking, scintillation noise
-  - ✅ bootstrap.sh v1.4.0 — full preflight pipeline runs on install (librarian → audit → planner → compiler)
-  - ✅ kaspar_animation.py v2.0.0 — Manim 1080p60 pipeline animation, YouTube: https://youtu.be/qG439gE7UBo
-  - ✅ PRESENTATION.md — speaker's guide + session notes, docs/PRESENTATION.md
-  - ✅ pilot.py v1.7.0 — ID-matched ControlSocket, Event telemetry filtering
-  - ✅ seetop.py v1.1.1 — ncurses live observatory dashboard
-  - ✅ .github/workflows/basic-checks.yml — CI on every PR
-  - ✅ CONTRIBUTING.md updated — Garmt header format, architecture rules explicit
-  - ✅ **THE ALPACA BREAKTHROUGH (2026-03-30)**
-    - ZWO's official Alpaca driver (v1.2.0-3) runs inside the S30-Pro firmware on port 32323
-    - Full telescope control confirmed: slew, track, park, unpark, pulse guide
-    - Full camera control confirmed: gain, exposure, 8.3MP image download (2160×3840)
-    - Filter wheel, focuser, dew heater switch — all accessible
-    - **No phone app required. No session master lock. No JSON-RPC encryption.**
-    - Port 4700 lockout was a red herring — the official REST API was open the entire time
-    - Confirmed working without any ZWO cooperation or special access
-  - ✅ **pilot.py v3.0.0 — Full Alpaca REST rewrite**
-    - Replaces TCP ControlSocket (port 4700) and ImageSocket (port 4801)
-    - AlpacaTelescope, AlpacaCamera, AlpacaFilterWheel client classes
-    - Same DiamondSequence interface — FSM and orchestrator need zero changes
-    - Acquire sequence A1-A7: slew → settle → gain → expose → wait → download → FITS
-    - 33s JSON image transfer for 8.3MP (LAN) — acceptable for science cadence
-  - ✅ **Satellite files updated for Alpaca:**
-    - camera_control.py v3.0.0 — Alpaca management API health check
-    - hardware_audit.py v3.0.0 — Alpaca telescope/camera telemetry reads
-    - dark_library.py v2.0.0 — FilterWheel Dark position + Camera expose
-    - neutralizer.py v2.0.0 — Alpaca Park command
-    - hardware_loader.py — port 4700 → 32323
-    - fleet_mapper.py — alpaca_port added to schema
-  - ✅ **Confirmed S30-Pro Alpaca device map (port 32323):**
-    - Telescope #0: Seestar Wilhelmina Telescope
-    - Camera #0: Seestar Wilhelmina Telephoto Camera (IMX585, 3840×2160, 2.9µm)
-    - Camera #1: Seestar Wilhelmina Wide Angle Camera (IMX586, 3840×2160)
-    - Focuser #0: Seestar Wilhelmina Telephoto Focuser
-    - Focuser #1: Seestar Wilhelmina Wide Angle Focuser
-    - FilterWheel #0: Seestar Wilhelmina Filter Wheel (Dark/IR/LP)
-    - Switch #0: Seestar Wilhelmina Switch (dew heater)
-  - ✅ **Optics confirmed:**
-    - Telephoto: 160mm f/5.3, 30mm aperture, quadruplet APO with ED element
-    - Wide angle: 6mm, ultra-wide context camera
-    - Pixel scale: 3.74 arcsec/pixel (telephoto)
-    - Bayer: GRBG, offset (1,0)
-  - ✅ exposure_planner.py — FOCAL_LENGTH_MM corrected 150 → 160
-  - Hardware auto-detection via Alpaca UDP + HTTP fingerprint — confirm FIRST LIGHT markers
-  - Camera-based automatic horizon profiling at first light
-  - Flat frames pipeline (currently darks only)
-  - Dew heater control — now accessible via Alpaca Switch #0
-  - Pi Zero 2W / CM5 inside Seestar — sovereign at silicon level (research phase)
-  - All-sky camera — wide angle, one frame/min, cloud cover from brightness variance
-  - INA219 power monitoring — current draw, motor stall detection
-  - GPS on one Seestar, broadcast fix over LAN to all federation instances
-  - Weather forced refresh at dusk — sentinel wakes 30min before dark window
-  - **G1/G2 green channel balance diagnostic** — peer review (March 2026)
-  - **WilhelminaMonitor (port 4700) retained for battery/charger telemetry**
-    - Alpaca does not expose battery_pct or charger_status
-    - Event stream listener continues to feed dashboard vitals
-    - pilot.py TelemetryBlock.battery_pct populated from dashboard state, not Alpaca
-  - `vsx_catalog.py` restart resilience — nohup job dies on reboot, no auto-restart
+*The invisible, tireless workers in the background. Focuses on resilience, control, and scientific hardening.*
 
-* **v1.9 Fliep:** **The Deployment Master — Global Edition.**
-  - `config_wizard.py` — re-runnable interactive config tool using tomli_w
-  - Kiosk display service (Pi 4 — Pi 3 too slow)
-  - KNMI waarschuwingen-nederland-48h — weather warnings as hard abort trigger
-  - `vsx_catalog.py` — add systemd service for restart resilience (currently nohup only)
-  - **Bortle auto-resolve from GPS coordinates**
-  - **Binary image transfer** — Alpaca v3 ImageBytes for faster downloads
-    - Current: 33s JSON for 8.3MP
-    - Target: <5s binary transfer
-    - Requires Alpaca ImageBytes support in ZWO firmware (request via forum)
+### v1.8 Snotolf — The Hardware Whisperer
+**Status:** largely completed
 
-  **Southern Hemisphere Support:**
-  - `hemisphere` flag in config.toml (`northern` / `southern`, auto-detected from lat)
-  - Westward priority flips to Eastward in Southern hemisphere (targets transit North)
-  - `catalog_localiser.py` — declination-band aware, pulls targets for observer's actual sky
-  - Weather sources — regional selection based on location
-  - Moon avoidance — Southern hemisphere awareness
-  - Dashboard flight window — local time display correct globally via astimezone()
+Delivered in this era:
+- weather veto integration
+- cloud logic redesign
+- field rotation model
+- exposure planner hardening
+- Alpaca breakthrough on port `32323`
+- `pilot.py` Alpaca rewrite
+- dark library moved onto Alpaca path
+- dashboard and telemetry improvements
+- simulator and CI groundwork
 
-  **General Deployment Gaps:**
-  - `clear-outside-apy` — coverage limited to Europe/N.America, fallback needed for other regions
-  - bootstrap.sh — add hemisphere auto-detection from lat, warn if Southern
-  - INSTALL.md — Southern hemisphere section
-  - astrometry index files — FOV-matched, correct globally
+This was the control-plane breakthrough.
+It proved that the hardware could be driven cleanly and directly.
+
+---
+
+### v1.9 Fliep — The Scientific Hardening Release
+**Status:** current epoch
+
+This is the present chapter.
+
+The focus of `v1.9.x` is not discovering more control features.
+It is making the science chain defensible end-to-end.
+
+#### ✅ Already established in 1.9
+- `tonights_plan.json` restored as the canonical nightly handoff
+- planner/orchestrator contract cleaned up
+- simulator aligned to `A1-A12`
+- flight doctrine frozen around `A1-A12`
+- postflight doctrine frozen around `P1-P8`
+- photometry doctrine rewritten around Bayer-aware measurement rather than naive debayering
+- docs now reflect that flight and postflight have separate responsibilities
+
+#### 1.9.0 — Doctrine Freeze
+- freeze sovereign `A1-A12`
+- freeze sovereign `P1-P8`
+- align logic docs with actual architectural ownership
+- make the scientific boundary explicit:
+  - flight proves raw capture
+  - postflight proves scientific trust
+
+#### 1.9.1 — Astrometric Truth
+- require real solved WCS in postflight
+- stop relying on header-only `CRVAL/CRPIX/CDELT` as scientific truth
+- make unsolved frames fail honestly as `FAILED_NO_WCS`
+- connect `master_analyst.py` or equivalent solve products to the real photometry path
+
+#### 1.9.2 — Detector Truth
+- match darks by exposure, gain, and temperature bin
+- subtract darks before science photometry
+- preserve raw custody and calibrated working custody separately
+- prepare the path for later flat-field support
+
+#### 1.9.3 — Ensemble Robustness
+- add sigma clipping to the comparison-star ensemble
+- record rejected comparison stars and final survivor count
+- tighten quality verdicts around ensemble stability and zero-point scatter
+
+#### 1.9.4 — Deterministic Reporting
+- wire accepted postflight results into AAVSO report staging
+- make report generation a true `P8` output
+- stop treating the reporter as a side utility
+
+#### 1.9.5 — Astropy Review Pass
+- replace custom code with `astropy` components where that improves correctness and maintainability
+- keep custom implementations only where the problem is genuinely SeeVar-specific:
+  - Bayer-aware photometry
+  - Seestar-specific hardware control
+  - custody/state workflow
+- perform a helicopter-view audit of places where Astropy is the better answer
+
+#### 1.9.x also includes
+- rewrite `WORKFLOW.MD` to match current Alpaca-era reality
+- remove stale TCP-era doctrine from remaining docs
+- validate first-light postflight on real frames before widening scope again
 
 ---
 
 ## ☕ Epoch 2: The Women of Rommeldam (v2.x)
-*The caretakers and organizers. Focuses on bringing order, analysis, and presentation to the raw data.*
 
-* **v2.0 Anne Marie Doddel:** **The Hardened Observatory.** Real-time photometric analysis, hardware hardening, and beautiful AAVSO light-curves. First light with Wilhelmina (S30-Pro, April 2026).
-  - Vignetting correction — flat-field pipeline fully operational, per-frame correction in `aperture_flux`
-  - G1/G2 balance constant applied if diagnostic confirms imbalance > 1%
-  - `numba @jit` benchmark on `aperture_flux` mask operations
-  - **Comparison star reconciliation** — Gaia DR3 vs AAVSO VSP
-  - **Alpaca plan upload** — tom-dd132's UploadSeestarPlan proposal (ZWO forum)
-    - If ZWO implements custom Alpaca Actions, SeeVar can push plans natively
-    - Current workaround: direct slew+expose per target (working)
+*The caretakers and organizers. Focuses on bringing order, calibration, and scientific polish to the raw data.*
 
-* **v2.1 Anne-Miebetje:** The classic first sub-version refinement.
-* **v2.2 Wobbe:** A highly stable, technical build.
-* **v2.3 Wolle:** Dedicated to visual graph and plot updates.
-* **v2.4 Irma:** *(Irma de vlieg)* That one tiny, annoying bug fix.
-* **v2.5 Prettig:** A major UX and ease-of-use improvement.
-* **v2.6 Zonnetje:** An optimistic feature-release.
-* **v2.7 Agatha:** *(Vrouw Dickerdack)* A more "official" or business-grade build.
-* **v2.8 Georgette:** *(Vrouw Grootgrut)* Heavy focus on new data integration. Anna (S30-Pro #2) joins the federation.
-* **v2.9 Tante Pollewop:** The final loving polish.
+### v2.0 Anne Marie Doddel — The Hardened Observatory
+**Target theme:** first fully defensible end-to-end science release
+
+Planned:
+- flat-field pipeline fully operational
+- detector-calibrated photometry as standard
+- robust postflight archive products
+- comparison-star reconciliation: Gaia DR3 vs AAVSO VSP
+- production-ready AAVSO output path
+- first validated first-light science release on Wilhelmina
+
+### v2.1 Anne-Miebetje
+- sub-version stabilization after first-light lessons
+
+### v2.2 Wobbe
+- stable technical build and operational polish
+
+### v2.3 Wolle
+- stronger plotting, light curves, and result visualization
+
+### v2.4 Irma
+- narrow, annoying bug-fix release
+
+### v2.5 Prettig
+- usability and operator comfort improvements
+
+### v2.6 Zonnetje
+- optimistic feature release after scientific baseline is trusted
+
+### v2.7 Agatha
+- more official and business-grade observatory behavior
+
+### v2.8 Georgette
+- second telescope integration and broader federation capability
+
+### v2.9 Tante Pollewop
+- final polish across calibration, reporting, and user experience
 
 ---
 
 ## 🧠 Epoch 3: De Medici & Analisten (v3.x)
-*Focuses on the "health," logic, and psychological stability of the code.*
+
+Focus:
+- deep analytics
+- long-term quality monitoring
+- observing performance feedback
+- multi-night ensemble reasoning
+
+Possible themes:
+- solve statistics over time
+- photometric drift tracking
+- nightly quality scoring
+- automatic campaign feedback into planning
+
 * **v3.0 Zielknijper:** The basis for the psychological stability of the code.
 * **v3.1 Galzalver:** Plasters for the small wounds (hotfixes).
 * **v3.2 Dr. Plus:** Added value and positive data-processing results.
@@ -180,7 +195,15 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
 ---
 
 ## 🏛️ Epoch 4: De Bureaucratie & Middenstand (v4.x)
-*Focuses on rules, administration, and AAVSO compliance.*
+
+Focus:
+- strict compliance
+- immutable auditability
+- stronger submission administration
+- official reproducibility and provenance
+
+This is where SeeVar becomes not only scientifically effective, but administratively impeccable.
+
 * **v4.0 Ambtenaar Dorknoper:** *"Dat is buiten de voorschriften."* Strict AAVSO compliance, immutable audit logs, and official submissions.
 * **v4.1 Bulle Bas:** Enforcement of security and protocols.
 * **v4.2 Notaris Canteclaer:** The fine print and legally correct handling.
@@ -233,3 +256,17 @@ This document outlines the architectural journey of the S30-PRO autonomous obser
 * **v8.5 O. Fanth Mzn:** The media magnate. Publishing and exporting final results to the web.
 * **v8.6 Super-Hieper Transit:** Lightning-fast internal logistics and bus transfers.
 * **v8.7 De Kassier:** The final financial and administrative wrap-up.
+
+
+## Astropy Position
+
+SeeVar contains some custom implementations that exist because the project
+grew organically and not every useful Astropy capability was recognized at
+the beginning.
+
+Current roadmap position:
+- use Astropy more where it is clearly the better scientific foundation
+- avoid rewriting well-tested astronomy primitives just for sovereignty
+- keep custom code where it captures genuine SeeVar-specific behavior
+
+This is a maturity step, not a retreat
