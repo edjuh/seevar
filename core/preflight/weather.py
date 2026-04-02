@@ -3,7 +3,7 @@
 """
 Filename: core/preflight/weather.py
 Version: 1.8.0
-Objective: Tri-source weather consensus daemon. Evaluates hard-abort
+Objective: Tri-source weather consensus daemon providing dark-window timing and hard-abort imaging veto state for preflight and flight.
            conditions (rain, snow, fog, storm, wind) per hour within
            tonight's astronomical dark window. Cloud cover at any level
            is a warning only — never an abort. Reports best contiguous

@@ -74,9 +74,17 @@ PLAN_FILE = DATA_DIR / "tonights_plan.json"
 if MAX_TARGETS is not None:
     try:
         plan = json.loads(PLAN_FILE.read_text())
+        changed = False
+
         if isinstance(plan, list) and len(plan) > MAX_TARGETS:
-            trimmed = plan[:MAX_TARGETS]
-            PLAN_FILE.write_text(json.dumps(trimmed, indent=2))
+            plan = plan[:MAX_TARGETS]
+            changed = True
+        elif isinstance(plan, dict) and isinstance(plan.get("targets"), list) and len(plan["targets"]) > MAX_TARGETS:
+            plan["targets"] = plan["targets"][:MAX_TARGETS]
+            changed = True
+
+        if changed:
+            PLAN_FILE.write_text(json.dumps(plan, indent=2))
             log.info("📋 Plan trimmed to top %d targets for simulation.", MAX_TARGETS)
     except Exception as e:
         log.warning("Plan trim failed: %s — using full plan", e)

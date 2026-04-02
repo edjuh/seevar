@@ -2,43 +2,40 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/pilot.py
-Version: 3.0.0
-Objective: Full Alpaca REST control of ZWO S30-Pro for AAVSO-compliant
-           autonomous RAW acquisition. Replaces TCP/JSON-RPC (port 4700)
-           and binary frame stream (port 4801) with the official ZWO Alpaca
-           driver on port 32323.
+Version: 3.1.0
+Objective: Sovereign Alpaca acquisition engine for the Seestar S30-Pro, owning A4-A11 including slew, pointing verification, corrective nudging, science acquisition, image download, and FITS custody.
 
 Confirmed 2026-03-30:
   - Alpaca v1.2.0-3 on port 32323 — slew, expose, download ALL WORK
   - No phone app required. No session master lock.
   - 7 devices: 2 cameras, 2 focusers, filter wheel, telescope, switch
-  - Camera #0 (Telephoto IMX585): 2160x3840, 2.9µm, gain 0-600
+  - Camera #0 (Telephoto IMX585): 2160x3840, 2.9um, gain 0-600
   - Telescope #0: SlewToCoordinatesAsync, Park, Unpark, Tracking
   - FilterWheel #0: positions Dark(0), IR(1), LP(2)
 
-Interface contract (unchanged from v1.7.1):
-  - DiamondSequence.init_session(level_ok) → TelemetryBlock
-  - DiamondSequence.acquire(target, status_cb, telemetry) → FrameResult
+Interface contract:
+  - DiamondSequence.init_session(level_ok) -> TelemetryBlock
+  - DiamondSequence.acquire(target, status_cb, telemetry) -> FrameResult
   - AcquisitionTarget, FrameResult, TelemetryBlock dataclasses
   - sovereign_stamp(), write_fits() utility functions
-
-This preserves FSM and orchestrator compatibility — zero changes needed
-in fsm.py or orchestrator.py.
 """
 
 import json
 import logging
 import math
+import subprocess
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
 import requests
 from astropy.coordinates import EarthLocation, AltAz, SkyCoord, get_body
+from astropy.io import fits
 from astropy.time import Time
+from astropy.wcs import WCS
 import astropy.units as u
 
 from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config
@@ -46,6 +43,7 @@ from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config
 # ---------------------------------------------------------------------------
 # Dynamic IP Resolution
 # ---------------------------------------------------------------------------
+
 def _get_seestar_ip() -> str:
     cfg = load_config()
     seestars = cfg.get("seestars", [{}])
@@ -54,100 +52,104 @@ def _get_seestar_ip() -> str:
         return "10.0.0.1"
     return ip
 
+
 # ---------------------------------------------------------------------------
 # Constants — single source of truth (S30-Pro / Alpaca v1.2.0-3)
 # ---------------------------------------------------------------------------
 
-SEESTAR_HOST    = _get_seestar_ip()
-ALPACA_PORT     = 32323
-TELESCOPE_NUM   = 0
-CAMERA_NUM      = 0       # Telephoto (IMX585)
+SEESTAR_HOST = _get_seestar_ip()
+ALPACA_PORT = 32323
+TELESCOPE_NUM = 0
+CAMERA_NUM = 0
 FILTERWHEEL_NUM = 0
-SWITCH_NUM      = 0       # Dew heater
+SWITCH_NUM = 0
 
-# Sensor / optics
-SENSOR_W        = 3840
-SENSOR_H        = 2160
-BAYER_PATTERN   = "GRBG"
-INSTRUMENT      = "IMX585"
-TELESCOPE       = "ZWO Seestar S30-Pro"
-FILTER_NAME     = "TG"    # Tri-color Green for AAVSO
+SENSOR_W = 3840
+SENSOR_H = 2160
+BAYER_PATTERN = "GRBG"
+INSTRUMENT = "IMX585"
+TELESCOPE = "ZWO Seestar S30-Pro"
+FILTER_NAME = "TG"
 
-GAIN            = 80      # HCG sweet spot — 12 stops dynamic range
-FOCALLEN        = 160     # mm (confirmed S30-Pro quadruplet APO)
-APERTURE        = 30      # mm
-PIXSCALE        = 3.74    # arcsec/pixel  (206.265 * 2.9 / 160)
-PIXEL_SIZE_UM   = 2.9     # µm (confirmed via Alpaca)
-RDNOISE         = 1.6     # e- estimate
-PEDESTAL        = 0
-SWCREATE        = "SeeVar v3.0.0 (Alpaca)"
+GAIN = 80
+FOCALLEN = 160
+APERTURE = 30
+PIXSCALE = 3.74
+PIXEL_SIZE_UM = 2.9
+RDNOISE = 1.6
+PEDESTAL = 0
+SWCREATE = "SeeVar v3.1.0 (Alpaca)"
 
-# Timing
-SETTLE_SECONDS  = 8       # Post-slew settle
-SLEW_TIMEOUT    = 60      # Max wait for slew completion
-EXPOSE_TIMEOUT  = 120     # Max wait for exposure + readout
-DOWNLOAD_TIMEOUT = 300    # Image download (JSON is slow for 8MP)
-EXP_MS_DEFAULT  = 5000
+SETTLE_SECONDS = 8
+SLEW_TIMEOUT = 60
+EXPOSE_TIMEOUT = 120
+DOWNLOAD_TIMEOUT = 300
+EXP_MS_DEFAULT = 5000
 
-# Vetoes
-VETO_BATTERY    = 10      # % — mandatory park below this
-VETO_TEMP       = 55.0    # °C — mandatory park above this
+VETO_BATTERY = 10
+VETO_TEMP = 55.0
 
-# Alpaca client identity
-CLIENT_ID       = 42      # SeeVar
+CLIENT_ID = 42
 
-LOCAL_BUFFER    = DATA_DIR / "local_buffer"
+VERIFY_EXPOSURE_SEC = 2.0
+VERIFY_EXPOSURE_RETRY_SEC = 4.0
+POINTING_TOLERANCE_ARCMIN = 12.0
+POINTING_MAX_RETRIES = 2
+PLATESOLVE_RADIUS_DEG = 3.0
+PLATESOLVE_DOWNSAMPLE = 2
+
+LOCAL_BUFFER = DATA_DIR / "local_buffer"
+VERIFY_BUFFER = DATA_DIR / "verify_buffer"
 logger = logging.getLogger("seevar.pilot")
 
 
 # ---------------------------------------------------------------------------
-# Data classes (interface contract — unchanged)
+# Data classes
 # ---------------------------------------------------------------------------
 
 @dataclass
 class AcquisitionTarget:
-    name:          str
-    ra_hours:      float
-    dec_deg:       float
-    auid:          str   = ""
-    exp_ms:        int   = EXP_MS_DEFAULT
-    observer_code: str   = ""
-    n_frames:      int   = 1
+    name: str
+    ra_hours: float
+    dec_deg: float
+    auid: str = ""
+    exp_ms: int = EXP_MS_DEFAULT
+    observer_code: str = ""
+    n_frames: int = 1
+
 
 @dataclass
 class FrameResult:
-    success:    bool
-    path:       Optional[Path]  = None
-    width:      int             = 0
-    height:     int             = 0
-    elapsed_s:  float           = 0.0
-    error:      str             = ""
+    success: bool
+    path: Optional[Path] = None
+    width: int = 0
+    height: int = 0
+    elapsed_s: float = 0.0
+    error: str = ""
+
 
 @dataclass
 class TelemetryBlock:
-    battery_pct:    Optional[int]   = None
-    temp_c:         Optional[float] = None
-    charge_online:  Optional[bool]  = None
-    charger_status: Optional[str]   = None
-    device_name:    Optional[str]   = None
-    firmware_ver:   Optional[int]   = None
-    level_ok:       bool            = True
-    raw:            Optional[dict]  = None
-    parse_error:    Optional[str]   = None
+    battery_pct: Optional[int] = None
+    temp_c: Optional[float] = None
+    charge_online: Optional[bool] = None
+    charger_status: Optional[str] = None
+    device_name: Optional[str] = None
+    firmware_ver: Optional[int] = None
+    level_ok: bool = True
+    raw: Optional[dict] = None
+    parse_error: Optional[str] = None
 
-    # Alpaca-specific extras
-    tracking:       Optional[bool]  = None
-    at_park:        Optional[bool]  = None
-    ra_hours:       Optional[float] = None
-    dec_deg:        Optional[float] = None
-    altitude:       Optional[float] = None
-    azimuth:        Optional[float] = None
-    alpaca_version: Optional[str]   = None
+    tracking: Optional[bool] = None
+    at_park: Optional[bool] = None
+    ra_hours: Optional[float] = None
+    dec_deg: Optional[float] = None
+    altitude: Optional[float] = None
+    azimuth: Optional[float] = None
+    alpaca_version: Optional[str] = None
 
     @classmethod
-    def from_alpaca(cls, telescope: "AlpacaTelescope",
-                    camera: "AlpacaCamera") -> "TelemetryBlock":
-        """Build TelemetryBlock from Alpaca device reads."""
+    def from_alpaca(cls, telescope: "AlpacaTelescope", camera: "AlpacaCamera") -> "TelemetryBlock":
         try:
             temp = camera.safe_get("ccdtemperature")
             name = telescope.safe_get("name")
@@ -169,29 +171,26 @@ class TelemetryBlock:
                 altitude=alt,
                 azimuth=az,
                 alpaca_version=version,
-                # Battery/charger not available via Alpaca — leave None
-                # Dashboard gets these from WilhelminaMonitor event stream
             )
         except Exception as e:
             return cls(parse_error=f"Alpaca telemetry read failed: {e}")
 
     @classmethod
     def from_response(cls, response: Optional[dict]) -> "TelemetryBlock":
-        """Legacy compatibility — parse JSON-RPC response dict."""
         if response is None:
             return cls(parse_error="No response received")
         try:
             result = response.get("result", response)
-            pi  = result.get("pi_status", {})
+            pi = result.get("pi_status", {})
             dev = result.get("device", {})
             return cls(
-                battery_pct    = pi.get("battery_capacity"),
-                temp_c         = pi.get("temp"),
-                charge_online  = pi.get("charge_online"),
-                charger_status = pi.get("charger_status"),
-                device_name    = dev.get("name"),
-                firmware_ver   = dev.get("firmware_ver_int"),
-                raw            = result,
+                battery_pct=pi.get("battery_capacity"),
+                temp_c=pi.get("temp"),
+                charge_online=pi.get("charge_online"),
+                charger_status=pi.get("charger_status"),
+                device_name=dev.get("name"),
+                firmware_ver=dev.get("firmware_ver_int"),
+                raw=result,
             )
         except Exception as e:
             return cls(parse_error=str(e), raw=response)
@@ -228,12 +227,10 @@ class TelemetryBlock:
 
 
 # ---------------------------------------------------------------------------
-# Alpaca REST Client — thin HTTP wrapper
+# Alpaca REST Client
 # ---------------------------------------------------------------------------
 
 class AlpacaClient:
-    """Base Alpaca REST client. Telescope, Camera, etc. inherit from this."""
-
     def __init__(self, ip: str, port: int, device_type: str, device_number: int):
         self.base = f"http://{ip}:{port}/api/v1/{device_type}/{device_number}"
         self._txid = 0
@@ -243,32 +240,31 @@ class AlpacaClient:
         return self._txid
 
     def _get(self, prop: str, timeout: float = 10.0):
-        """GET a device property. Returns the Value field."""
-        params = {"ClientID": CLIENT_ID,
-                  "ClientTransactionID": self._next_tx()}
+        params = {
+            "ClientID": CLIENT_ID,
+            "ClientTransactionID": self._next_tx(),
+        }
         r = requests.get(f"{self.base}/{prop}", params=params, timeout=timeout)
         data = r.json()
         err = data.get("ErrorNumber", 0)
         if err:
-            raise RuntimeError(
-                f"Alpaca GET {prop}: error {err} — {data.get('ErrorMessage', '')}")
+            raise RuntimeError(f"Alpaca GET {prop}: error {err} — {data.get('ErrorMessage', '')}")
         return data.get("Value")
 
     def _put(self, method: str, timeout: float = 15.0, **kwargs):
-        """PUT a device method. Returns the Value field (usually None)."""
-        payload = {"ClientID": CLIENT_ID,
-                   "ClientTransactionID": self._next_tx()}
+        payload = {
+            "ClientID": CLIENT_ID,
+            "ClientTransactionID": self._next_tx(),
+        }
         payload.update(kwargs)
         r = requests.put(f"{self.base}/{method}", data=payload, timeout=timeout)
         data = r.json()
         err = data.get("ErrorNumber", 0)
         if err:
-            raise RuntimeError(
-                f"Alpaca PUT {method}: error {err} — {data.get('ErrorMessage', '')}")
+            raise RuntimeError(f"Alpaca PUT {method}: error {err} — {data.get('ErrorMessage', '')}")
         return data.get("Value")
 
     def safe_get(self, prop: str, default=None):
-        """GET with exception swallowed — returns default on any failure."""
         try:
             return self._get(prop)
         except Exception:
@@ -288,13 +284,8 @@ class AlpacaClient:
         return self._get("connected")
 
 
-# ---------------------------------------------------------------------------
-# Alpaca Telescope
-# ---------------------------------------------------------------------------
-
 class AlpacaTelescope(AlpacaClient):
-    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT,
-                 device_number: int = TELESCOPE_NUM):
+    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT, device_number: int = TELESCOPE_NUM):
         super().__init__(ip, port, "telescope", device_number)
 
     def unpark(self):
@@ -307,13 +298,14 @@ class AlpacaTelescope(AlpacaClient):
         self._put("tracking", Tracking=str(on).lower())
 
     def slew_to_coordinates_async(self, ra_hours: float, dec_deg: float):
-        self._put("slewtocoordinatesasync",
-                   RightAscension=str(ra_hours),
-                   Declination=str(dec_deg),
-                   timeout=20.0)
+        self._put(
+            "slewtocoordinatesasync",
+            RightAscension=str(ra_hours),
+            Declination=str(dec_deg),
+            timeout=20.0,
+        )
 
     def wait_for_slew(self, timeout: float = SLEW_TIMEOUT) -> bool:
-        """Poll until slewing completes. Returns True if slew finished."""
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if not self._get("slewing"):
@@ -351,40 +343,36 @@ class AlpacaTelescope(AlpacaClient):
         return self._get("siderealtime")
 
 
-# ---------------------------------------------------------------------------
-# Alpaca Camera
-# ---------------------------------------------------------------------------
-
 class AlpacaCamera(AlpacaClient):
-    # ASCOM camera states
-    IDLE     = 0
-    WAITING  = 1
+    IDLE = 0
+    WAITING = 1
     EXPOSING = 2
-    READING  = 3
+    READING = 3
     DOWNLOAD = 4
-    ERROR    = 5
+    ERROR = 5
 
-    STATE_NAMES = {0: "Idle", 1: "Waiting", 2: "Exposing",
-                   3: "Reading", 4: "Download", 5: "Error"}
+    STATE_NAMES = {
+        0: "Idle",
+        1: "Waiting",
+        2: "Exposing",
+        3: "Reading",
+        4: "Download",
+        5: "Error",
+    }
 
-    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT,
-                 device_number: int = CAMERA_NUM):
+    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT, device_number: int = CAMERA_NUM):
         super().__init__(ip, port, "camera", device_number)
 
     def set_gain(self, gain: int):
         self._put("gain", Gain=str(gain))
 
     def start_exposure(self, duration_sec: float, light: bool = True):
-        self._put("startexposure",
-                   Duration=str(duration_sec),
-                   Light=str(light).lower())
+        self._put("startexposure", Duration=str(duration_sec), Light=str(light).lower())
 
     def abort_exposure(self):
         self._put("abortexposure")
 
-    def wait_for_image(self, exposure_sec: float,
-                       timeout: float = EXPOSE_TIMEOUT) -> bool:
-        """Poll until image is ready. Returns True if image available."""
+    def wait_for_image(self, exposure_sec: float, timeout: float = EXPOSE_TIMEOUT) -> bool:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             try:
@@ -396,27 +384,21 @@ class AlpacaCamera(AlpacaClient):
         return False
 
     def download_image(self) -> np.ndarray:
-        """Download image array via Alpaca JSON transfer.
-
-        The IMX585 at 3840x2160 takes ~33s over JSON on LAN.
-        Returns numpy array (height, width).
-        """
-        params = {"ClientID": CLIENT_ID,
-                  "ClientTransactionID": self._next_tx()}
-        r = requests.get(f"{self.base}/imagearray",
-                         params=params, timeout=DOWNLOAD_TIMEOUT)
+        params = {
+            "ClientID": CLIENT_ID,
+            "ClientTransactionID": self._next_tx(),
+        }
+        r = requests.get(f"{self.base}/imagearray", params=params, timeout=DOWNLOAD_TIMEOUT)
         data = r.json()
         err = data.get("ErrorNumber", 0)
         if err:
-            raise RuntimeError(
-                f"imagearray: error {err} — {data.get('ErrorMessage', '')}")
+            raise RuntimeError(f"imagearray: error {err} — {data.get('ErrorMessage', '')}")
 
         value = data.get("Value")
         if value is None:
             raise RuntimeError("imagearray returned no Value")
 
-        arr = np.array(value, dtype=np.int32)
-        return arr
+        return np.array(value, dtype=np.int32)
 
     @property
     def camera_state(self) -> int:
@@ -443,18 +425,12 @@ class AlpacaCamera(AlpacaClient):
         return self._get("cameraysize")
 
 
-# ---------------------------------------------------------------------------
-# Alpaca Filter Wheel
-# ---------------------------------------------------------------------------
-
 class AlpacaFilterWheel(AlpacaClient):
-    # S30-Pro filter positions (confirmed Alpaca v1.2.0-3)
     DARK = 0
-    IR   = 1
-    LP   = 2
+    IR = 1
+    LP = 2
 
-    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT,
-                 device_number: int = FILTERWHEEL_NUM):
+    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT, device_number: int = FILTERWHEEL_NUM):
         super().__init__(ip, port, "filterwheel", device_number)
 
     def set_position(self, pos: int):
@@ -472,19 +448,22 @@ class AlpacaFilterWheel(AlpacaClient):
 def _read_gps_ram() -> dict:
     try:
         data = json.loads(ENV_STATUS.read_text())
-        lat  = float(data.get("lat",       0.0))
-        lon  = float(data.get("lon",       0.0))
+        lat = float(data.get("lat", 0.0))
+        lon = float(data.get("lon", 0.0))
         elev = float(data.get("elevation", 0.0))
         return {"lat": lat, "lon": lon, "elevation": elev}
     except Exception:
         return {"lat": 0.0, "lon": 0.0, "elevation": 0.0}
 
 
-def sovereign_stamp(target: AcquisitionTarget, utc_obs: datetime,
-                    width: int, height: int,
-                    ccd_temp: Optional[float] = None) -> dict:
-    """Build FITS header dictionary for AAVSO-compliant science frames."""
-    ra_deg    = target.ra_hours * 15.0
+def sovereign_stamp(
+    target: AcquisitionTarget,
+    utc_obs: datetime,
+    width: int,
+    height: int,
+    ccd_temp: Optional[float] = None,
+) -> dict:
+    ra_deg = target.ra_hours * 15.0
     t_astropy = Time(utc_obs)
 
     gps = _read_gps_ram()
@@ -494,97 +473,111 @@ def sovereign_stamp(target: AcquisitionTarget, utc_obs: datetime,
     airmass = moon_phase = moon_alt = None
     if gps_valid:
         try:
-            location     = EarthLocation(lat=site_lat * u.deg,
-                                         lon=site_lon * u.deg,
-                                         height=site_elev * u.m)
-            frame        = AltAz(obstime=t_astropy, location=location)
-            target_coord = SkyCoord(ra=ra_deg * u.deg,
-                                    dec=target.dec_deg * u.deg, frame="icrs")
-            altaz        = target_coord.transform_to(frame)
-            alt_deg      = float(altaz.alt.deg)
+            location = EarthLocation(lat=site_lat * u.deg, lon=site_lon * u.deg, height=site_elev * u.m)
+            frame = AltAz(obstime=t_astropy, location=location)
+            target_coord = SkyCoord(ra=ra_deg * u.deg, dec=target.dec_deg * u.deg, frame="icrs")
+            altaz = target_coord.transform_to(frame)
+            alt_deg = float(altaz.alt.deg)
             if alt_deg > 0.0:
                 airmass = round(1.0 / math.sin(math.radians(alt_deg)), 4)
 
-            moon      = get_body("moon", t_astropy, location)
-            moon_alt  = round(float(moon.transform_to(frame).alt.deg), 2)
-            sun       = get_body("sun",  t_astropy, location)
-            sep       = moon.separation(sun).deg
-            moon_phase = round(
-                min(max((1.0 - math.cos(math.radians(sep))) / 2.0, 0.0), 1.0), 4
-            )
+            moon = get_body("moon", t_astropy, location)
+            moon_alt = round(float(moon.transform_to(frame).alt.deg), 2)
+            sun = get_body("sun", t_astropy, location)
+            sep = moon.separation(sun).deg
+            moon_phase = round(min(max((1.0 - math.cos(math.radians(sep))) / 2.0, 0.0), 1.0), 4)
         except Exception:
             pass
 
     h = {
-        "SIMPLE":   True,   "BITPIX": 16,  "NAXIS":  2,
-        "NAXIS1":   width,  "NAXIS2": height,
-        "BZERO":    32768.0, "BSCALE": 1.0,
-        "OBJECT":   target.name,
-        "OBJCTRA":  _hours_to_hms(target.ra_hours),
+        "SIMPLE": True,
+        "BITPIX": 16,
+        "NAXIS": 2,
+        "NAXIS1": width,
+        "NAXIS2": height,
+        "BZERO": 32768.0,
+        "BSCALE": 1.0,
+        "OBJECT": target.name,
+        "OBJCTRA": _hours_to_hms(target.ra_hours),
         "OBJCTDEC": _deg_to_dms(target.dec_deg),
-        "CRVAL1":   ra_deg,       "CRVAL2": target.dec_deg,
-        "CRPIX1":   width / 2.0,  "CRPIX2": height / 2.0,
-        "CDELT1":  -0.001042,     "CDELT2":  0.001042,
-        "CTYPE1":  "RA---TAN",    "CTYPE2": "DEC--TAN",
+        "RA": ra_deg,
+        "DEC": target.dec_deg,
+        "CRVAL1": ra_deg,
+        "CRVAL2": target.dec_deg,
+        "CRPIX1": width / 2.0,
+        "CRPIX2": height / 2.0,
+        "CDELT1": -0.001042,
+        "CDELT2": 0.001042,
+        "CTYPE1": "RA---TAN",
+        "CTYPE2": "DEC--TAN",
         "DATE-OBS": utc_obs.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3],
-        "EXPTIME":  target.exp_ms / 1000.0,
-        "INSTRUME": INSTRUMENT,   "TELESCOP": TELESCOPE,
-        "FILTER":   FILTER_NAME,  "BAYERPAT": BAYER_PATTERN,
-        "GAIN":     GAIN,         "FOCALLEN": FOCALLEN,
-        "APERTURE": APERTURE,     "PIXSCALE": PIXSCALE,
-        "RDNOISE":  RDNOISE,      "PEDESTAL": PEDESTAL,
+        "EXPTIME": target.exp_ms / 1000.0,
+        "INSTRUME": INSTRUMENT,
+        "TELESCOP": TELESCOPE,
+        "FILTER": FILTER_NAME,
+        "BAYERPAT": BAYER_PATTERN,
+        "GAIN": GAIN,
+        "FOCALLEN": FOCALLEN,
+        "APERTURE": APERTURE,
+        "PIXSCALE": PIXSCALE,
+        "RDNOISE": RDNOISE,
+        "PEDESTAL": PEDESTAL,
         "OBSERVER": target.observer_code or "UNKNOWN",
-        "SITELAT":  site_lat, "SITELONG": site_lon, "SITEELEV": site_elev,
+        "SITELAT": site_lat,
+        "SITELONG": site_lon,
+        "SITEELEV": site_elev,
         "SWCREATE": SWCREATE,
     }
 
     h["CCD-TEMP"] = ccd_temp if ccd_temp is not None else "UNKNOWN"
-    if airmass    is not None: h["AIRMASS"]   = airmass
-    if moon_phase is not None: h["MOONPHASE"] = moon_phase
-    if moon_alt   is not None: h["MOONALT"]   = moon_alt
-    if target.auid:            h["AUID"]      = target.auid
+    if airmass is not None:
+        h["AIRMASS"] = airmass
+    if moon_phase is not None:
+        h["MOONPHASE"] = moon_phase
+    if moon_alt is not None:
+        h["MOONALT"] = moon_alt
+    if target.auid:
+        h["AUID"] = target.auid
     h["JD"] = round(t_astropy.jd, 6)
 
     return h
 
 
 def write_fits(array: np.ndarray, header_dict: dict, output_path: Path) -> bool:
-    """Write FITS file with hand-rolled header for zero-dependency reliability."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Ensure uint16 range then apply BZERO signed-integer encoding
     if array.dtype != np.uint16:
         array = np.clip(array, 0, 65535).astype(np.uint16)
     array_signed = (array.astype(np.int32) - 32768).astype(np.int16)
     if array_signed.dtype.byteorder not in (">",):
-        array_signed = array_signed.byteswap().view(
-            array_signed.dtype.newbyteorder(">"))
+        array_signed = array_signed.byteswap().view(array_signed.dtype.newbyteorder(">"))
 
     def card(key: str, value, comment: str = "") -> str:
         key = key.upper()[:8].ljust(8)
-        if isinstance(value, bool):    val_str = f"{'T' if value else 'F':>20}"
-        elif isinstance(value, int):   val_str = f"{value:>20}"
-        elif isinstance(value, float): val_str = f"{value:>20.10G}"
-        elif isinstance(value, str):   val_str = f"'{value.replace(chr(39), chr(39)*2):<8}'".ljust(20)
-        else:                          val_str = f"'{str(value):<8}'".ljust(20)
+        if isinstance(value, bool):
+            val_str = f"{'T' if value else 'F':>20}"
+        elif isinstance(value, int):
+            val_str = f"{value:>20}"
+        elif isinstance(value, float):
+            val_str = f"{value:>20.10G}"
+        elif isinstance(value, str):
+            val_str = f"'{value.replace(chr(39), chr(39) * 2):<8}'".ljust(20)
+        else:
+            val_str = f"'{str(value):<8}'".ljust(20)
         return f"{key}= {val_str}{f' / {comment}' if comment else ''}"[:80].ljust(80)
 
-    priority_keys = ["SIMPLE", "BITPIX", "NAXIS", "NAXIS1", "NAXIS2",
-                     "BZERO", "BSCALE"]
-    records  = [card(k, header_dict[k]) for k in priority_keys if k in header_dict]
-    records += [card(k, v) for k, v in header_dict.items()
-                if k not in priority_keys]
-    records.append(
-        "COMMENT   SeeVar v3.0.0 -- Alpaca REST -- BZERO Signed-Integer Protected"
-        .ljust(80))
+    priority_keys = ["SIMPLE", "BITPIX", "NAXIS", "NAXIS1", "NAXIS2", "BZERO", "BSCALE"]
+    records = [card(k, header_dict[k]) for k in priority_keys if k in header_dict]
+    records += [card(k, v) for k, v in header_dict.items() if k not in priority_keys]
+    records.append("COMMENT   SeeVar v3.1.0 -- Alpaca REST -- BZERO Signed-Integer Protected".ljust(80))
     records.append("END".ljust(80))
 
     while (len(records) * 80) % 2880 != 0:
         records.append(" " * 80)
 
     header_bytes = "".join(records).encode("ascii")
-    data_bytes   = array_signed.tobytes()
-    remainder    = len(data_bytes) % 2880
+    data_bytes = array_signed.tobytes()
+    remainder = len(data_bytes) % 2880
     if remainder:
         data_bytes += b"\x00" * (2880 - remainder)
 
@@ -605,44 +598,143 @@ class DiamondSequence:
     """
     Full target acquisition via Alpaca REST.
 
-    Interface contract identical to v1.7.1 TCP version:
-      init_session(level_ok) → TelemetryBlock
-      acquire(target, status_cb, telemetry) → FrameResult
-
-    FSM and Orchestrator call these methods unchanged.
+    Interface contract remains:
+      init_session(level_ok) -> TelemetryBlock
+      acquire(target, status_cb, telemetry) -> FrameResult
     """
 
     def __init__(self, host: str = SEESTAR_HOST, port: int = ALPACA_PORT):
         self.host = host
         self.port = port
         self._telescope = AlpacaTelescope(host, port)
-        self._camera    = AlpacaCamera(host, port)
-        self._filter    = AlpacaFilterWheel(host, port)
+        self._camera = AlpacaCamera(host, port)
+        self._filter = AlpacaFilterWheel(host, port)
 
     def _is_reachable(self) -> bool:
-        """Quick health check — can we reach the Alpaca management API?"""
         try:
-            r = requests.get(
-                f"http://{self.host}:{self.port}/management/apiversions",
-                timeout=5)
+            r = requests.get(f"http://{self.host}:{self.port}/management/apiversions", timeout=5)
             return r.status_code == 200
         except Exception:
             return False
 
+    def _capture_temp_frame(self, target: AcquisitionTarget, exposure_sec: float, suffix: str, ccd_temp=None) -> Path:
+        self._camera.start_exposure(exposure_sec, light=True)
+        image_timeout = exposure_sec + EXPOSE_TIMEOUT
+        if not self._camera.wait_for_image(exposure_sec, timeout=image_timeout):
+            raise RuntimeError(f"Verification image not ready after {image_timeout}s")
+
+        img = self._camera.download_image()
+        width = img.shape[1]
+        height = img.shape[0]
+
+        VERIFY_BUFFER.mkdir(parents=True, exist_ok=True)
+        utc_obs = datetime.now(timezone.utc)
+        safe_name = target.name.replace(" ", "_").replace("/", "-")
+        out_path = VERIFY_BUFFER / f"{safe_name}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_{suffix}.fits"
+
+        header = sovereign_stamp(target, utc_obs, width, height, ccd_temp=ccd_temp)
+        ok = write_fits(img, header, out_path)
+        if not ok:
+            raise RuntimeError("Verification FITS write failed")
+
+        return out_path
+
+    def _solve_verify_frame(self, fits_path: Path, target: AcquisitionTarget) -> dict:
+        work_dir = fits_path.parent
+        ra_deg = target.ra_hours * 15.0
+        dec_deg = target.dec_deg
+
+        cmd = [
+            "solve-field",
+            str(fits_path),
+            "--dir", str(work_dir),
+            "--overwrite",
+            "--no-plots",
+            "--downsample", str(PLATESOLVE_DOWNSAMPLE),
+            "--ra", str(ra_deg),
+            "--dec", str(dec_deg),
+            "--radius", str(PLATESOLVE_RADIUS_DEG),
+            "--tweak-order", "1",
+            "--cpulimit", "45",
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        wcs_path = fits_path.with_suffix(".wcs")
+
+        if not wcs_path.exists():
+            return {
+                "ok": False,
+                "error": f"solve-field failed ({result.returncode})",
+                "stderr": (result.stderr or "").strip()[-300:],
+            }
+
+        w = WCS(str(wcs_path))
+        hdr = fits.getheader(wcs_path, 0)
+        solved_ra_deg = float(hdr.get("CRVAL1"))
+        solved_dec_deg = float(hdr.get("CRVAL2"))
+
+        target_coord = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame="icrs")
+        solved_coord = SkyCoord(ra=solved_ra_deg * u.deg, dec=solved_dec_deg * u.deg, frame="icrs")
+        error_arcmin = float(target_coord.separation(solved_coord).arcminute)
+
+        return {
+            "ok": True,
+            "wcs_path": wcs_path,
+            "solved_ra_deg": solved_ra_deg,
+            "solved_dec_deg": solved_dec_deg,
+            "error_arcmin": error_arcmin,
+        }
+
+    def _pointing_verify(self, target: AcquisitionTarget, notify, ccd_temp=None) -> dict:
+        notify("A7", f"Pointing verify frame {VERIFY_EXPOSURE_SEC:.1f}s")
+        try:
+            verify_fits = self._capture_temp_frame(target, VERIFY_EXPOSURE_SEC, "VERIFY", ccd_temp=ccd_temp)
+            solve = self._solve_verify_frame(verify_fits, target)
+            if solve.get("ok"):
+                notify("A7", f"Solve success error={solve['error_arcmin']:.2f} arcmin")
+                solve["verify_fits"] = verify_fits
+                return solve
+            notify("A7", "Primary verify solve failed — retrying with longer exposure")
+        except Exception as e:
+            notify("A7", f"Primary verify capture failed: {e}")
+
+        try:
+            verify_fits = self._capture_temp_frame(target, VERIFY_EXPOSURE_RETRY_SEC, "VERIFY_RETRY", ccd_temp=ccd_temp)
+            solve = self._solve_verify_frame(verify_fits, target)
+            if solve.get("ok"):
+                notify("A7", f"Retry solve success error={solve['error_arcmin']:.2f} arcmin")
+                solve["verify_fits"] = verify_fits
+                return solve
+            solve["verify_fits"] = verify_fits
+            return solve
+        except Exception as e:
+            return {"ok": False, "error": f"Verify retry capture failed: {e}"}
+
+    def _corrective_nudge(self, command_ra_hours: float, command_dec_deg: float, solve_result: dict) -> tuple[float, float]:
+        solved_ra_hours = float(solve_result["solved_ra_deg"]) / 15.0
+        solved_dec_deg = float(solve_result["solved_dec_deg"])
+
+        delta_ra_hours = command_ra_hours - solved_ra_hours
+        delta_dec_deg = command_dec_deg - solved_dec_deg
+
+        corrected_ra_hours = command_ra_hours + delta_ra_hours
+        corrected_dec_deg = command_dec_deg + delta_dec_deg
+
+        corrected_ra_hours = corrected_ra_hours % 24.0
+        corrected_dec_deg = max(-90.0, min(90.0, corrected_dec_deg))
+        return corrected_ra_hours, corrected_dec_deg
+
     def init_session(self, level_ok: bool = True) -> TelemetryBlock:
-        """Initialize hardware session. Connect, unpark, enable tracking."""
         if not self._is_reachable():
             t = TelemetryBlock(parse_error="Alpaca server not reachable")
             t.level_ok = level_ok
             return t
 
         try:
-            # Connect all devices
             self._telescope.connect()
             self._camera.connect()
             self._filter.connect()
 
-            # Unpark if parked
             try:
                 if self._telescope.at_park:
                     logger.info("Telescope parked — unparking...")
@@ -651,19 +743,16 @@ class DiamondSequence:
             except Exception as e:
                 logger.warning("Unpark check/attempt: %s", e)
 
-            # Enable tracking
             try:
                 self._telescope.set_tracking(True)
             except Exception as e:
                 logger.warning("Tracking enable: %s", e)
 
-            # Set gain
             try:
                 self._camera.set_gain(GAIN)
             except Exception as e:
                 logger.warning("Gain set: %s", e)
 
-            # Read telemetry
             telemetry = TelemetryBlock.from_alpaca(self._telescope, self._camera)
             telemetry.level_ok = level_ok
 
@@ -679,10 +768,8 @@ class DiamondSequence:
             t.level_ok = level_ok
             return t
 
-    def acquire(self, target: AcquisitionTarget,
-                status_cb=None,
-                telemetry: Optional[TelemetryBlock] = None) -> FrameResult:
-        """Execute full target acquisition: slew → expose → download → FITS."""
+    def acquire(self, target: AcquisitionTarget, status_cb=None, telemetry: Optional[TelemetryBlock] = None) -> FrameResult:
+        """Execute A4-A11 for one target."""
 
         def notify(step, msg):
             if status_cb:
@@ -690,101 +777,125 @@ class DiamondSequence:
             logger.info("[%s] %s", step, msg)
 
         t_start = time.monotonic()
-        utc_obs = datetime.now(timezone.utc)
         ccd_temp = telemetry.temp_c if telemetry else None
+        command_ra_hours = float(target.ra_hours)
+        command_dec_deg = float(target.dec_deg)
+        exp_sec = target.exp_ms / 1000.0
 
         try:
-            # A1 — Slew to target
-            notify("A1", f"Slew RA={target.ra_hours:.4f}h "
-                         f"DEC={target.dec_deg:.4f}° ({target.name})")
-            self._telescope.slew_to_coordinates_async(
-                target.ra_hours, target.dec_deg)
+            for attempt in range(POINTING_MAX_RETRIES + 1):
+                notify("A4", f"Slew command RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° ({target.name})")
+                self._telescope.slew_to_coordinates_async(command_ra_hours, command_dec_deg)
 
-            if not self._telescope.wait_for_slew(SLEW_TIMEOUT):
-                return FrameResult(success=False,
-                                   error=f"Slew timeout ({SLEW_TIMEOUT}s)")
+                notify("A5", f"Waiting for slew completion (timeout={SLEW_TIMEOUT}s)")
+                if not self._telescope.wait_for_slew(SLEW_TIMEOUT):
+                    return FrameResult(success=False, error=f"Slew timeout ({SLEW_TIMEOUT}s)")
 
-            # A2 — Settle
-            notify("A2", f"Settling {SETTLE_SECONDS}s...")
-            time.sleep(SETTLE_SECONDS)
+                notify("A6", f"Settling {SETTLE_SECONDS}s after slew")
+                time.sleep(SETTLE_SECONDS)
 
-            # Update observation timestamp to post-slew
-            utc_obs = datetime.now(timezone.utc)
+                verify_target = AcquisitionTarget(
+                    name=target.name,
+                    ra_hours=command_ra_hours,
+                    dec_deg=command_dec_deg,
+                    auid=target.auid,
+                    exp_ms=target.exp_ms,
+                    observer_code=target.observer_code,
+                    n_frames=1,
+                )
 
-            # A3 — Set exposure parameters
-            exp_sec = target.exp_ms / 1000.0
-            notify("A3", f"Gain={GAIN}, exposure={exp_sec}s")
+                solve = self._pointing_verify(verify_target, notify, ccd_temp=ccd_temp)
+
+                if not solve.get("ok"):
+                    notify("A7", f"Pointing verify failed: {solve.get('error', 'unknown error')}")
+                    if attempt >= POINTING_MAX_RETRIES:
+                        return FrameResult(success=False, error="Pointing verify failed after retries")
+                    notify("A8", f"Retrying pointing loop ({attempt + 1}/{POINTING_MAX_RETRIES}) after unsolved verify frame")
+                    continue
+
+                error_arcmin = float(solve["error_arcmin"])
+                if error_arcmin <= POINTING_TOLERANCE_ARCMIN:
+                    notify("A7", f"Pointing accepted ({error_arcmin:.2f} arcmin <= {POINTING_TOLERANCE_ARCMIN:.2f})")
+                    break
+
+                notify("A7", f"Pointing outside tolerance ({error_arcmin:.2f} arcmin > {POINTING_TOLERANCE_ARCMIN:.2f})")
+                if attempt >= POINTING_MAX_RETRIES:
+                    return FrameResult(success=False, error=f"Pointing error {error_arcmin:.2f} arcmin after retries")
+
+                command_ra_hours, command_dec_deg = self._corrective_nudge(command_ra_hours, command_dec_deg, solve)
+                notify("A8", f"Corrective nudge -> RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° (retry {attempt + 1}/{POINTING_MAX_RETRIES})")
+            else:
+                return FrameResult(success=False, error="Pointing loop exhausted unexpectedly")
+
+            notify("A10", f"Set gain={GAIN} and start science exposure {exp_sec:.1f}s")
             try:
                 self._camera.set_gain(GAIN)
             except Exception as e:
                 logger.warning("Gain set during acquire: %s", e)
 
-            # A4 — Start exposure
-            notify("A4", f"StartExposure {exp_sec}s light=True")
             self._camera.start_exposure(exp_sec, light=True)
 
-            # A5 — Wait for image
-            notify("A5", "Waiting for exposure + readout...")
+            notify("A10", "Waiting for science exposure + readout")
             image_timeout = exp_sec + EXPOSE_TIMEOUT
             if not self._camera.wait_for_image(exp_sec, timeout=image_timeout):
-                return FrameResult(success=False,
-                                   error=f"Image not ready after {image_timeout}s")
+                return FrameResult(success=False, error=f"Image not ready after {image_timeout}s")
 
-            # Read CCD temp post-exposure
             try:
                 ccd_temp = self._camera.temperature
             except Exception:
                 pass
 
-            # A6 — Download image
-            notify("A6", "Downloading image array...")
+            notify("A10", "Downloading science image array")
             t_dl = time.monotonic()
             img = self._camera.download_image()
             dl_time = time.monotonic() - t_dl
-            notify("A6", f"Downloaded {img.shape} in {dl_time:.1f}s "
-                         f"(min={img.min()} max={img.max()} "
-                         f"mean={img.mean():.0f})")
+            notify("A10", f"Downloaded {img.shape} in {dl_time:.1f}s (min={img.min()} max={img.max()} mean={img.mean():.0f})")
 
-            width  = img.shape[1]
+            width = img.shape[1]
             height = img.shape[0]
+            utc_obs = datetime.now(timezone.utc)
 
-            # A7 — Write FITS
-            notify("A7", f"Writing FITS — AUID={target.auid} "
-                         f"CCD-TEMP={ccd_temp}")
+            notify("A10", f"Writing science FITS — AUID={target.auid} CCD-TEMP={ccd_temp}")
             LOCAL_BUFFER.mkdir(parents=True, exist_ok=True)
             safe_name = target.name.replace(" ", "_").replace("/", "-")
-            out_path = (LOCAL_BUFFER /
-                        f"{safe_name}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_Raw.fits")
+            out_path = LOCAL_BUFFER / f"{safe_name}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_Raw.fits"
 
-            header = sovereign_stamp(target, utc_obs, width, height,
-                                     ccd_temp=ccd_temp)
+            science_target = AcquisitionTarget(
+                name=target.name,
+                ra_hours=command_ra_hours,
+                dec_deg=command_dec_deg,
+                auid=target.auid,
+                exp_ms=target.exp_ms,
+                observer_code=target.observer_code,
+                n_frames=1,
+            )
+            header = sovereign_stamp(science_target, utc_obs, width, height, ccd_temp=ccd_temp)
             ok = write_fits(img, header, out_path)
-            elapsed = time.monotonic() - t_start
+            if not ok:
+                return FrameResult(success=False, error="FITS write failed")
 
-            if ok:
-                notify("A7", f"FITS saved: {out_path} ({elapsed:.1f}s total)")
-                return FrameResult(success=True, path=out_path,
-                                   width=width, height=height,
-                                   elapsed_s=elapsed)
-            return FrameResult(success=False, error="FITS write failed",
-                               elapsed_s=elapsed)
+            notify("A11", "Frame quality gate")
+            if img.ndim != 2 or width <= 0 or height <= 0:
+                return FrameResult(success=False, error="Invalid image geometry")
+            if float(img.max()) <= float(img.min()):
+                return FrameResult(success=False, error="Flat image statistics")
+
+            elapsed = time.monotonic() - t_start
+            notify("A11", f"Frame accepted: {out_path} ({elapsed:.1f}s total)")
+            return FrameResult(success=True, path=out_path, width=width, height=height, elapsed_s=elapsed)
 
         except Exception as e:
             elapsed = time.monotonic() - t_start
             logger.exception("acquire() failed: %s", e)
-            return FrameResult(success=False,
-                               error=f"Acquire exception: {e}",
-                               elapsed_s=elapsed)
+            return FrameResult(success=False, error=f"Acquire exception: {e}", elapsed_s=elapsed)
 
     def park(self):
-        """Park the telescope (close arm)."""
         try:
             self._telescope.park()
         except Exception as e:
             logger.warning("Park failed: %s", e)
 
     def disconnect_all(self):
-        """Disconnect all Alpaca devices."""
         self._camera.disconnect()
         self._filter.disconnect()
         self._telescope.disconnect()
@@ -800,12 +911,13 @@ def _hours_to_hms(hours: float) -> str:
     s = ((hours - h) * 60 - m) * 60
     return f"{h:02d}:{m:02d}:{s:05.2f}"
 
+
 def _deg_to_dms(deg: float) -> str:
     sign = "+" if deg >= 0 else "-"
-    deg  = abs(deg)
-    d    = int(deg)
-    m    = int((deg - d) * 60)
-    s    = ((deg - d) * 60 - m) * 60
+    deg = abs(deg)
+    d = int(deg)
+    m = int((deg - d) * 60)
+    s = ((deg - d) * 60 - m) * 60
     return f"{sign}{d:02d}:{m:02d}:{s:04.1f}"
 
 
