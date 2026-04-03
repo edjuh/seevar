@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/nightly_planner.py
-Version: 2.7.6
-Objective: Builds the canonical nightly plan in data/tonights_plan.json using astronomical dark, local horizon clearance, and Alt/Az-aware efficiency scoring.
+Version: 2.7.7
+Objective: Builds the canonical nightly plan in data/tonights_plan.json using astronomical dark, local horizon clearance, and Alt/Az-aware efficiency scoring based on required observing blocks.
 """
 
 import json
@@ -23,7 +23,7 @@ sys.path.append(str(PROJECT_ROOT))
 from core.utils.env_loader import load_config
 
 try:
-    from core.preflight.horizon import required_altitude, clearance_margin
+    from core.preflight.horizon import required_altitude, clearance_margin, horizon_altitude
 except ImportError:
     from core.preflight.horizon import horizon_altitude
 
@@ -41,9 +41,8 @@ TONIGHTS_PLAN = DATA_DIR / "tonights_plan.json"
 LOOKAHEAD_HOURS = 36
 SAMPLE_MINUTES = 10
 CLEARANCE_MARGIN_DEG = 5.0
-MIN_WINDOW_MINUTES = 20
 DEFAULT_START_AZ = 220.0
-DEFAULT_BLOCK_MINUTES = 30
+DEFAULT_BLOCK_OVERHEAD_MIN = 5
 ZENITH_SOFT_LIMIT_DEG = 75.0
 
 
@@ -78,38 +77,53 @@ def astronomical_dark_mask(times, location, sun_limit_deg):
     return np.array(sun_alt <= sun_limit_deg, dtype=bool)
 
 
+def estimate_required_block_minutes(target):
+    duration_sec = int(target.get("duration", 600))
+    imaging_min = math.ceil(duration_sec / 60.0)
+    # exposure block + slew/settle/acquire overhead
+    return max(8, min(20, imaging_min + DEFAULT_BLOCK_OVERHEAD_MIN))
+
+
+def sector_name(az_deg):
+    az = az_deg % 360.0
+    if az >= 315 or az < 45:
+        return "N"
+    if az < 135:
+        return "E"
+    if az < 225:
+        return "S"
+    return "W"
+
+
 def sky_region_bonus(best_az_deg):
     az = best_az_deg % 360.0
     if 180 <= az <= 270:
-        return 35.0
+        return 40.0   # south/west first
     if 135 <= az < 180:
-        return 20.0
+        return 25.0   # south-east
     if 270 < az <= 315:
-        return 10.0
+        return 10.0   # west/north-west
     if 45 <= az < 135:
-        return 0.0
-    return -15.0
+        return 5.0    # east can wait
+    return -30.0      # north/circumpolar should not dominate
 
 
 def zenith_penalty(max_alt_deg):
     if max_alt_deg <= ZENITH_SOFT_LIMIT_DEG:
         return 0.0
-    return (max_alt_deg - ZENITH_SOFT_LIMIT_DEG) * 6.0
+    return (max_alt_deg - ZENITH_SOFT_LIMIT_DEG) * 8.0
 
 
-def circumpolar_penalty(window_minutes):
-    if window_minutes <= 180:
-        return 0.0
-    return min(60.0, (window_minutes - 180) * 0.20)
-
-
-def score_window(start_idx, end_idx, times, alt_arr, az_arr, req_arr, priority_weight=0.0):
+def score_window(start_idx, end_idx, times, alt_arr, az_arr, req_arr, block_minutes, priority_weight=0.0):
     idx = slice(start_idx, end_idx + 1)
     alts = alt_arr[idx]
     azs = az_arr[idx]
     clearances = alts - req_arr[idx]
 
     duration_min = (end_idx - start_idx + 1) * SAMPLE_MINUTES
+    effective_minutes = min(duration_min, block_minutes)
+    coverage_ratio = min(2.0, duration_min / max(block_minutes, 1))
+
     min_clear = float(np.min(clearances))
     mean_clear = float(np.mean(clearances))
     max_alt = float(np.max(alts))
@@ -122,25 +136,29 @@ def score_window(start_idx, end_idx, times, alt_arr, az_arr, req_arr, priority_w
     urgency = max(0.0, ((times[-1] - times[0]).total_seconds() / 60.0 - minutes_until_end) / 60.0)
 
     score = (
-        0.20 * min(duration_min, 180.0) +
+        2.0  * effective_minutes +
+        25.0 * coverage_ratio +
         8.0  * min_clear +
         3.0  * mean_clear +
-        1.2  * max_alt +
+        1.0  * max_alt +
         10.0 * priority_weight +
         7.0  * urgency +
         sky_region_bonus(best_az) -
-        zenith_penalty(max_alt) -
-        circumpolar_penalty(duration_min)
+        zenith_penalty(max_alt)
     )
 
     return {
         "window_start_dt": start_dt,
         "window_end_dt": end_dt,
         "window_minutes": int(duration_min),
+        "required_block_minutes": int(block_minutes),
+        "effective_minutes": int(effective_minutes),
+        "coverage_ratio": round(coverage_ratio, 2),
         "min_clearance_deg": round(min_clear, 2),
         "mean_clearance_deg": round(mean_clear, 2),
         "max_alt_deg": round(max_alt, 2),
         "best_az_deg": round(best_az, 2),
+        "sector": sector_name(best_az),
         "urgency_score": round(urgency, 2),
         "efficiency_score": round(score, 2),
     }
@@ -156,21 +174,41 @@ def analyze_target(target, times, altaz_frame, dark_mask):
 
     alt_arr = np.array(altaz.alt.deg, dtype=float)
     az_arr = np.array(altaz.az.deg, dtype=float)
+    horizon_arr = np.array([horizon_altitude(float(az)) for az in az_arr], dtype=float)
     req_arr = np.array(
         [required_altitude(float(az), clearance_margin_deg=CLEARANCE_MARGIN_DEG) for az in az_arr],
         dtype=float,
     )
 
+    any_dark = bool(np.any(dark_mask))
+    any_above_horizon = bool(np.any(dark_mask & (alt_arr >= horizon_arr)))
+    any_above_margin = bool(np.any(dark_mask & (alt_arr >= req_arr)))
+
+    block_minutes = estimate_required_block_minutes(target)
+    min_samples = max(1, math.ceil(block_minutes / SAMPLE_MINUTES))
+
     usable = dark_mask & (alt_arr >= req_arr)
     windows = contiguous_windows(usable.tolist())
-    min_samples = max(1, math.ceil(MIN_WINDOW_MINUTES / SAMPLE_MINUTES))
     valid = [(s, e) for s, e in windows if (e - s + 1) >= min_samples]
+    survives_block = bool(valid)
+
+    diagnostics = {
+        "dark": any_dark,
+        "horizon": any_above_horizon,
+        "margin": any_above_margin,
+        "block": survives_block,
+        "block_minutes": block_minutes,
+    }
+
     if not valid:
-        return None
+        return None, diagnostics
 
     priority_weight = float(target.get("priority", 0.0))
-    scored = [score_window(s, e, times, alt_arr, az_arr, req_arr, priority_weight) for s, e in valid]
-    best = max(scored, key=lambda w: (w["efficiency_score"], w["window_minutes"], w["max_alt_deg"]))
+    scored = [
+        score_window(s, e, times, alt_arr, az_arr, req_arr, block_minutes, priority_weight)
+        for s, e in valid
+    ]
+    best = max(scored, key=lambda w: (w["efficiency_score"], w["coverage_ratio"], w["max_alt_deg"]))
 
     current_alt = float(alt_arr[0])
     current_az = float(az_arr[0])
@@ -186,15 +224,19 @@ def analyze_target(target, times, altaz_frame, dark_mask):
     out["best_start_utc"] = best["window_start_dt"].isoformat()
     out["best_end_utc"] = best["window_end_dt"].isoformat()
     out["window_minutes"] = best["window_minutes"]
+    out["required_block_minutes"] = best["required_block_minutes"]
+    out["effective_minutes"] = best["effective_minutes"]
+    out["coverage_ratio"] = best["coverage_ratio"]
     out["min_clearance_deg"] = best["min_clearance_deg"]
     out["mean_clearance_deg"] = best["mean_clearance_deg"]
     out["max_alt_deg"] = best["max_alt_deg"]
     out["best_az_deg"] = best["best_az_deg"]
+    out["sector"] = best["sector"]
     out["urgency_score"] = best["urgency_score"]
     out["efficiency_score"] = best["efficiency_score"]
     out["_best_start_dt"] = best["window_start_dt"]
     out["_best_end_dt"] = best["window_end_dt"]
-    return out
+    return out, diagnostics
 
 
 def greedy_order(candidates, planning_start_utc, start_az=DEFAULT_START_AZ):
@@ -202,6 +244,7 @@ def greedy_order(candidates, planning_start_utc, start_az=DEFAULT_START_AZ):
     ordered = []
     current_az = float(start_az)
     virtual_now = planning_start_utc
+    sector_usage = {"N": 0, "E": 0, "S": 0, "W": 0}
 
     while remaining:
         viable = [t for t in remaining if t["_best_end_dt"] > virtual_now]
@@ -213,8 +256,9 @@ def greedy_order(candidates, planning_start_utc, start_az=DEFAULT_START_AZ):
         for t in viable:
             slew_deg = az_distance(current_az, float(t["best_az_deg"]))
             wait_min = max(0.0, (t["_best_start_dt"] - virtual_now).total_seconds() / 60.0)
+            sector_penalty = max(0, sector_usage.get(t["sector"], 0) - 2) * 12.0
 
-            adjusted = float(t["efficiency_score"]) - 0.35 * slew_deg - 0.08 * wait_min
+            adjusted = float(t["efficiency_score"]) - 0.35 * slew_deg - 0.08 * wait_min - sector_penalty
             if t["_best_start_dt"] <= virtual_now <= t["_best_end_dt"]:
                 adjusted += 12.0
 
@@ -225,8 +269,9 @@ def greedy_order(candidates, planning_start_utc, start_az=DEFAULT_START_AZ):
 
         remaining.remove(best)
         ordered.append(best)
+        sector_usage[best["sector"]] = sector_usage.get(best["sector"], 0) + 1
 
-        block_min = min(DEFAULT_BLOCK_MINUTES, int(best["window_minutes"]))
+        block_min = int(best["required_block_minutes"])
         virtual_now = max(virtual_now, best["_best_start_dt"]) + timedelta(minutes=block_min)
         current_az = float(best["best_az_deg"])
 
@@ -277,33 +322,65 @@ def run_funnel():
     trimmed_dark_mask = dark_mask[planning_start_idx:planning_end_idx + 1]
     altaz_frame = AltAz(obstime=Time(trimmed_times), location=location)
 
+    gate_counts = {
+        "catalog_total": len(targets),
+        "cadence_skipped": 0,
+        "survive_dark": 0,
+        "survive_horizon": 0,
+        "survive_margin": 0,
+        "survive_block": 0,
+    }
+    sector_counts = {"N": 0, "E": 0, "S": 0, "W": 0}
+
     analyzed = []
     for t in targets:
-        analyzed_target = analyze_target(t, trimmed_times, altaz_frame, trimmed_dark_mask)
+        if t.get("cadence_skip", False):
+            gate_counts["cadence_skipped"] += 1
+            continue
+
+        analyzed_target, diag = analyze_target(t, trimmed_times, altaz_frame, trimmed_dark_mask)
+
+        if diag["dark"]:
+            gate_counts["survive_dark"] += 1
+        if diag["horizon"]:
+            gate_counts["survive_horizon"] += 1
+        if diag["margin"]:
+            gate_counts["survive_margin"] += 1
+        if diag["block"]:
+            gate_counts["survive_block"] += 1
+
         if analyzed_target is not None:
+            sector_counts[analyzed_target["sector"]] += 1
             analyzed.append(analyzed_target)
 
     ordered = greedy_order(analyzed, planning_start_utc, start_az=DEFAULT_START_AZ)
 
-    print(f"[+] Total catalog targets evaluated: {len(targets)}")
-    print(f"[=] Tonight-plan candidates with usable dark windows: {len(ordered)}")
+    print(f"[+] Catalog total                : {gate_counts['catalog_total']}")
+    print(f"[-] Deferred by cadence audit   : {gate_counts['cadence_skipped']}")
+    print(f"[+] Survive dark                 : {gate_counts['survive_dark']}")
+    print(f"[+] Survive local horizon        : {gate_counts['survive_horizon']}")
+    print(f"[+] Survive +{CLEARANCE_MARGIN_DEG:.0f}° margin      : {gate_counts['survive_margin']}")
+    print(f"[+] Survive required block       : {gate_counts['survive_block']}")
+    print(f"[=] Final tonight-plan count    : {len(ordered)}")
+    print(f"[=] Sector survivors            : N={sector_counts['N']} E={sector_counts['E']} S={sector_counts['S']} W={sector_counts['W']}")
 
     plan_out = {
-        "#objective": "Canonical nightly plan filtered by astronomical dark, local horizon, and Alt/Az-aware efficiency scoring.",
+        "#objective": "Canonical nightly plan filtered by astronomical dark, local horizon, and Alt/Az-aware efficiency scoring based on required observing blocks.",
         "metadata": {
             "generated": datetime.now(timezone.utc).isoformat(),
             "schema_version": "2026.2",
-            "planner_version": "2.7.6",
+            "planner_version": "2.7.8",
             "planning_mode": "astronomical_dark",
             "planning_start_utc": planning_start_utc.isoformat(),
             "planning_end_utc": planning_end_utc.isoformat(),
             "sample_minutes": SAMPLE_MINUTES,
             "clearance_margin_deg": CLEARANCE_MARGIN_DEG,
-            "minimum_window_minutes": MIN_WINDOW_MINUTES,
             "sun_altitude_threshold_deg": sun_limit,
             "catalog_target_count": len(targets),
             "visible_target_count": len(ordered),
             "planned_target_count": len(ordered),
+            "gate_counts": gate_counts,
+            "sector_counts": sector_counts,
         },
         "targets": ordered,
     }
@@ -319,8 +396,10 @@ def run_funnel():
             name = t.get("name", t.get("target_name", "unnamed"))
             print(
                 f"  #{t['recommended_order']:02d} {name} | "
+                f"sector={t['sector']} | "
+                f"block={t['required_block_minutes']}m | "
+                f"avail={t['window_minutes']}m | "
                 f"az={t['best_az_deg']:.1f} | "
-                f"window={t['window_minutes']}m | "
                 f"max_alt={t['max_alt_deg']:.1f}° | "
                 f"score={t['efficiency_score']:.1f}"
             )

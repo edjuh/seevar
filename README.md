@@ -1,177 +1,240 @@
-# 🔭 SeeVar —Asthonising Automated Variable Star Observatory
+# 🔭 SeeVar
 
 ![SeeVar Mascot](SeeVar.jpg)
 
-Objective: Transform a consumer smart telescope into a fully autonomous scientific instrument for variable star photometry.
+Transform a consumer smart telescope into a fully autonomous scientific instrument for variable star photometry.
 
-SeeVar is an automated control and data pipeline designed for the Seestar S30-PRO telescope.
+SeeVar is an autonomous observing and data pipeline for the ZWO Seestar S30-Pro.
 Its purpose is simple:
-Measure variable stars reliably, every clear night, without human intervention.
-Instead of using the telescope as a consumer imaging device, SeeVar treats it as a robotic observatory that plans observations, captures scientific images, processes the data, and prepares results for submission to the AAVSO.
 
-🌌 Mission
-SeeVar focuses on long-term monitoring of variable stars, with special attention to:
+- plan scientifically useful observations
+- capture trustworthy raw science frames
+- reduce them into defensible photometry
+- prepare results for AAVSO submission
 
-Long Period Variables (Mira / Semi-Regular)
-Cataclysmic Variables during outburst
+This project no longer treats the telescope as a consumer imaging toy.
+It treats it as a small robotic observatory.
 
-Observation cadence follows the 5% of period rule — confirmed against AAVSO STWG recommendations for OSC CMOS robotic telescopes.
-Photometric results are reported to the AAVSO using the correct TG or CV reporting format.
+---
 
-🛰 Hardware Requirements
-The system is intentionally built around robust and inexpensive hardware.
-Required Components
-Telescope
+## Mission
 
-Seestar S30-PRO
+SeeVar is built for long-term monitoring of variable stars, with current emphasis on:
 
-Control Computer
+- Long Period Variables: Mira and Semi-Regular stars
+- Cataclysmic Variables during outburst and follow-up
 
-Raspberry Pi running Debian Bookworm
+The guiding goal is not pretty pictures.
+It is repeatable, honest measurement.
 
-Location Source
+Observation cadence follows AAVSO-style scientific needs rather than casual imaging habits.
 
-USB GPS receiver
+---
 
-The GPS provides:
+## Current Status
 
-precise geographic coordinates
-accurate UTC time
-reliable astronomical timing
+SeeVar is in active beta and scientific hardening.
 
+As of April 2026, the project has already confirmed:
 
-Storage (Important)
-SD cards are not reliable for continuous scientific operation.
-SeeVar therefore requires external USB storage.
-Recommended configuration:
+- direct hardware control via ZWO's built-in ASCOM Alpaca driver on port `32323`
+- autonomous nightly planning
+- sovereign flight execution with a canonical `A1-A12` sequence
+- Bayer-aware raw FITS capture
+- simulator support for end-to-end workflow testing
+- a postflight architecture now frozen around a canonical `P1-P8` chain
 
-2 × 256 GB (or larger) USB flash drives
+The current chapter is **v1.9.x: postflight scientific hardening**.
 
-The drives operate as a mirrored RAID1 array for redundancy.
-Benefits:
+That means the next priority is not discovering more hardware control.
+It is making the science chain more defensible:
 
-protects against sudden SD-card failure
-prevents loss of scientific data
-allows safe long-term unattended operation
+- real solved WCS in postflight
+- dark-calibrated working frames
+- sigma-clipped comparison-star ensembles
+- deterministic AAVSO report staging
 
-The SD card is used only for the operating system.
-All observation data and FITS files are written to the mirrored storage.
+---
 
-🧠 System Architecture
-SeeVar operates as a deterministic control pipeline consisting of five functional blocks.
-Block 1 — Hardware Foundation
-Raspberry Pi running Debian Bookworm and the required Python environment.
-Block 2 — Telescope Interface
-Communication with the telescope uses the ASCOM Alpaca REST protocol on port 32323. This is ZWO's official open standard interface, built into the Seestar firmware. SeeVar controls the full hardware stack directly:
+## Why This Exists
 
-Telescope — slew, track, park, unpark, pulse guide
-Camera (Telephoto IMX585) — gain, exposure, image download
-Camera (Wide Angle IMX586) — context imaging
-Filter Wheel — Dark, IR, LP positions
-Focuser — absolute position control
-Switch — dew heater control
+Small telescopes can do real science if they are operated consistently.
 
-No phone app required. No session master lock. No intermediate middleware.
-Block 3 — Preflight Gatekeeper
-Before observations begin the system verifies:
+The Seestar S30-Pro is affordable and capable hardware, but its consumer workflow is not designed for disciplined photometry. SeeVar exists to bridge that gap by adding:
 
-battery level
-internal temperature
-telescope alignment
-storage availability
-weather conditions
+- deterministic mission planning
+- scientific cadence awareness
+- raw FITS custody
+- postflight quality control
+- observatory-style logging and state tracking
 
-If conditions are unsafe, the system waits automatically.
+The result is a telescope that can work unattended while still producing scientifically meaningful output.
 
-Block 4 — Flight Operations
-During astronomical darkness the system executes an observing plan.
-For each target the telescope:
+---
 
-Slews to the object
-Plate-solves to verify pointing
-Captures RAW FITS exposures
-Records accurate timestamps and metadata
+## System Overview
 
-Targets are dynamically scheduled based on:
+SeeVar is organized as a sovereign observing pipeline:
 
-altitude above the horizon
-scientific priority
-time since last observation
-telescope slew distance
+1. **Preflight**
+   Builds the nightly plan, applies cadence and horizon logic, checks weather and hardware, and decides whether the mission is allowed to start.
 
+2. **Flight**
+   Executes one canonical target sequence per object using the `A1-A12` flight chain:
+   target lock, safety gate, session init, slew, verify, settle, exposure planning, acquire, quality gate, and commit.
 
-Block 5 — Postflight Processing
-After images are captured the pipeline automatically:
+3. **Postflight**
+   Processes captured frames using the `P1-P8` science chain:
+   ingest, calibration matching, calibration application, astrometric solve, source measurement, ensemble calibration, quality verdict, and commit/report.
 
-retrieves RAW FITS frames
-extracts G/R/B/L channels directly from raw Bayer data (no debayering)
-performs plate solving
-measures stellar brightness via photometry
-prepares AAVSO submission reports
+4. **Oversight**
+   Dashboard, logs, notifier, and ledger state remain available throughout the entire mission.
 
+---
 
-📊 The Observatory Ledger
-Every action performed by the telescope is recorded.
-This provides:
+## Hardware Interface
 
-full traceability of observations
-automatic recovery after interruptions
-accurate scientific logs
+SeeVar communicates with the Seestar through the official Alpaca REST interface exposed by the telescope firmware.
 
-If weather interrupts an observation, unfinished targets return to the queue and are attempted again later.
+Confirmed device access includes:
 
-🌦 Weather Awareness
-SeeVar evaluates observing conditions using multiple sources:
+- Telescope
+- Telephoto camera
+- Wide-angle camera
+- Filter wheel
+- Focuser
+- Dew-heater switch
 
-external weather services
-internal image quality checks
-plate-solve success monitoring
+This means:
 
-Future versions may integrate a dedicated cloud sensor for local sky detection.
+- no phone app required
+- no session master lock
+- no middleware required for the core control path
 
-🖥 Tactical Dashboard
-The system includes a live dashboard displaying:
+The telescope is treated as a directly controlled instrument.
 
-telescope status
-storage capacity
-battery level
-weather conditions
-active observing targets
+---
 
-This allows the observatory to be monitored remotely while running autonomously.
+## Scientific Direction
 
-🌍 Scaling the Observatory
-SeeVar is designed to control multiple telescopes simultaneously.
-Possible configurations include:
+### Raw-first custody
 
-parallel photometry using several telescopes
-coordinated observations from different locations
-dedicated spectroscopy instruments
+SeeVar captures and preserves raw science FITS.
+Flight ends when a trustworthy raw frame has been captured and committed.
 
-The architecture allows remote telescopes to join the network.
+### Bayer-aware photometry
 
-🚧 Beta
-SeeVar is currently in beta. Hardware testing begins April 2026 with the ZWO Seestar S30-Pro.
-Community testers are welcome. Please report issues via GitHub Issues.
-For changes affecting the protocol, state machine, or sequencing:
-→ Please do open an issue first to discuss the approach.
-PRs without prior discussion may be declined.
+SeeVar does not rely on naive debayering for production photometry.
+Its scientific direction is Bayer-aware source measurement directly on the sensor mosaic.
 
-🚀 Getting Started
-Install on a fresh Raspberry Pi OS Lite (64-bit) — Bookworm:
-bashbash <(curl -fsSL https://raw.githubusercontent.com/edjuh/seevar/main/bootstrap.sh)
-Bootstrap installs all dependencies, creates the Python environment, runs an
-interactive questionnaire for telescope and site configuration, and starts the
-three systemd services automatically.
-Full installation instructions: INSTALL.md
+Current reporting direction:
 
-🌠 Philosophy
-SeeVar exists because good hardware deserves serious use.
-A small telescope, a Raspberry Pi, and careful automation can produce real scientific observations every clear night.
-The sky has always been open to anyone willing to measure it.
+- science channel: `G`
+- reporting code: `TG`
 
-"De kosmos is erg groot, en voor een heer alleen is zij eigenlijk te veel. Maar met een groot denkraam komt men een heel eind."
-(Vrij naar Heer Bommel)
+### Astrometric and detector truth matter
 
-Full installation instructions: [INSTALL.md](INSTALL.md)
+A magnitude is only trustworthy if the pipeline can justify:
 
+- detector truth
+- astrometric truth
+- photometric truth
+
+That is why postflight is now being hardened aggressively.
+
+---
+
+## Storage Philosophy
+
+Scientific data should not depend on SD-card luck.
+
+Recommended deployment:
+
+- Raspberry Pi running Debian Bookworm
+- external USB storage
+- mirrored RAID1 data storage for observation products
+- live volatile state in RAM where appropriate
+
+The operating system lives on the SD card.
+Observation data, caches, and science products should live on more reliable storage.
+
+---
+
+## Installation
+
+Install on a fresh Raspberry Pi OS Lite 64-bit system:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/edjuh/seevar/main/bootstrap.sh)
+The bootstrap process is intended to:
+
+install dependencies
+create the Python environment
+collect site and telescope configuration
+prepare system services
+bring the observatory into a runnable state
+For full instructions, see INSTALL.md.
+
+Documentation
+Project doctrine and architecture live in the logic documents under dev/logic/.
+
+Good starting points:
+
+CORE.MD
+ARCHITECTURE_OVERVIEW.MD
+STATE_MACHINE.MD
+FLIGHT.MD
+POSTFLIGHT.MD
+PHOTOMETRICS.MD
+ROADMAP.md
+Astropy
+SeeVar contains some custom implementations that grew out of the project's early phases, before the full breadth of Astropy was properly appreciated.
+
+Current direction:
+
+use Astropy more where it improves correctness, maintainability, and scientific trust
+keep custom code where the problem is genuinely SeeVar-specific:
+Bayer-aware photometry
+Seestar-specific hardware behavior
+mission-state orchestration
+custody and observatory workflow
+This is an area of active review, not a philosophical rejection of Astropy.
+
+Beta Expectations
+SeeVar is not pretending to be finished.
+
+What is already real:
+
+Alpaca control
+nightly planning
+simulator-supported mission flow
+raw FITS capture
+postflight scientific doctrine
+What is still under active hardening:
+
+real solved WCS as a hard postflight dependency
+dark-calibrated science frames
+ensemble sigma clipping
+final reporting path
+That is the honest state of the project.
+
+Contributing
+Testers and technically minded contributors are welcome.
+
+Please open an issue first if the change affects:
+
+mission sequencing
+protocol assumptions
+scientific validity
+ledger semantics
+observatory doctrine
+For contribution standards, see CONTRIBUTING.md.
+
+Philosophy
+Good hardware deserves serious use.
+
+A small telescope, careful automation, and scientific discipline can produce real observations night after night. SeeVar exists to make that possible without pretending that autonomy is the same thing as trust.
+
+The project’s rule is simple:
+
+If a frame is not proven, it is not accepted.

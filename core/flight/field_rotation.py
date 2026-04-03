@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/field_rotation.py
-Version:  1.0.0
-Objective: Calculate field rotation rate and maximum safe exposure time for
+Version: 1.0.0
+Objective: Calculate Alt/Az field rotation limits and derive maximum safe exposure times before rotation blur becomes unacceptable.
            alt-az mounted telescopes (ZWO S30-Pro, S30, S50).
            Field rotation smears the PSF into a streak, degrading photometry.
            Maximum safe exposure is fed to exposure_planner.py as a hard cap.

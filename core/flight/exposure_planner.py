@@ -3,7 +3,7 @@
 """
 Filename: core/flight/exposure_planner.py
 Version: 1.2.0
-Objective: Estimate optimal exposure time and frame count for a target given
+Objective: Estimate safe science exposure parameters for a target using brightness, sky quality, and flight constraints.
            its magnitude range, sky conditions, field rotation and SNR goal.
            Three-way exposure cap: SNR, saturation, field rotation.
            Chunking strategy: safe single-frame exposure x n_frames to reach
