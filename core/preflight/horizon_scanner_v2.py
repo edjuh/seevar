@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/horizon_scanner_v2.py
-Version: 2.0.0
+Version: 2.0.1
 Objective: Simpler daytime horizon scanner using burst-median wide-camera frames and robust skyline detection, intended to replace the spike-prone gradient-max approach.
 
 Design:
@@ -45,10 +45,6 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("horizon_scanner_v2")
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 
 WIDE_CAMERA_NUM = 1
 TELESCOPE_NUM = 0
@@ -96,13 +92,11 @@ ALPACA_CAMERA_BASE = None
 HORIZON_FILE = DATA_DIR / "horizon_mask.json"
 FRAME_DIR = DATA_DIR / "horizon_frames"
 
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
 
 def az_distance(a, b):
     d = abs(a - b) % 360.0
     return min(d, 360.0 - d)
+
 
 def get_location():
     cfg = load_config()
@@ -112,6 +106,7 @@ def get_location():
     elev = float(loc.get("elevation", SITE_ELEV_M))
     return EarthLocation(lat=lat * u.deg, lon=lon * u.deg, height=elev * u.m), lat, lon, elev
 
+
 def get_sun_altaz(lat_deg, lon_deg, elev_m=SITE_ELEV_M):
     loc = EarthLocation(lat=lat_deg * u.deg, lon=lon_deg * u.deg, height=elev_m * u.m)
     now = Time.now()
@@ -119,11 +114,13 @@ def get_sun_altaz(lat_deg, lon_deg, elev_m=SITE_ELEV_M):
     sun = get_sun(now).transform_to(frame)
     return float(sun.alt.deg), float(sun.az.deg)
 
+
 def altaz_to_radec(az_deg, alt_deg, location):
     now = Time.now()
     altaz = SkyCoord(az=az_deg * u.deg, alt=alt_deg * u.deg, frame=AltAz(obstime=now, location=location))
     icrs = altaz.icrs
     return float(icrs.ra.hour), float(icrs.dec.deg)
+
 
 def wait_for_slew(telescope, timeout=60.0):
     deadline = time.monotonic() + timeout
@@ -140,10 +137,12 @@ def wait_for_slew(telescope, timeout=60.0):
         pass
     return False
 
+
 def _next_txid(camera):
     tx = getattr(camera, "_hv2_txid", 0) + 1
     camera._hv2_txid = tx
     return tx
+
 
 def _parse_imagebytes(raw):
     if len(raw) < 32:
@@ -172,6 +171,7 @@ def _parse_imagebytes(raw):
     pixel_data = raw[data_start:]
     arr = np.frombuffer(pixel_data, dtype=dtype).reshape((dim2, dim1))
     return arr.astype(np.int32, copy=False)
+
 
 def download_image(camera, timeout=20):
     if not ALPACA_CAMERA_BASE:
@@ -211,6 +211,7 @@ def download_image(camera, timeout=20):
 
     return np.array(value, dtype=np.int32)
 
+
 def capture_image(camera, expose_sec, timeout=20, download_timeout=20):
     camera.StartExposure(expose_sec, True)
 
@@ -231,6 +232,7 @@ def capture_image(camera, expose_sec, timeout=20, download_timeout=20):
 
     return download_image(camera, timeout=download_timeout)
 
+
 def disconnect_safely(camera, telescope):
     for dev in (camera, telescope):
         if dev is None:
@@ -239,6 +241,7 @@ def disconnect_safely(camera, telescope):
             dev.Connected = False
         except Exception:
             pass
+
 
 def auto_expose(camera, current_sec):
     try:
@@ -252,14 +255,28 @@ def auto_expose(camera, current_sec):
         log.warning("Auto exposure failed: %s", e)
         return current_sec
 
-# ---------------------------------------------------------------------------
-# Vision pipeline
-# ---------------------------------------------------------------------------
+
+def probe_wide_camera(camera):
+    log.info("Probing wide camera availability...")
+    try:
+        img = capture_image(camera, EXPOSE_MIN_SEC, timeout=10, download_timeout=15)
+        mean_adu = float(np.mean(img))
+        log.info("Wide camera probe OK: shape=%s mean=%.0f ADU", img.shape, mean_adu)
+        return True
+    except Exception as e:
+        msg = str(e)
+        if "WIDE_ANGLE not connected" in msg or "0x4ff" in msg:
+            log.error("Wide camera unavailable: %s", e)
+        else:
+            log.error("Wide camera probe failed: %s", e)
+        return False
+
 
 def to_luma(img):
     if img.ndim == 3:
         return img[:, :, 1].astype(np.float64)
     return img.astype(np.float64)
+
 
 def capture_burst(camera, expose_sec, n_frames=BURST_FRAMES):
     frames = []
@@ -271,22 +288,20 @@ def capture_burst(camera, expose_sec, n_frames=BURST_FRAMES):
     stack = np.stack(frames, axis=0)
     return np.median(stack, axis=0)
 
+
 def smooth_1d(arr, kernel=9):
     if kernel <= 1 or len(arr) < kernel:
         return arr
     return np.convolve(arr, np.ones(kernel) / kernel, mode="same")
 
-def column_horizon_row(column, min_row, max_row):
-    """
-    Find the skyline row using signed contrast, not max absolute gradient.
-    We want bright sky above, darker ground below.
-    """
-    best_row = None
-    best_score = -1e9
 
+def column_horizon_row(column, min_row, max_row):
     usable = column[min_row:max_row]
     if len(usable) < 2 * ROW_WINDOW + 1:
         return None, 0.0
+
+    best_row = None
+    best_score = -1e9
 
     noise = float(np.std(usable))
     threshold = max(CONTRAST_ABS_MIN, CONTRAST_SIGMA * noise)
@@ -294,7 +309,7 @@ def column_horizon_row(column, min_row, max_row):
     for row in range(min_row + ROW_WINDOW, max_row - ROW_WINDOW):
         above = float(np.mean(column[row - ROW_WINDOW:row]))
         below = float(np.mean(column[row:row + ROW_WINDOW]))
-        contrast = above - below  # skyline should be brighter above than below
+        contrast = above - below
 
         if contrast > best_score:
             best_score = contrast
@@ -305,13 +320,8 @@ def column_horizon_row(column, min_row, max_row):
 
     return best_row, best_score
 
+
 def detect_horizon_in_frame(img, az_center, alt_center):
-    """
-    Robust skyline detector:
-    - median burst input
-    - ignore side edges and bottom clutter
-    - map many column detections into per-degree medians
-    """
     img_f = to_luma(img)
     h, w = img_f.shape
 
@@ -371,8 +381,10 @@ def detect_horizon_in_frame(img, az_center, alt_center):
     )
     return result, stats
 
+
 def accum_update(accum, az_deg, alt_deg):
     accum[int(round(az_deg)) % 360].append(float(alt_deg))
+
 
 def median_smooth_profile(profile, window=SMOOTH_WINDOW):
     full = []
@@ -401,6 +413,7 @@ def median_smooth_profile(profile, window=SMOOTH_WINDOW):
         out[i] = np.median(segment) if len(segment) else OPEN_SKY_DEFAULT
 
     return {az: round(float(out[az]), 1) for az in range(360)}
+
 
 def fill_gaps_from_accum(accum):
     profile = {}
@@ -433,9 +446,6 @@ def fill_gaps_from_accum(accum):
 
     return smoothed, conf_out
 
-# ---------------------------------------------------------------------------
-# Scan runner
-# ---------------------------------------------------------------------------
 
 def run_scan(ip, port, dry_run=False, sun_visible=True):
     global ALPACA_CAMERA_BASE
@@ -445,7 +455,7 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
     location, lat, lon, elev = get_location()
 
     log.info("=" * 60)
-    log.info("HORIZON SCANNER v2.0.0")
+    log.info("HORIZON SCANNER v2.0.1")
     log.info("Wide camera burst-median skyline mode")
     log.info("Az step %.1f° (70%% overlap)", AZ_STEP_DEG)
     log.info("Side crop %.0f%% each edge, bottom crop %.0f%%", SIDE_CROP_FRAC * 100, BOTTOM_CROP_FRAC * 100)
@@ -482,6 +492,10 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
         camera.Gain = GAIN_WIDE
     except Exception as e:
         log.warning("Gain set failed: %s", e)
+
+    if not probe_wide_camera(camera):
+        disconnect_safely(camera, telescope)
+        return {}, {}, {}
 
     try:
         telescope.Unpark()
@@ -570,9 +584,6 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
     log.info("Complete: %d burst frames, 360-degree profile produced", frame_count)
     return horizon, confidence, sun_info
 
-# ---------------------------------------------------------------------------
-# Output
-# ---------------------------------------------------------------------------
 
 def write_horizon(horizon, confidence, output_path, sun_info):
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -594,7 +605,7 @@ def write_horizon(horizon, confidence, output_path, sun_info):
         "#objective": "Per-degree horizon profile from burst-median wide-camera skyline scan.",
         "source": "camera_scan_v2",
         "camera": "Camera #1 (IMX586, wide-angle)",
-        "scanner_version": "2.0.0",
+        "scanner_version": "2.0.1",
         "method": "burst_median_skyline",
         "az_step_deg": AZ_STEP_DEG,
         "burst_frames": BURST_FRAMES,
@@ -617,9 +628,6 @@ def write_horizon(horizon, confidence, output_path, sun_info):
     log.info("Points: %d", len(profile))
     log.info("Min: %.1f  Max: %.1f  Mean: %.1f", min(vals), max(vals), sum(vals) / len(vals))
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(
@@ -652,7 +660,7 @@ def main():
         ip = seestars[0].get("ip", "192.168.178.251")
 
     print("+" + "=" * 62 + "+")
-    print("|                HORIZON SCANNER v2.0.0                |")
+    print("|                HORIZON SCANNER v2.0.1                |")
     print("|     Burst-median skyline detection, center-weighted   |")
     print("+" + "=" * 62 + "+")
     print(f"Target IP          : {ip}:{args.port}")
@@ -686,6 +694,7 @@ def main():
     print("\nDone.")
     print(f"Profile written to: {args.output}")
     print("Use this scanner on cloudy or bright daytime conditions for best skyline contrast.")
+
 
 if __name__ == "__main__":
     main()
