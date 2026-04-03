@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/horizon_scanner_v2.py
-Version: 2.0.4
+Version: 2.0.5
 Objective: Rooftop-aware daytime horizon scanner using burst-median wide-camera frames
 and robust skyline detection for balcony / urban sites.
 
@@ -16,6 +16,7 @@ Design:
 - Supports optional manual west-house override for known hard obstructions
 - Can test a saved .npy burst frame offline without touching the telescope
 - Writes JSON, CSV, and a horizon plot PNG
+- Recovers more gracefully from slew timeout / 0x4ff telescope failures
 """
 
 import argparse
@@ -63,6 +64,8 @@ FOV_V_DEG = SENSOR_H * PLATE_SCALE_WIDE / 3600.0
 AZ_STEP_DEG = round(FOV_H_DEG * 0.7, 1)
 ALT_CENTER_DEG = 20.0
 SETTLE_SEC = 4.0
+POST_RECOVERY_PAUSE_SEC = 4.0
+SLEW_RETRY_LIMIT = 2
 
 BURST_FRAMES = 5
 BURST_GAP_SEC = 0.15
@@ -303,6 +306,80 @@ def configure_camera(camera):
             setattr(camera, attr, value)
         except Exception:
             pass
+
+
+def is_0x4ff_error(exc):
+    return "0x4ff" in str(exc)
+
+
+def reconnect_devices(telescope, camera, client_id):
+    log.warning("Attempting device reconnection...")
+    try:
+        telescope.Connected = False
+    except Exception:
+        pass
+    try:
+        camera.Connected = False
+    except Exception:
+        pass
+
+    time.sleep(2.0)
+
+    try:
+        telescope.Connected = True
+        camera.Connected = True
+        configure_camera(camera)
+
+        try:
+            telescope.Unpark()
+            time.sleep(2.0)
+        except Exception:
+            pass
+
+        if not probe_wide_camera(camera, client_id):
+            log.error("Reconnect failed: wide camera probe did not recover")
+            return False
+
+        log.info("Device reconnection succeeded")
+        return True
+    except Exception as e:
+        log.error("Reconnect failed: %s", e)
+        return False
+
+
+def slew_with_recovery(telescope, camera, location, az, alt, client_id):
+    ra_h, dec_d = altaz_to_radec(az, alt, location)
+
+    for attempt in range(1, SLEW_RETRY_LIMIT + 1):
+        try:
+            telescope.SlewToCoordinatesAsync(ra_h, dec_d)
+        except Exception as e:
+            log.warning("Slew command failed at Az=%.1f° attempt %d/%d: %s", az, attempt, SLEW_RETRY_LIMIT, e)
+            if attempt >= SLEW_RETRY_LIMIT:
+                return False
+            if not reconnect_devices(telescope, camera, client_id):
+                return False
+            time.sleep(POST_RECOVERY_PAUSE_SEC)
+            continue
+
+        if wait_for_slew(telescope, timeout=45):
+            time.sleep(SETTLE_SEC)
+            return True
+
+        log.warning("Slew timeout at Az=%.1f° attempt %d/%d", az, attempt, SLEW_RETRY_LIMIT)
+        if attempt >= SLEW_RETRY_LIMIT:
+            return False
+
+        try:
+            telescope.AbortSlew()
+        except Exception:
+            pass
+
+        if not reconnect_devices(telescope, camera, client_id):
+            return False
+        time.sleep(POST_RECOVERY_PAUSE_SEC)
+
+    return False
 
 
 def to_luma(img):
@@ -676,7 +753,7 @@ def run_scan(
     location, lat, lon, elev = get_location()
 
     log.info("=" * 60)
-    log.info("HORIZON SCANNER v2.0.4")
+    log.info("HORIZON SCANNER v2.0.5")
     log.info("Wide camera rooftop skyline mode")
     log.info("Az step %.1f° (70%% overlap)", AZ_STEP_DEG)
     log.info("Side crop %.0f%% each edge, bottom crop %.0f%%", side_crop_frac * 100, bottom_crop_frac * 100)
@@ -749,14 +826,14 @@ def run_scan(
         log.info("[%02d/%02d] Slew Az=%.1f° Alt=%.1f°", idx, len(positions), az, ALT_CENTER_DEG)
 
         try:
-            ra_h, dec_d = altaz_to_radec(az, ALT_CENTER_DEG, location)
-            telescope.SlewToCoordinatesAsync(ra_h, dec_d)
-            if not wait_for_slew(telescope, timeout=45):
-                log.warning("Slew timeout, skipping Az=%.1f°", az)
+            ok = slew_with_recovery(telescope, camera, location, az, ALT_CENTER_DEG, client_id)
+            if not ok:
+                log.warning("Skipping Az=%.1f° after recovery attempts exhausted", az)
                 continue
-            time.sleep(SETTLE_SEC)
         except Exception as e:
             log.error("Slew failed at Az=%.1f°: %s", az, e)
+            if is_0x4ff_error(e):
+                reconnect_devices(telescope, camera, client_id)
             continue
 
         try:
@@ -779,6 +856,8 @@ def run_scan(
             log.info("Burst median frame saved, mean=%.0f ADU, next exposure=%.4fs", mean_adu, expose_sec)
         except Exception as e:
             log.error("Capture failed at Az=%.1f°: %s", az, e)
+            if is_0x4ff_error(e):
+                reconnect_devices(telescope, camera, client_id)
             continue
 
         try:
@@ -924,7 +1003,7 @@ def write_horizon(
         "#objective": "Per-degree horizon profile from burst-median wide-camera skyline scan.",
         "source": "camera_scan_v2",
         "camera": "Camera #1 (IMX586, wide-angle)",
-        "scanner_version": "2.0.4",
+        "scanner_version": "2.0.5",
         "method": "burst_median_rooftop_skyline",
         "az_step_deg": AZ_STEP_DEG,
         "burst_frames": BURST_FRAMES,
@@ -1031,8 +1110,8 @@ def main():
         })
 
     print("+" + "=" * 62 + "+")
-    print("|                HORIZON SCANNER v2.0.4                |")
-    print("|   Rooftop skyline mode with plots and offline tests   |")
+    print("|                HORIZON SCANNER v2.0.5                |")
+    print("|   Rooftop skyline mode with recovery and offline test |")
     print("+" + "=" * 62 + "+")
     print(f"Target IP          : {ip}:{args.port}")
     print(f"Telescope #        : {args.telescope_num}")
