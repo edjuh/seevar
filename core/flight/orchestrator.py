@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/orchestrator.py
-Version: 1.8.0
+Version: 1.8.2
 Objective: Autonomous night daemon consuming tonights_plan.json as the canonical mission order, logging A1-A12, and executing targets via SovereignFSM.
 """
 
 import json
 import logging
+import math
 import sys
 import time
 from datetime import datetime, timezone
@@ -17,6 +18,7 @@ from typing import Optional
 import numpy as np
 from astropy import units as u
 from astropy.coordinates import AltAz, EarthLocation, SkyCoord, get_body
+from astropy.io import fits
 from astropy.time import Time
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -103,6 +105,90 @@ class MockDiamondSequence:
         log.info("[SIM][A3] Session init — mock telemetry generated")
         return t
 
+    def _pixel_from_world(self, header: dict, ra_deg: float, dec_deg: float) -> tuple[float, float]:
+        crval1 = float(header["CRVAL1"])
+        crval2 = float(header["CRVAL2"])
+        crpix1 = float(header["CRPIX1"])
+        crpix2 = float(header["CRPIX2"])
+        cdelt1 = float(header["CDELT1"])
+        cdelt2 = float(header["CDELT2"])
+
+        px = crpix1 + (crval1 - ra_deg) / abs(cdelt1)
+        py = crpix2 + (dec_deg - crval2) / abs(cdelt2)
+        return px, py
+
+    def _draw_star(self, array: np.ndarray, x: float, y: float, amplitude: float, sigma: float = 2.0):
+        h, w = array.shape
+        x0 = int(round(x))
+        y0 = int(round(y))
+        radius = max(6, int(round(4 * sigma)))
+
+        xs = np.arange(max(0, x0 - radius), min(w, x0 + radius + 1))
+        ys = np.arange(max(0, y0 - radius), min(h, y0 + radius + 1))
+        if len(xs) == 0 or len(ys) == 0:
+            return
+
+        xx, yy = np.meshgrid(xs, ys)
+        spot = amplitude * np.exp(-(((xx - x) ** 2 + (yy - y) ** 2) / (2.0 * sigma ** 2)))
+        array[np.ix_(ys, xs)] += spot
+
+    def _build_sim_comp_stars(self, target: AcquisitionTarget) -> list[dict]:
+        ra_deg = target.ra_hours * 15.0
+        dec_deg = target.dec_deg
+        cos_dec = max(0.2, math.cos(math.radians(dec_deg)))
+
+        synthetic = [
+            (-18.0, 10.0, 10.8),
+            (22.0, 12.0, 11.2),
+            (-14.0, -16.0, 11.7),
+            (26.0, -10.0, 12.0),
+            (8.0, 20.0, 11.4),
+            (-24.0, 4.0, 12.1),
+        ]
+
+        stars = []
+        for idx, (dx_arcmin, dy_arcmin, vmag) in enumerate(synthetic, start=1):
+            comp_ra = ra_deg + (dx_arcmin / 60.0) / cos_dec
+            comp_dec = dec_deg + (dy_arcmin / 60.0)
+            stars.append({
+                "source_id": f"SIMC{idx:03d}",
+                "ra": round(comp_ra, 6),
+                "dec": round(comp_dec, 6),
+                "gmag": round(vmag, 4),
+                "v_mag": round(vmag, 4),
+                "bp_rp": 1.0,
+                "bands": [{"band": "V", "mag": round(vmag, 4)}],
+            })
+        return stars
+
+    def _write_wcs_sidecar(self, out_path: Path, header: dict):
+        wcs_header = fits.Header()
+        for key in (
+            "CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2", "CDELT1", "CDELT2",
+            "CTYPE1", "CTYPE2", "RA", "DEC", "OBJECT"
+        ):
+            if key in header:
+                wcs_header[key] = header[key]
+        hdu = fits.PrimaryHDU(data=np.zeros((2, 2), dtype=np.uint16), header=wcs_header)
+        hdu.writeto(out_path.with_suffix(".wcs"), overwrite=True)
+
+    def _write_sim_gaia_cache(self, target: AcquisitionTarget, comp_stars: list[dict]):
+        from core.postflight.gaia_resolver import _cache_path
+
+        ra_deg = target.ra_hours * 15.0
+        dec_deg = target.dec_deg
+        cache_path = _cache_path(ra_deg, dec_deg)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+        payload = {
+            "ra": ra_deg,
+            "dec": dec_deg,
+            "n": len(comp_stars),
+            "stars": comp_stars,
+        }
+        with open(cache_path, "w") as f:
+            json.dump(payload, f, indent=2)
+
     def acquire(self, target: AcquisitionTarget, status_cb=None, telemetry: Optional[TelemetryBlock] = None) -> FrameResult:
         def step(tag, msg):
             log.info("  [%s] SIM %s", tag, msg)
@@ -110,9 +196,7 @@ class MockDiamondSequence:
                 status_cb(f"[{tag}] {msg}")
 
         width, height = 2160, 3840
-        array = np.random.normal(100, 10, (height, width)).astype(np.uint16)
-        cy, cx = height // 2, width // 2
-        array[cy - 5:cy + 5, cx - 5:cx + 5] = 50000
+        array = np.random.normal(300.0, 12.0, (height, width)).astype(np.float64)
 
         utc_obs = datetime.now(timezone.utc)
         local_buffer = DATA_DIR / "local_buffer"
@@ -137,13 +221,41 @@ class MockDiamondSequence:
         step("A8", "Corrective nudge not required")
         time.sleep(0.2)
 
+        header = sovereign_stamp(target, utc_obs, width, height)
+
+        comp_stars = self._build_sim_comp_stars(target)
+
+        # Draw target at the commanded center.
+        target_ra_deg = target.ra_hours * 15.0
+        target_px, target_py = self._pixel_from_world(header, target_ra_deg, target.dec_deg)
+        self._draw_star(array, target_px, target_py, amplitude=28000, sigma=2.4)
+
+        # Draw synthetic comparison stars aligned to a fake Gaia cache.
+        for idx, comp in enumerate(comp_stars, start=1):
+            px, py = self._pixel_from_world(header, comp["ra"], comp["dec"])
+            amplitude = 18000 - idx * 1500
+            self._draw_star(array, px, py, amplitude=max(7000, amplitude), sigma=2.1)
+
+        # Add a few nuisance stars so the frame looks less empty.
+        nuisance = [
+            (target_ra_deg + 0.18, target.dec_deg - 0.11, 9000),
+            (target_ra_deg - 0.22, target.dec_deg + 0.09, 7500),
+            (target_ra_deg + 0.05, target.dec_deg + 0.16, 6000),
+        ]
+        for ra_deg, dec_deg, amp in nuisance:
+            px, py = self._pixel_from_world(header, ra_deg, dec_deg)
+            self._draw_star(array, px, py, amplitude=amp, sigma=1.8)
+
         step("A10", f"Simulating {target.exp_ms}ms exposure for {target.name}")
         time.sleep(1.0)
 
-        header = sovereign_stamp(target, utc_obs, width, height)
-        write_fits(array, header, out_path)
+        final = np.clip(array, 0, 65535).astype(np.uint16)
+        write_fits(final, header, out_path)
+        self._write_wcs_sidecar(out_path, header)
+        self._write_sim_gaia_cache(target, comp_stars)
 
         step("A11", f"Frame quality gate passed — FITS saved to {out_path}")
+        step("A11", "Synthetic WCS sidecar and Gaia cache written for postflight")
         return FrameResult(success=True, path=out_path, width=width, height=height, elapsed_s=2.5)
 
 
