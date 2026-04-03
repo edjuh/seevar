@@ -2,17 +2,20 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/horizon_scanner_v2.py
-Version: 2.0.2
-Objective: Simpler daytime horizon scanner using burst-median wide-camera frames and robust skyline detection, intended to replace the spike-prone gradient-max approach.
+Version: 2.0.4
+Objective: Rooftop-aware daytime horizon scanner using burst-median wide-camera frames
+and robust skyline detection for balcony / urban sites.
 
 Design:
 - Uses the wide camera through Alpaca as an engineering vision sensor
 - Captures a short burst at each azimuth stop (video-like behavior)
 - Uses temporal median to suppress transient noise
-- Ignores outer edge columns and bottom frame clutter
+- Ignores side edges and aggressively crops the lower frame for balcony railings
 - Uses per-degree median aggregation, never max
-- Treats horizon scanning as a skyline detection problem, not a photometry problem
 - Saves debug preview images so the detected skyline can be inspected visually
+- Supports optional manual west-house override for known hard obstructions
+- Can test a saved .npy burst frame offline without touching the telescope
+- Writes JSON, CSV, and a horizon plot PNG
 """
 
 import argparse
@@ -47,8 +50,9 @@ logging.basicConfig(
 )
 log = logging.getLogger("horizon_scanner_v2")
 
-WIDE_CAMERA_NUM = 1
-TELESCOPE_NUM = 0
+WIDE_CAMERA_NUM_DEFAULT = 1
+TELESCOPE_NUM_DEFAULT = 0
+CLIENT_ID_DEFAULT = 42
 
 PLATE_SCALE_WIDE = 55.0
 SENSOR_W = 2160
@@ -72,22 +76,31 @@ ADU_FLOOR = 200.0
 GAIN_WIDE = 0
 
 MIN_HORIZON_ALT = -5.0
-MAX_HORIZON_ALT = 50.0
+MAX_HORIZON_ALT = 75.0
 OPEN_SKY_DEFAULT = 15.0
 
-SIDE_CROP_FRAC = 0.15
-BOTTOM_CROP_FRAC = 0.18
+SIDE_CROP_FRAC_DEFAULT = 0.15
+BOTTOM_CROP_FRAC_DEFAULT = 0.18
+
+SIDE_CROP_FRAC_BALCONY = 0.12
+BOTTOM_CROP_FRAC_BALCONY = 0.34
+
 ROW_WINDOW = 16
-CONTRAST_ABS_MIN = 10.0
-CONTRAST_SIGMA = 2.0
-MIN_COLS_PER_DEG = 1
+CONTRAST_ABS_MIN_DEFAULT = 10.0
+CONTRAST_SIGMA_DEFAULT = 2.0
+CONTRAST_ABS_MIN_BALCONY = 8.0
+CONTRAST_SIGMA_BALCONY = 1.8
+MIN_COLS_PER_DEG_DEFAULT = 1
 SMOOTH_WINDOW = 7
 
 SUN_MIN_ALT_DEG = 10.0
 SUN_EXCLUSION_DEG = FOV_H_DEG / 2 + 15.0
 SITE_ELEV_M = 5.0
 
-CLIENT_ID = 42
+WEST_HOUSE_START_AZ = 240
+WEST_HOUSE_END_AZ = 320
+WEST_HOUSE_ALT_DEG = 70.0
+
 ALPACA_CAMERA_BASE = None
 
 HORIZON_FILE = DATA_DIR / "horizon_mask.json"
@@ -174,12 +187,12 @@ def _parse_imagebytes(raw):
     return arr.astype(np.int32, copy=False)
 
 
-def download_image(camera, timeout=20):
+def download_image(camera, client_id, timeout=20):
     if not ALPACA_CAMERA_BASE:
         raise RuntimeError("Camera REST base URL unavailable")
 
     params = {
-        "ClientID": CLIENT_ID,
+        "ClientID": client_id,
         "ClientTransactionID": _next_txid(camera),
     }
 
@@ -213,7 +226,7 @@ def download_image(camera, timeout=20):
     return np.array(value, dtype=np.int32)
 
 
-def capture_image(camera, expose_sec, timeout=20, download_timeout=20):
+def capture_image(camera, client_id, expose_sec, timeout=20, download_timeout=20):
     camera.StartExposure(expose_sec, True)
 
     deadline = time.monotonic() + timeout
@@ -231,7 +244,7 @@ def capture_image(camera, expose_sec, timeout=20, download_timeout=20):
             pass
         raise RuntimeError(f"Image not ready after {timeout:.1f}s")
 
-    return download_image(camera, timeout=download_timeout)
+    return download_image(camera, client_id=client_id, timeout=download_timeout)
 
 
 def disconnect_safely(camera, telescope):
@@ -244,9 +257,9 @@ def disconnect_safely(camera, telescope):
             pass
 
 
-def auto_expose(camera, current_sec):
+def auto_expose(camera, client_id, current_sec):
     try:
-        img = capture_image(camera, current_sec, timeout=20, download_timeout=30)
+        img = capture_image(camera, client_id, current_sec, timeout=20, download_timeout=30)
         mean_adu = max(float(img.mean()), ADU_FLOOR)
         new_sec = current_sec * (TARGET_MEAN_ADU / mean_adu) ** 0.5
         new_sec = max(EXPOSE_MIN_SEC, min(EXPOSE_MAX_SEC, new_sec))
@@ -257,10 +270,10 @@ def auto_expose(camera, current_sec):
         return current_sec
 
 
-def probe_wide_camera(camera):
+def probe_wide_camera(camera, client_id):
     log.info("Probing wide camera availability...")
     try:
-        img = capture_image(camera, EXPOSE_MIN_SEC, timeout=10, download_timeout=15)
+        img = capture_image(camera, client_id, EXPOSE_MIN_SEC, timeout=10, download_timeout=15)
         mean_adu = float(np.mean(img))
         log.info("Wide camera probe OK: shape=%s mean=%.0f ADU", img.shape, mean_adu)
         return True
@@ -273,19 +286,50 @@ def probe_wide_camera(camera):
         return False
 
 
+def configure_camera(camera):
+    try:
+        camera.Gain = GAIN_WIDE
+    except Exception as e:
+        log.warning("Gain set failed: %s", e)
+
+    for attr, value in (("BinX", 1), ("BinY", 1)):
+        try:
+            setattr(camera, attr, value)
+        except Exception:
+            pass
+
+    for attr, value in (("ReadoutMode", 0),):
+        try:
+            setattr(camera, attr, value)
+        except Exception:
+            pass
+
+
 def to_luma(img):
     if img.ndim == 3:
         return img[:, :, 1].astype(np.float64)
     return img.astype(np.float64)
 
 
-def capture_burst(camera, expose_sec, n_frames=BURST_FRAMES):
+def capture_burst(camera, client_id, expose_sec, n_frames=BURST_FRAMES, retries=2):
     frames = []
     for idx in range(n_frames):
-        img = capture_image(camera, expose_sec, timeout=20, download_timeout=30)
-        frames.append(to_luma(img))
+        last_error = None
+        for _ in range(retries + 1):
+            try:
+                img = capture_image(camera, client_id, expose_sec, timeout=20, download_timeout=30)
+                frames.append(to_luma(img))
+                last_error = None
+                break
+            except Exception as e:
+                last_error = e
+                time.sleep(0.5)
+        if last_error is not None:
+            raise last_error
+
         if idx < n_frames - 1:
             time.sleep(BURST_GAP_SEC)
+
     stack = np.stack(frames, axis=0)
     return np.median(stack, axis=0)
 
@@ -340,7 +384,7 @@ def write_debug_preview(img, debug, out_path):
         f.write(rgb.tobytes())
 
 
-def column_horizon_row(column, min_row, max_row):
+def column_horizon_row(column, min_row, max_row, contrast_abs_min, contrast_sigma):
     usable = column[min_row:max_row]
     if len(usable) < 2 * ROW_WINDOW + 1:
         return None, 0.0
@@ -349,7 +393,7 @@ def column_horizon_row(column, min_row, max_row):
     best_score = -1e9
 
     noise = float(np.std(usable))
-    threshold = max(CONTRAST_ABS_MIN, CONTRAST_SIGMA * noise)
+    threshold = max(contrast_abs_min, contrast_sigma * noise)
 
     for row in range(min_row + ROW_WINDOW, max_row - ROW_WINDOW):
         above = float(np.mean(column[row - ROW_WINDOW:row]))
@@ -366,13 +410,22 @@ def column_horizon_row(column, min_row, max_row):
     return best_row, best_score
 
 
-def detect_horizon_in_frame(img, az_center, alt_center):
+def detect_horizon_in_frame(
+    img,
+    az_center,
+    alt_center,
+    side_crop_frac,
+    bottom_crop_frac,
+    contrast_abs_min,
+    contrast_sigma,
+    min_cols_per_deg,
+):
     img_f = to_luma(img)
     h, w = img_f.shape
 
-    left = int(round(w * SIDE_CROP_FRAC))
-    right = int(round(w * (1.0 - SIDE_CROP_FRAC)))
-    bottom_limit = int(round(h * (1.0 - BOTTOM_CROP_FRAC)))
+    left = int(round(w * side_crop_frac))
+    right = int(round(w * (1.0 - side_crop_frac)))
+    bottom_limit = int(round(h * (1.0 - bottom_crop_frac)))
 
     alt_per_pixel = FOV_V_DEG / h
     az_per_pixel = FOV_H_DEG / w
@@ -386,7 +439,7 @@ def detect_horizon_in_frame(img, az_center, alt_center):
 
     for col in range(left, right):
         column = smooth_1d(img_f[:, col], kernel=11)
-        row, score = column_horizon_row(column, min_row, max_row)
+        row, score = column_horizon_row(column, min_row, max_row, contrast_abs_min, contrast_sigma)
         if row is None:
             continue
 
@@ -407,7 +460,7 @@ def detect_horizon_in_frame(img, az_center, alt_center):
     stats = {}
 
     for az_int, samples in per_degree.items():
-        if len(samples) < MIN_COLS_PER_DEG:
+        if len(samples) < min_cols_per_deg:
             continue
         med = float(np.median(samples))
         mad = float(np.median(np.abs(np.array(samples) - med))) if len(samples) > 1 else 0.0
@@ -486,6 +539,7 @@ def fill_gaps_from_accum(accum):
                 "mean": round(med, 1),
                 "var": round(var, 2),
                 "n": len(samples),
+                "source": "measured",
             }
 
     smoothed = median_smooth_profile(profile, window=SMOOTH_WINDOW)
@@ -499,24 +553,135 @@ def fill_gaps_from_accum(accum):
                 "mean": smoothed[az],
                 "var": 0.0,
                 "n": 0,
+                "source": "interpolated",
             }
 
     return smoothed, conf_out
 
 
-def run_scan(ip, port, dry_run=False, sun_visible=True):
+def az_in_sector(az, start, end):
+    if start <= end:
+        return start <= az <= end
+    return az >= start or az <= end
+
+
+def apply_manual_override(profile, confidence, start_az, end_az, altitude_deg, label):
+    for az in range(360):
+        if az_in_sector(az, start_az, end_az):
+            profile[az] = round(float(altitude_deg), 1)
+            confidence[az] = {
+                "mean": round(float(altitude_deg), 1),
+                "var": 0.0,
+                "n": -1,
+                "source": f"manual:{label}",
+            }
+    return profile, confidence
+
+
+def write_csv(profile, confidence, output_path):
+    csv_path = output_path.with_suffix(".csv")
+    lines = ["azimuth_deg,altitude_deg,n,source"]
+    for az in range(360):
+        conf = confidence[str(az)]
+        lines.append(f"{az},{profile[str(az)]},{conf['n']},{conf['source']}")
+    csv_path.write_text("\n".join(lines) + "\n")
+    return csv_path
+
+
+def plot_horizon_profile(profile, confidence, sun_info, output_path):
+    try:
+        import matplotlib.pyplot as plt
+    except Exception as e:
+        log.warning("matplotlib not available, skipping plot: %s", e)
+        return None
+
+    az = np.arange(360, dtype=np.float64)
+    alt = np.array([float(profile[str(int(a))]) for a in az], dtype=np.float64)
+
+    measured_mask = np.array([confidence[str(int(a))]["source"] == "measured" for a in az], dtype=bool)
+    manual_mask = np.array([str(confidence[str(int(a))]["source"]).startswith("manual:") for a in az], dtype=bool)
+    interp_mask = ~(measured_mask | manual_mask)
+
+    fig = plt.figure(figsize=(13, 6))
+
+    ax_polar = fig.add_subplot(1, 2, 1, projection="polar")
+    theta = np.deg2rad(az)
+    ax_polar.plot(theta, alt, color="royalblue", linewidth=2, label="Profile")
+    ax_polar.fill_between(theta, alt, 0, alpha=0.12, color="royalblue")
+
+    if np.any(measured_mask):
+        ax_polar.scatter(theta[measured_mask], alt[measured_mask], s=14, c="limegreen", label="Measured")
+    if np.any(manual_mask):
+        ax_polar.scatter(theta[manual_mask], alt[manual_mask], s=10, c="orange", label="Manual")
+
+    if sun_info and sun_info.get("visible_to_seestar"):
+        ax_polar.scatter(np.deg2rad(float(sun_info["az"])), float(sun_info["alt"]), s=50, c="red", label="Sun")
+
+    ax_polar.set_theta_zero_location("N")
+    ax_polar.set_theta_direction(-1)
+    ax_polar.set_rmax(max(60, int(np.nanmax(alt)) + 5))
+    ax_polar.set_title("Horizon Profile (Polar)")
+    ax_polar.grid(True, alpha=0.3)
+    ax_polar.legend(loc="upper right", fontsize=8)
+
+    ax_cart = fig.add_subplot(1, 2, 2)
+    ax_cart.plot(az, alt, color="royalblue", linewidth=2)
+    ax_cart.fill_between(az, alt, 0, alpha=0.12, color="royalblue")
+
+    if np.any(measured_mask):
+        ax_cart.scatter(az[measured_mask], alt[measured_mask], s=20, c="limegreen", label="Measured")
+    if np.any(manual_mask):
+        ax_cart.scatter(az[manual_mask], alt[manual_mask], s=12, c="orange", label="Manual")
+    if np.any(interp_mask):
+        ax_cart.scatter(az[interp_mask], alt[interp_mask], s=6, c="gray", alpha=0.25, label="Interpolated")
+
+    if sun_info and sun_info.get("visible_to_seestar"):
+        ax_cart.axvline(float(sun_info["az"]), color="red", linestyle="--", alpha=0.6)
+        ax_cart.scatter(float(sun_info["az"]), float(sun_info["alt"]), s=40, c="red")
+
+    ax_cart.set_xlim(0, 360)
+    ax_cart.set_ylim(-5, max(60, int(np.nanmax(alt)) + 5))
+    ax_cart.set_xticks(np.arange(0, 361, 45))
+    ax_cart.set_xlabel("Azimuth (deg)")
+    ax_cart.set_ylabel("Altitude (deg)")
+    ax_cart.set_title("Horizon Profile (Cartesian)")
+    ax_cart.grid(True, alpha=0.3)
+    ax_cart.legend(fontsize=8)
+
+    plt.tight_layout()
+    fig.savefig(output_path, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    log.info("Plot written: %s", output_path)
+    return output_path
+
+
+def run_scan(
+    ip,
+    port,
+    camera_num,
+    telescope_num,
+    client_id,
+    dry_run=False,
+    sun_visible=True,
+    side_crop_frac=SIDE_CROP_FRAC_DEFAULT,
+    bottom_crop_frac=BOTTOM_CROP_FRAC_DEFAULT,
+    contrast_abs_min=CONTRAST_ABS_MIN_DEFAULT,
+    contrast_sigma=CONTRAST_SIGMA_DEFAULT,
+    min_cols_per_deg=MIN_COLS_PER_DEG_DEFAULT,
+):
     global ALPACA_CAMERA_BASE
-    ALPACA_CAMERA_BASE = f"http://{ip}:{port}/api/v1/camera/{WIDE_CAMERA_NUM}"
+    ALPACA_CAMERA_BASE = f"http://{ip}:{port}/api/v1/camera/{camera_num}"
 
     positions = np.arange(0, 360, AZ_STEP_DEG).tolist()
     location, lat, lon, elev = get_location()
 
     log.info("=" * 60)
-    log.info("HORIZON SCANNER v2.0.2")
-    log.info("Wide camera burst-median skyline mode")
+    log.info("HORIZON SCANNER v2.0.4")
+    log.info("Wide camera rooftop skyline mode")
     log.info("Az step %.1f° (70%% overlap)", AZ_STEP_DEG)
-    log.info("Side crop %.0f%% each edge, bottom crop %.0f%%", SIDE_CROP_FRAC * 100, BOTTOM_CROP_FRAC * 100)
-    log.info("Thresholds: abs=%.1f sigma=%.1f min_cols_per_deg=%d", CONTRAST_ABS_MIN, CONTRAST_SIGMA, MIN_COLS_PER_DEG)
+    log.info("Side crop %.0f%% each edge, bottom crop %.0f%%", side_crop_frac * 100, bottom_crop_frac * 100)
+    log.info("Thresholds: abs=%.1f sigma=%.1f min_cols_per_deg=%d", contrast_abs_min, contrast_sigma, min_cols_per_deg)
+    log.info("Devices: telescope=%d camera=%d client_id=%d", telescope_num, camera_num, client_id)
     log.info("Target: %s:%s", ip, port)
     log.info("=" * 60)
 
@@ -525,18 +690,18 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
     if dry_run:
         accum = defaultdict(list)
         for az in range(360):
-            if 240 <= az <= 300:
-                accum[az].append(25.0)
+            if 240 <= az <= 320:
+                accum[az].append(70.0)
             elif 150 <= az <= 180:
-                accum[az].append(18.0)
+                accum[az].append(20.0)
             else:
                 accum[az].append(15.0)
         horizon, confidence = fill_gaps_from_accum(accum)
         return horizon, confidence, {}
 
     addr = f"{ip}:{port}"
-    telescope = Telescope(addr, TELESCOPE_NUM)
-    camera = Camera(addr, WIDE_CAMERA_NUM)
+    telescope = Telescope(addr, telescope_num)
+    camera = Camera(addr, camera_num)
 
     try:
         telescope.Connected = True
@@ -546,12 +711,9 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
         disconnect_safely(camera, telescope)
         return {}, {}, {}
 
-    try:
-        camera.Gain = GAIN_WIDE
-    except Exception as e:
-        log.warning("Gain set failed: %s", e)
+    configure_camera(camera)
 
-    if not probe_wide_camera(camera):
+    if not probe_wide_camera(camera, client_id):
         disconnect_safely(camera, telescope)
         return {}, {}, {}
 
@@ -573,7 +735,7 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
     else:
         log.info("Sun visibility override: operator says sun is blocked from the Seestar")
 
-    expose_sec = auto_expose(camera, EXPOSE_INITIAL_SEC)
+    expose_sec = auto_expose(camera, client_id, EXPOSE_INITIAL_SEC)
     accum = defaultdict(list)
     skipped_sun = []
     frame_count = 0
@@ -605,7 +767,7 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
             actual_az = az
 
         try:
-            burst = capture_burst(camera, expose_sec, n_frames=BURST_FRAMES)
+            burst = capture_burst(camera, client_id, expose_sec, n_frames=BURST_FRAMES, retries=2)
             frame_count += BURST_FRAMES
 
             mean_adu = max(float(np.mean(burst)), ADU_FLOOR)
@@ -620,7 +782,16 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
             continue
 
         try:
-            frame_hz, frame_stats, debug = detect_horizon_in_frame(burst, actual_az, actual_alt)
+            frame_hz, frame_stats, debug = detect_horizon_in_frame(
+                burst,
+                actual_az,
+                actual_alt,
+                side_crop_frac=side_crop_frac,
+                bottom_crop_frac=bottom_crop_frac,
+                contrast_abs_min=contrast_abs_min,
+                contrast_sigma=contrast_sigma,
+                min_cols_per_deg=min_cols_per_deg,
+            )
             for az_deg, alt_deg in frame_hz.items():
                 accum_update(accum, az_deg, alt_deg)
 
@@ -642,7 +813,7 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
     horizon, confidence = fill_gaps_from_accum(accum)
 
     measured = sum(1 for entry in confidence.values() if entry["n"] > 0)
-    interpolated = 360 - measured
+    interpolated = sum(1 for entry in confidence.values() if entry["n"] == 0)
 
     sun_info = {
         "visible_to_seestar": bool(sun_visible),
@@ -657,14 +828,68 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
     return horizon, confidence, sun_info
 
 
-def write_horizon(horizon, confidence, output_path, sun_info):
+def run_offline_frame(
+    frame_path,
+    az_center,
+    alt_center,
+    side_crop_frac,
+    bottom_crop_frac,
+    contrast_abs_min,
+    contrast_sigma,
+    min_cols_per_deg,
+):
+    frame_path = Path(frame_path)
+    if not frame_path.exists():
+        raise FileNotFoundError(frame_path)
+
+    img = np.load(frame_path)
+    log.info("Offline frame loaded: %s shape=%s", frame_path, img.shape)
+
+    frame_hz, frame_stats, debug = detect_horizon_in_frame(
+        img,
+        az_center=az_center,
+        alt_center=alt_center,
+        side_crop_frac=side_crop_frac,
+        bottom_crop_frac=bottom_crop_frac,
+        contrast_abs_min=contrast_abs_min,
+        contrast_sigma=contrast_sigma,
+        min_cols_per_deg=min_cols_per_deg,
+    )
+
+    preview_path = frame_path.with_suffix(".ppm")
+    write_debug_preview(img, debug, preview_path)
+
+    accum = defaultdict(list)
+    for az_deg, alt_deg in frame_hz.items():
+        accum_update(accum, az_deg, alt_deg)
+
+    horizon, confidence = fill_gaps_from_accum(accum)
+
+    log.info(
+        "Offline detection accepted %d az degrees using %d columns; debug=%s",
+        len(frame_hz),
+        debug["confident_cols"],
+        preview_path.name,
+    )
+    return horizon, confidence, {"visible_to_seestar": False, "offline_frame": str(frame_path)}
+
+
+def write_horizon(
+    horizon,
+    confidence,
+    output_path,
+    sun_info,
+    side_crop_frac,
+    bottom_crop_frac,
+    contrast_abs_min,
+    contrast_sigma,
+    min_cols_per_deg,
+    manual_overrides,
+):
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     profile = {str(az): round(horizon.get(az, OPEN_SKY_DEFAULT), 1) for az in range(360)}
     conf_out = {}
-
-    measured = 0
-    interpolated = 0
 
     for az in range(360):
         if az in confidence:
@@ -674,42 +899,62 @@ def write_horizon(horizon, confidence, output_path, sun_info):
                 "mean": profile[str(az)],
                 "var": 0.0,
                 "n": 0,
+                "source": "interpolated",
             }
 
-        if conf_out[str(az)]["n"] > 0:
-            measured += 1
-        else:
-            interpolated += 1
+    for override in manual_overrides:
+        profile_int = {int(k): v for k, v in profile.items()}
+        confidence_int = {int(k): v for k, v in conf_out.items()}
+        profile_int, confidence_int = apply_manual_override(
+            profile_int,
+            confidence_int,
+            override["start_az"],
+            override["end_az"],
+            override["altitude_deg"],
+            override["label"],
+        )
+        profile = {str(k): v for k, v in profile_int.items()}
+        conf_out = {str(k): v for k, v in confidence_int.items()}
+
+    measured = sum(1 for entry in conf_out.values() if entry["source"] == "measured")
+    interpolated = sum(1 for entry in conf_out.values() if entry["source"] == "interpolated")
+    manual = sum(1 for entry in conf_out.values() if str(entry["source"]).startswith("manual:"))
 
     payload = {
         "#objective": "Per-degree horizon profile from burst-median wide-camera skyline scan.",
         "source": "camera_scan_v2",
         "camera": "Camera #1 (IMX586, wide-angle)",
-        "scanner_version": "2.0.2",
-        "method": "burst_median_skyline",
+        "scanner_version": "2.0.4",
+        "method": "burst_median_rooftop_skyline",
         "az_step_deg": AZ_STEP_DEG,
         "burst_frames": BURST_FRAMES,
-        "side_crop_frac": SIDE_CROP_FRAC,
-        "bottom_crop_frac": BOTTOM_CROP_FRAC,
-        "contrast_abs_min": CONTRAST_ABS_MIN,
-        "contrast_sigma": CONTRAST_SIGMA,
-        "min_cols_per_deg": MIN_COLS_PER_DEG,
+        "side_crop_frac": side_crop_frac,
+        "bottom_crop_frac": bottom_crop_frac,
+        "contrast_abs_min": contrast_abs_min,
+        "contrast_sigma": contrast_sigma,
+        "min_cols_per_deg": min_cols_per_deg,
         "open_sky_default": OPEN_SKY_DEFAULT,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "n_points": len(profile),
         "measured_points": measured,
         "interpolated_points": interpolated,
+        "manual_points": manual,
+        "manual_overrides": manual_overrides,
         "sun_info": sun_info,
         "profile": profile,
         "confidence": conf_out,
     }
 
     output_path.write_text(json.dumps(payload, indent=2))
+    csv_path = write_csv(profile, conf_out, output_path)
+    plot_path = plot_horizon_profile(profile, conf_out, sun_info, output_path.with_suffix(".png"))
 
     vals = [float(v) for v in profile.values()]
     log.info("Written: %s", output_path)
-    log.info("Points: %d", len(profile))
-    log.info("Measured: %d  Interpolated: %d", measured, interpolated)
+    log.info("CSV    : %s", csv_path)
+    if plot_path:
+        log.info("Plot   : %s", plot_path)
+    log.info("Measured: %d  Interpolated: %d  Manual: %d", measured, interpolated, manual)
     log.info("Min: %.1f  Max: %.1f  Mean: %.1f", min(vals), max(vals), sum(vals) / len(vals))
 
 
@@ -720,7 +965,20 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--ip", type=str, default=None)
     parser.add_argument("--port", type=int, default=32323)
+    parser.add_argument("--camera-num", type=int, default=WIDE_CAMERA_NUM_DEFAULT)
+    parser.add_argument("--telescope-num", type=int, default=TELESCOPE_NUM_DEFAULT)
+    parser.add_argument("--client-id", type=int, default=CLIENT_ID_DEFAULT)
     parser.add_argument("--output", type=str, default=str(HORIZON_FILE))
+    parser.add_argument("--balcony-site", action="store_true", help="Use stronger rooftop/balcony tuning")
+    parser.add_argument("--west-house", action="store_true", help="Apply known west-side house obstruction override")
+    parser.add_argument("--side-crop-frac", type=float, default=None)
+    parser.add_argument("--bottom-crop-frac", type=float, default=None)
+    parser.add_argument("--contrast-abs-min", type=float, default=None)
+    parser.add_argument("--contrast-sigma", type=float, default=None)
+    parser.add_argument("--min-cols-per-deg", type=int, default=MIN_COLS_PER_DEG_DEFAULT)
+    parser.add_argument("--offline-frame", type=str, default=None, help="Run detection on a saved .npy burst frame")
+    parser.add_argument("--offline-az", type=float, default=0.0, help="Center azimuth for offline frame mode")
+    parser.add_argument("--offline-alt", type=float, default=ALT_CENTER_DEG, help="Center altitude for offline frame mode")
     parser.add_argument(
         "--sun-visible",
         dest="sun_visible",
@@ -743,45 +1001,112 @@ def main():
         seestars = cfg.get("seestars", [{}])
         ip = seestars[0].get("ip", "192.168.178.251")
 
+    if args.balcony_site:
+        side_crop_frac = SIDE_CROP_FRAC_BALCONY
+        bottom_crop_frac = BOTTOM_CROP_FRAC_BALCONY
+        contrast_abs_min = CONTRAST_ABS_MIN_BALCONY
+        contrast_sigma = CONTRAST_SIGMA_BALCONY
+    else:
+        side_crop_frac = SIDE_CROP_FRAC_DEFAULT
+        bottom_crop_frac = BOTTOM_CROP_FRAC_DEFAULT
+        contrast_abs_min = CONTRAST_ABS_MIN_DEFAULT
+        contrast_sigma = CONTRAST_SIGMA_DEFAULT
+
+    if args.side_crop_frac is not None:
+        side_crop_frac = args.side_crop_frac
+    if args.bottom_crop_frac is not None:
+        bottom_crop_frac = args.bottom_crop_frac
+    if args.contrast_abs_min is not None:
+        contrast_abs_min = args.contrast_abs_min
+    if args.contrast_sigma is not None:
+        contrast_sigma = args.contrast_sigma
+
+    manual_overrides = []
+    if args.west_house:
+        manual_overrides.append({
+            "label": "west_house",
+            "start_az": WEST_HOUSE_START_AZ,
+            "end_az": WEST_HOUSE_END_AZ,
+            "altitude_deg": WEST_HOUSE_ALT_DEG,
+        })
+
     print("+" + "=" * 62 + "+")
-    print("|                HORIZON SCANNER v2.0.2                |")
-    print("|   Burst-median skyline detection with debug previews  |")
+    print("|                HORIZON SCANNER v2.0.4                |")
+    print("|   Rooftop skyline mode with plots and offline tests   |")
     print("+" + "=" * 62 + "+")
     print(f"Target IP          : {ip}:{args.port}")
+    print(f"Telescope #        : {args.telescope_num}")
+    print(f"Camera #           : {args.camera_num}")
+    print(f"Client ID          : {args.client_id}")
     print(f"Az step            : {AZ_STEP_DEG:.1f}°")
     print(f"Vertical FOV       : {FOV_V_DEG:.1f}°")
     print(f"Burst frames       : {BURST_FRAMES}")
-    print(f"Side crop          : {SIDE_CROP_FRAC * 100:.0f}% each side")
-    print(f"Bottom crop        : {BOTTOM_CROP_FRAC * 100:.0f}%")
-    print(f"Contrast abs min   : {CONTRAST_ABS_MIN:.1f}")
-    print(f"Contrast sigma     : {CONTRAST_SIGMA:.1f}")
-    print(f"Min cols / degree  : {MIN_COLS_PER_DEG}")
+    print(f"Balcony tuning     : {args.balcony_site}")
+    print(f"West house override: {args.west_house}")
+    print(f"Offline frame      : {args.offline_frame or '-'}")
+    print(f"Side crop          : {side_crop_frac * 100:.0f}% each side")
+    print(f"Bottom crop        : {bottom_crop_frac * 100:.0f}%")
+    print(f"Contrast abs min   : {contrast_abs_min:.1f}")
+    print(f"Contrast sigma     : {contrast_sigma:.1f}")
+    print(f"Min cols / degree  : {args.min_cols_per_deg}")
     print(f"Output             : {args.output}")
     print("")
 
-    if args.sun_visible is None and not args.dry_run:
+    if args.sun_visible is None and not args.dry_run and not args.offline_frame:
         ans = input("Can the sun be seen by the Seestar from this site right now? [y/N]: ").strip().lower()
         sun_visible = ans in ("y", "yes")
     else:
         sun_visible = True if args.sun_visible is None else args.sun_visible
 
-    horizon, confidence, sun_info = run_scan(
-        ip=ip,
-        port=args.port,
-        dry_run=args.dry_run,
-        sun_visible=sun_visible,
-    )
+    if args.offline_frame:
+        horizon, confidence, sun_info = run_offline_frame(
+            frame_path=args.offline_frame,
+            az_center=args.offline_az,
+            alt_center=args.offline_alt,
+            side_crop_frac=side_crop_frac,
+            bottom_crop_frac=bottom_crop_frac,
+            contrast_abs_min=contrast_abs_min,
+            contrast_sigma=contrast_sigma,
+            min_cols_per_deg=args.min_cols_per_deg,
+        )
+    else:
+        horizon, confidence, sun_info = run_scan(
+            ip=ip,
+            port=args.port,
+            camera_num=args.camera_num,
+            telescope_num=args.telescope_num,
+            client_id=args.client_id,
+            dry_run=args.dry_run,
+            sun_visible=sun_visible,
+            side_crop_frac=side_crop_frac,
+            bottom_crop_frac=bottom_crop_frac,
+            contrast_abs_min=contrast_abs_min,
+            contrast_sigma=contrast_sigma,
+            min_cols_per_deg=args.min_cols_per_deg,
+        )
 
     if not horizon:
         print("\nNo horizon produced.")
         raise SystemExit(1)
 
-    write_horizon(horizon, confidence, Path(args.output), sun_info)
+    write_horizon(
+        horizon,
+        confidence,
+        Path(args.output),
+        sun_info,
+        side_crop_frac=side_crop_frac,
+        bottom_crop_frac=bottom_crop_frac,
+        contrast_abs_min=contrast_abs_min,
+        contrast_sigma=contrast_sigma,
+        min_cols_per_deg=args.min_cols_per_deg,
+        manual_overrides=manual_overrides,
+    )
 
     print("\nDone.")
     print(f"Profile written to: {args.output}")
     print(f"Debug previews in : {FRAME_DIR}")
-    print("Use cloudy or bright daytime conditions for best skyline contrast.")
+    print("Use --balcony-site for railing/roofline sites.")
+    print("Use --offline-frame on saved .npy bursts while debugging.")
 
 
 if __name__ == "__main__":
