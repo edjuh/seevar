@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/horizon_scanner_v2.py
-Version: 2.0.1
+Version: 2.0.2
 Objective: Simpler daytime horizon scanner using burst-median wide-camera frames and robust skyline detection, intended to replace the spike-prone gradient-max approach.
 
 Design:
@@ -12,11 +12,11 @@ Design:
 - Ignores outer edge columns and bottom frame clutter
 - Uses per-degree median aggregation, never max
 - Treats horizon scanning as a skyline detection problem, not a photometry problem
+- Saves debug preview images so the detected skyline can be inspected visually
 """
 
 import argparse
 import json
-import logging
 import math
 import struct
 import sys
@@ -25,6 +25,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+import logging
 import numpy as np
 import requests
 from alpaca.camera import Camera
@@ -77,9 +78,9 @@ OPEN_SKY_DEFAULT = 15.0
 SIDE_CROP_FRAC = 0.15
 BOTTOM_CROP_FRAC = 0.18
 ROW_WINDOW = 16
-CONTRAST_ABS_MIN = 18.0
-CONTRAST_SIGMA = 2.5
-MIN_COLS_PER_DEG = 3
+CONTRAST_ABS_MIN = 10.0
+CONTRAST_SIGMA = 2.0
+MIN_COLS_PER_DEG = 1
 SMOOTH_WINDOW = 7
 
 SUN_MIN_ALT_DEG = 10.0
@@ -295,6 +296,50 @@ def smooth_1d(arr, kernel=9):
     return np.convolve(arr, np.ones(kernel) / kernel, mode="same")
 
 
+def _stretch_to_u8(img):
+    p2 = float(np.percentile(img, 2))
+    p98 = float(np.percentile(img, 98))
+    if p98 <= p2:
+        p2 = float(np.min(img))
+        p98 = float(np.max(img))
+    if p98 <= p2:
+        return np.zeros_like(img, dtype=np.uint8)
+    stretched = np.clip((img - p2) * 255.0 / (p98 - p2), 0, 255)
+    return stretched.astype(np.uint8)
+
+
+def write_debug_preview(img, debug, out_path):
+    gray = _stretch_to_u8(img)
+    rgb = np.stack([gray, gray, gray], axis=2)
+
+    left = debug["left"]
+    right = debug["right"]
+    min_row = debug["min_row"]
+    max_row = debug["max_row"]
+    bottom_limit = debug["bottom_limit"]
+
+    rgb[:, max(0, left - 1):min(rgb.shape[1], left + 1)] = [255, 255, 0]
+    rgb[:, max(0, right - 1):min(rgb.shape[1], right + 1)] = [255, 255, 0]
+    rgb[max(0, min_row - 1):min(rgb.shape[0], min_row + 1), :] = [0, 255, 255]
+    rgb[max(0, max_row - 1):min(rgb.shape[0], max_row + 1), :] = [0, 255, 255]
+    rgb[max(0, bottom_limit - 1):min(rgb.shape[0], bottom_limit + 1), :] = [255, 0, 255]
+
+    for hit in debug["hits"]:
+        col = hit["col"]
+        row = hit["row"]
+        if 0 <= row < rgb.shape[0] and 0 <= col < rgb.shape[1]:
+            rgb[row, col] = [255, 0, 0]
+            if row + 1 < rgb.shape[0]:
+                rgb[row + 1, col] = [255, 0, 0]
+            if row - 1 >= 0:
+                rgb[row - 1, col] = [255, 0, 0]
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "wb") as f:
+        f.write(f"P6\n{rgb.shape[1]} {rgb.shape[0]}\n255\n".encode("ascii"))
+        f.write(rgb.tobytes())
+
+
 def column_horizon_row(column, min_row, max_row):
     usable = column[min_row:max_row]
     if len(usable) < 2 * ROW_WINDOW + 1:
@@ -337,6 +382,7 @@ def detect_horizon_in_frame(img, az_center, alt_center):
 
     per_degree = defaultdict(list)
     confident_cols = 0
+    hits = []
 
     for col in range(left, right):
         column = smooth_1d(img_f[:, col], kernel=11)
@@ -345,6 +391,7 @@ def detect_horizon_in_frame(img, az_center, alt_center):
             continue
 
         confident_cols += 1
+        hits.append({"col": int(col), "row": int(row), "score": round(float(score), 2)})
 
         az_offset = (col - w / 2) * az_per_pixel
         az = (az_center + az_offset) % 360.0
@@ -379,7 +426,17 @@ def detect_horizon_in_frame(img, az_center, alt_center):
         pct,
         len(result),
     )
-    return result, stats
+
+    debug = {
+        "hits": hits,
+        "left": left,
+        "right": right,
+        "min_row": min_row,
+        "max_row": max_row,
+        "bottom_limit": bottom_limit,
+        "confident_cols": confident_cols,
+    }
+    return result, stats, debug
 
 
 def accum_update(accum, az_deg, alt_deg):
@@ -455,10 +512,11 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
     location, lat, lon, elev = get_location()
 
     log.info("=" * 60)
-    log.info("HORIZON SCANNER v2.0.1")
+    log.info("HORIZON SCANNER v2.0.2")
     log.info("Wide camera burst-median skyline mode")
     log.info("Az step %.1f° (70%% overlap)", AZ_STEP_DEG)
     log.info("Side crop %.0f%% each edge, bottom crop %.0f%%", SIDE_CROP_FRAC * 100, BOTTOM_CROP_FRAC * 100)
+    log.info("Thresholds: abs=%.1f sigma=%.1f min_cols_per_deg=%d", CONTRAST_ABS_MIN, CONTRAST_SIGMA, MIN_COLS_PER_DEG)
     log.info("Target: %s:%s", ip, port)
     log.info("=" * 60)
 
@@ -562,16 +620,29 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
             continue
 
         try:
-            frame_hz, frame_stats = detect_horizon_in_frame(burst, actual_az, actual_alt)
+            frame_hz, frame_stats, debug = detect_horizon_in_frame(burst, actual_az, actual_alt)
             for az_deg, alt_deg in frame_hz.items():
                 accum_update(accum, az_deg, alt_deg)
-            log.info("Accepted %d az degrees from this stop", len(frame_hz))
+
+            tag = f"{actual_az:05.1f}".replace(".", "_")
+            preview_path = FRAME_DIR / f"horizon_v2_az{tag}.ppm"
+            write_debug_preview(burst, debug, preview_path)
+
+            log.info(
+                "Accepted %d az degrees from this stop using %d columns; debug=%s",
+                len(frame_hz),
+                debug["confident_cols"],
+                preview_path.name,
+            )
         except Exception as e:
             log.error("Detection failed at Az=%.1f°: %s", az, e)
 
     disconnect_safely(camera, telescope)
 
     horizon, confidence = fill_gaps_from_accum(accum)
+
+    measured = sum(1 for entry in confidence.values() if entry["n"] > 0)
+    interpolated = 360 - measured
 
     sun_info = {
         "visible_to_seestar": bool(sun_visible),
@@ -582,6 +653,7 @@ def run_scan(ip, port, dry_run=False, sun_visible=True):
     }
 
     log.info("Complete: %d burst frames, 360-degree profile produced", frame_count)
+    log.info("Measured azimuths: %d, interpolated azimuths: %d", measured, interpolated)
     return horizon, confidence, sun_info
 
 
@@ -590,6 +662,9 @@ def write_horizon(horizon, confidence, output_path, sun_info):
 
     profile = {str(az): round(horizon.get(az, OPEN_SKY_DEFAULT), 1) for az in range(360)}
     conf_out = {}
+
+    measured = 0
+    interpolated = 0
 
     for az in range(360):
         if az in confidence:
@@ -601,11 +676,16 @@ def write_horizon(horizon, confidence, output_path, sun_info):
                 "n": 0,
             }
 
+        if conf_out[str(az)]["n"] > 0:
+            measured += 1
+        else:
+            interpolated += 1
+
     payload = {
         "#objective": "Per-degree horizon profile from burst-median wide-camera skyline scan.",
         "source": "camera_scan_v2",
         "camera": "Camera #1 (IMX586, wide-angle)",
-        "scanner_version": "2.0.1",
+        "scanner_version": "2.0.2",
         "method": "burst_median_skyline",
         "az_step_deg": AZ_STEP_DEG,
         "burst_frames": BURST_FRAMES,
@@ -613,9 +693,12 @@ def write_horizon(horizon, confidence, output_path, sun_info):
         "bottom_crop_frac": BOTTOM_CROP_FRAC,
         "contrast_abs_min": CONTRAST_ABS_MIN,
         "contrast_sigma": CONTRAST_SIGMA,
+        "min_cols_per_deg": MIN_COLS_PER_DEG,
         "open_sky_default": OPEN_SKY_DEFAULT,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "n_points": len(profile),
+        "measured_points": measured,
+        "interpolated_points": interpolated,
         "sun_info": sun_info,
         "profile": profile,
         "confidence": conf_out,
@@ -626,6 +709,7 @@ def write_horizon(horizon, confidence, output_path, sun_info):
     vals = [float(v) for v in profile.values()]
     log.info("Written: %s", output_path)
     log.info("Points: %d", len(profile))
+    log.info("Measured: %d  Interpolated: %d", measured, interpolated)
     log.info("Min: %.1f  Max: %.1f  Mean: %.1f", min(vals), max(vals), sum(vals) / len(vals))
 
 
@@ -660,8 +744,8 @@ def main():
         ip = seestars[0].get("ip", "192.168.178.251")
 
     print("+" + "=" * 62 + "+")
-    print("|                HORIZON SCANNER v2.0.1                |")
-    print("|     Burst-median skyline detection, center-weighted   |")
+    print("|                HORIZON SCANNER v2.0.2                |")
+    print("|   Burst-median skyline detection with debug previews  |")
     print("+" + "=" * 62 + "+")
     print(f"Target IP          : {ip}:{args.port}")
     print(f"Az step            : {AZ_STEP_DEG:.1f}°")
@@ -669,6 +753,9 @@ def main():
     print(f"Burst frames       : {BURST_FRAMES}")
     print(f"Side crop          : {SIDE_CROP_FRAC * 100:.0f}% each side")
     print(f"Bottom crop        : {BOTTOM_CROP_FRAC * 100:.0f}%")
+    print(f"Contrast abs min   : {CONTRAST_ABS_MIN:.1f}")
+    print(f"Contrast sigma     : {CONTRAST_SIGMA:.1f}")
+    print(f"Min cols / degree  : {MIN_COLS_PER_DEG}")
     print(f"Output             : {args.output}")
     print("")
 
@@ -693,7 +780,8 @@ def main():
 
     print("\nDone.")
     print(f"Profile written to: {args.output}")
-    print("Use this scanner on cloudy or bright daytime conditions for best skyline contrast.")
+    print(f"Debug previews in : {FRAME_DIR}")
+    print("Use cloudy or bright daytime conditions for best skyline contrast.")
 
 
 if __name__ == "__main__":
