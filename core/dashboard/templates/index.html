@@ -145,6 +145,8 @@
                 <div class="row"><span class="label">TYPE</span> <span id="t-type" class="val">-</span></div>
                 <div class="row"><span class="label">LOC</span> <span id="t-loc" class="val" style="font-size: 0.9em;">-</span></div>
                 <div class="row"><span class="label">MAG</span> <span id="t-mag" class="val">-</span></div>
+                <div class="row"><span class="label">CAT / VIS</span> <span id="t-funnel-1" class="val">- / -</span></div>
+                <div class="row"><span class="label">DUE / CMP</span> <span id="t-funnel-2" class="val">- / -</span></div>
             </div>
         </div>
 
@@ -274,6 +276,14 @@
                                 gpsVal.innerText = data.gps_status;
                             }
                         }
+                    }
+
+                    if(data.target_funnel) {
+                        const f = data.target_funnel;
+                        const f1 = document.getElementById('t-funnel-1');
+                        const f2 = document.getElementById('t-funnel-2');
+                        if (f1) f1.innerText = `${f.catalog_count ?? 0} / ${f.visible_count ?? 0}`;
+                        if (f2) f2.innerText = `${f.due_count ?? 0} / ${f.compiled_count ?? 0}`;
                     }
 
                     if(data.weather) {
