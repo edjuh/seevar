@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/postflight/accountant.py
-Version: 2.1.0
-Objective: Sweep local_buffer, require real solved WCS before photometry, run Bayer differential photometry, and stamp scientific results into the ledger.
+Version: 2.2.0
+Objective: Sweep local_buffer, require real solved WCS, require dark-calibrated working frames,
+run Bayer differential photometry, and stamp scientific results into the ledger.
 """
 
 import json
@@ -22,6 +23,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.postflight.bayer_photometry import BayerFITS
 from core.postflight.calibration_engine import CalibrationEngine
 from core.postflight.master_analyst import MasterAnalyst
+from core.postflight.dark_calibrator import dark_calibrator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -59,7 +61,7 @@ def save_ledger(entries: dict):
         "#objective": "Master Observational Register and Status Ledger",
         "metadata": {
             "last_updated": datetime.now(timezone.utc).isoformat(),
-            "schema_version": "2026.3",
+            "schema_version": "2026.4",
         },
         "entries": entries,
     }
@@ -85,6 +87,8 @@ def _blank_entry() -> dict:
         "last_peak_adu": None,
         "last_solved_ra": None,
         "last_solved_dec": None,
+        "last_dark_key": None,
+        "last_calibration_state": None,
     }
 
 
@@ -233,9 +237,19 @@ def process_buffer():
             processed += 1
             continue
 
+        dark = dark_calibrator.calibrate(fpath)
+        if dark.get("status") != "ok":
+            log.warning("  %s dark calibration failed: %s", target_name, dark.get("error"))
+            ledger[key]["status"] = "FAILED_NO_DARK"
+            ledger[key]["last_calibration_state"] = dark.get("error", "unknown")
+            _archive_frame(fpath)
+            save_ledger(ledger)
+            processed += 1
+            continue
+
         target_mag = mag_lookup.get(target_name)
         result = _engine.calibrate(
-            str(fpath),
+            Path(dark["calibrated_path"]),
             ra_deg,
             dec_deg,
             target_name,
@@ -275,6 +289,8 @@ def process_buffer():
                     "last_peak_adu": result.get("peak_adu"),
                     "last_solved_ra": result.get("solved_ra_deg"),
                     "last_solved_dec": result.get("solved_dec_deg"),
+                    "last_dark_key": dark.get("dark_key"),
+                    "last_calibration_state": "DARKSUB",
                 })
                 successes += 1
             else:
