@@ -89,25 +89,22 @@ It is making the science chain defensible end-to-end.
   - flight proves raw capture
   - postflight proves scientific trust
 
-#### 1.9.1 — Astrometric Truth
-- require real solved WCS in postflight
-- stop relying on header-only `CRVAL/CRPIX/CDELT` as scientific truth
-- make unsolved frames fail honestly as `FAILED_NO_WCS`
-- connect `master_analyst.py` or equivalent solve products to the real photometry path
-
 #### 1.9.2 — Detector Truth
+Completed:
 - match darks by exposure, gain, and temperature bin
 - subtract darks before science photometry
 - preserve raw custody and calibrated working custody separately
-- prepare the path for later flat-field support
+- validate the dark-calibration path with synthetic regression tests
 
 #### 1.9.3 — Ensemble Robustness
+Completed:
 - add sigma clipping to the comparison-star ensemble
 - record rejected comparison stars and final survivor count
 - tighten quality verdicts around ensemble stability and zero-point scatter
 
 #### 1.9.4 — Deterministic Reporting
-- wire accepted postflight results into AAVSO report staging
+Next:
+- wire accepted postflight TG results into AAVSO report staging
 - make report generation a true `P8` output
 - stop treating the reporter as a side utility
 

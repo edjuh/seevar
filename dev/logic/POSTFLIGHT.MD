@@ -155,12 +155,15 @@ Current science channel:
 This is the core photometric science step.
 
 **Outputs:**
-- magnitude
+- TG magnitude
 - magnitude error
 - target SNR
-- comparison count
+- comparison survivor count
+- comparison raw count
+- comparison rejected count
 - zero point
 - zero-point scatter
+- photometric system tag: `TG`
 
 ---
 
@@ -206,6 +209,8 @@ Only at this step is a frame considered postflight-complete.
 - stamped ledger
 - archived frame custody
 - report-ready science products
+
+
 
 ---
 

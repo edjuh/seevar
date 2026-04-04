@@ -29,18 +29,52 @@ If one of those is weak, the final magnitude is weak.
 
 ---
 
-## Current Scientific Direction
+### Current science status
 
-SeeVar does **not** use naive debayering for production photometry.
+SeeVar currently produces:
 
-The adopted direction is:
+- raw Bayer-mosaic photometry
+- green-channel science measurements
+- untransformed `TG` output
+- dark-calibrated working frames before science photometry
+- sigma-clipped comparison-star ensembles
 
-- direct Bayer-aware source measurement
-- common aperture placement across channels
-- green-channel science output for current AAVSO submission
-- differential photometry against a comparison-star ensemble
+This is the active and accepted science path.
 
-This is the correct direction for OSC smart-scope photometry.
+### Detector calibration status
+
+Dark calibration is now enforced in postflight.
+
+Current detector-calibration rule:
+- raw science FITS are preserved unchanged
+- a calibrated working derivative is created for science measurement
+- dark matching is performed by exposure, gain, and temperature bin
+
+Flat correction remains future work.
+
+### Ensemble status
+
+Comparison stars are no longer accepted by weighted averaging alone.
+
+Current ensemble rule:
+- measure candidate comparison stars on the same Bayer-aware aperture basis
+- compute provisional zero points
+- reject zero-point outliers by sigma clipping
+- recompute the final ensemble zero point from survivors
+
+This is the active `1.9.3` behavior.
+
+### Reporting honesty
+
+SeeVar does **not** currently claim true Johnson `V`.
+
+Current reporting stance:
+- reported code: `TG`
+- measurement type: raw Bayer green, untransformed
+- comparison reference magnitudes may come from `V`, but the reported science product remains `TG`
+
+Transformed `V` is future work and requires explicit instrument calibration.
+
 
 ### Why not naive debayering
 
