@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/postflight/bayer_photometry.py
-Version: 2.1.0
-Objective: Bayer-channel aperture photometry engine for the IMX585 using real solved WCS products for source placement.
+Version: 2.2.0
+Objective: Bayer-channel aperture photometry engine for the IMX585 using real solved WCS
+products for source placement, with sigma-clipped comparison-star ensembles.
 """
 
 import logging
@@ -26,6 +27,9 @@ SEARCH_RADIUS = 10
 
 SATURATION_CEILING = 60000
 MIN_COMP_SNR = 5.0
+MIN_CLIPPED_COMPS = 3
+CLIP_SIGMA = 2.5
+CLIP_MAX_ITERS = 2
 PSF_MODEL = "moffat"
 
 
@@ -118,105 +122,97 @@ class BayerFITS:
                 self._wcs = WCS(str(solve_path))
             except Exception as e:
                 logger.error("Failed to load WCS %s: %s", solve_path, e)
-                self._wcs = None
 
         return True
 
-    def world_to_pixel(self, ra: float, dec: float) -> Tuple[int, int]:
-        if self._wcs is None:
-            raise RuntimeError("no_wcs")
-        px, py = self._wcs.all_world2pix(ra, dec, 0)
-        if not np.isfinite(px) or not np.isfinite(py):
-            raise RuntimeError("no_wcs")
-        return int(round(float(px))), int(round(float(py)))
+    def world_to_pixel(self, ra_deg: float, dec_deg: float) -> Tuple[float, float]:
+        if not self._wcs:
+            raise RuntimeError("No solved WCS loaded")
+        x, y = self._wcs.world_to_pixel_values(ra_deg, dec_deg)
+        return float(x), float(y)
 
-    def is_saturated(self, cx: int, cy: int, box: int = 5) -> Tuple[bool, float]:
-        arr = self.array
-        y0, y1 = max(0, cy - box), min(arr.shape[0], cy + box)
-        x0, x1 = max(0, cx - box), min(arr.shape[1], cx + box)
-        peak = float(arr[y0:y1, x0:x1].max())
-        return peak >= SATURATION_CEILING, peak
-
-    def _fit_aperture(self, cx: int, cy: int) -> int:
-        try:
-            from core.postflight.psf_models import fit_psf
-            from core.postflight.pastinakel_math import calculate_dynamic_aperture
-
-            g_image = self.array.astype(np.float64).copy()
-            yy, xx = np.mgrid[0:g_image.shape[0], 0:g_image.shape[1]]
-            non_g = (yy % 2) != (xx % 2)
-            g_image[non_g] = 0
-
-            result = fit_psf(g_image, cx, cy, model=PSF_MODEL)
-            if not result.converged:
-                logger.debug("PSF fit did not converge at (%d,%d), using default aperture", cx, cy)
-                return R_AP_DEFAULT
-
-            r_ap = int(round(calculate_dynamic_aperture(result.fwhm_pixels)))
-            r_ap = max(4, min(20, r_ap))
-
-            logger.debug(
-                "PSF FWHM=%.2fpx -> r_ap=%dpx (model=%s, beta=%s)",
-                result.fwhm_pixels,
-                r_ap,
-                result.model,
-                result.beta,
-            )
-            return r_ap
-        except Exception as e:
-            logger.debug("PSF fit failed: %s, using default aperture", e)
-            return R_AP_DEFAULT
-
-    def measure_star(
-        self,
-        ra: float,
-        dec: float,
-        r_ap: Optional[int] = None,
-        r_sky_in: int = R_SKY_IN_DEFAULT,
-        r_sky_out: int = R_SKY_OUT_DEFAULT,
-    ) -> dict:
-        try:
-            cx, cy = self.world_to_pixel(ra, dec)
-        except Exception:
+    def measure_star(self, ra_deg: float, dec_deg: float, r_ap: Optional[int] = None) -> dict:
+        if self.array is None:
+            return {"error": "image_not_loaded"}
+        if not self._wcs:
             return {"error": "no_wcs"}
 
-        arr = self.array.astype(np.float64)
-        h, w = arr.shape
+        try:
+            x, y = self.world_to_pixel(ra_deg, dec_deg)
+        except Exception as e:
+            return {"error": f"world_to_pixel_failed: {e}"}
 
-        if not (r_sky_out < cx < w - r_sky_out and r_sky_out < cy < h - r_sky_out):
-            return {"error": "out_of_frame", "cx": cx, "cy": cy}
+        h, w = self.array.shape
+        if x < SEARCH_RADIUS or y < SEARCH_RADIUS or x >= (w - SEARCH_RADIUS) or y >= (h - SEARCH_RADIUS):
+            return {"error": "out_of_frame"}
 
-        x0, x1 = max(0, cx - SEARCH_RADIUS), min(w, cx + SEARCH_RADIUS)
-        y0, y1 = max(0, cy - SEARCH_RADIUS), min(h, cy + SEARCH_RADIUS)
-        patch = arr[y0:y1, x0:x1]
-        pk = np.unravel_index(patch.argmax(), patch.shape)
-        cx, cy = x0 + pk[1], y0 + pk[0]
+        cx = int(round(x))
+        cy = int(round(y))
+        r_ap_eff = int(r_ap if r_ap is not None else R_AP_DEFAULT)
 
-        saturated, peak = self.is_saturated(cx, cy)
-        if saturated:
-            logger.warning("Star at (%d,%d) saturated, peak ADU %.0f", cx, cy, peak)
+        peak = float(np.max(self.array[max(0, cy - 2):min(h, cy + 3), max(0, cx - 2):min(w, cx + 3)]))
+        saturated = peak >= SATURATION_CEILING
 
-        if r_ap is None:
-            r_ap = self._fit_aperture(cx, cy)
+        flux_g, sky_g, snr_g = aperture_flux(self.array, cx, cy, r_ap=r_ap_eff, bayer_channel="G")
+        flux_r, sky_r, snr_r = aperture_flux(self.array, cx, cy, r_ap=r_ap_eff, bayer_channel="R")
+        flux_b, sky_b, snr_b = aperture_flux(self.array, cx, cy, r_ap=r_ap_eff, bayer_channel="B")
 
-        r_sky_in_used = max(r_sky_in, r_ap + 4)
-        r_sky_out_used = max(r_sky_out, r_ap + 10)
-
-        result = {
-            "cx": cx,
-            "cy": cy,
+        return {
+            "x": x,
+            "y": y,
+            "r_ap": r_ap_eff,
             "peak": peak,
             "saturated": saturated,
-            "r_ap": r_ap,
+            "flux_G": flux_g,
+            "flux_R": flux_r,
+            "flux_B": flux_b,
+            "sky_G": sky_g,
+            "sky_R": sky_r,
+            "sky_B": sky_b,
+            "snr_G": snr_g,
+            "snr_R": snr_r,
+            "snr_B": snr_b,
         }
 
-        for ch in ("G", "R", "B", "ALL"):
-            flux, sky, snr = aperture_flux(arr, cx, cy, r_ap, r_sky_in_used, r_sky_out_used, ch)
-            result[f"flux_{ch}"] = round(flux, 2)
-            result[f"sky_{ch}"] = round(sky, 2)
-            result[f"snr_{ch}"] = round(snr, 2)
 
-        return result
+def _robust_sigma(values: np.ndarray) -> float:
+    if len(values) < 2:
+        return 0.0
+    med = float(np.median(values))
+    mad = float(np.median(np.abs(values - med)))
+    if mad > 0:
+        return 1.4826 * mad
+    return float(np.std(values))
+
+
+def _sigma_clip_comps(comp_rows: list) -> tuple[list, int]:
+    survivors = list(comp_rows)
+    rejected_total = 0
+
+    for _ in range(CLIP_MAX_ITERS):
+        if len(survivors) < MIN_CLIPPED_COMPS:
+            break
+
+        zp_arr = np.array([row["zp"] for row in survivors], dtype=np.float64)
+        med = float(np.median(zp_arr))
+        sigma = _robust_sigma(zp_arr)
+
+        if sigma <= 0:
+            break
+
+        next_survivors = [row for row in survivors if abs(row["zp"] - med) <= CLIP_SIGMA * sigma]
+        newly_rejected = len(survivors) - len(next_survivors)
+
+        if newly_rejected <= 0:
+            break
+
+        if len(next_survivors) < MIN_CLIPPED_COMPS:
+            break
+
+        rejected_total += newly_rejected
+        survivors = next_survivors
+
+    return survivors, rejected_total
 
 
 def differential_magnitude(
@@ -227,7 +223,7 @@ def differential_magnitude(
     channel: str = "G",
 ) -> dict:
     """
-    Compute differential magnitude for target against a list of comparison stars.
+    Compute differential magnitude for target against a sigma-clipped comparison ensemble.
     """
     flux_key = f"flux_{channel}"
     snr_key = f"snr_{channel}"
@@ -244,8 +240,7 @@ def differential_magnitude(
     target_snr = t[snr_key]
     target_r_ap = t["r_ap"]
 
-    zero_points = []
-    weights = []
+    comp_rows = []
 
     for comp in comp_stars:
         v_mag = next((b["mag"] for b in comp.get("bands", []) if b["band"] == "V"), None)
@@ -274,14 +269,30 @@ def differential_magnitude(
             continue
 
         zp = v_mag + 2.5 * math.log10(m[flux_key])
-        zero_points.append(zp)
-        weights.append(comp_snr ** 2)
+        comp_rows.append({
+            "zp": float(zp),
+            "weight": float(comp_snr ** 2),
+            "snr": float(comp_snr),
+            "source_id": comp.get("source_id", "GAIA"),
+            "v_mag": float(v_mag),
+        })
 
-    if not zero_points:
+    if not comp_rows:
         return {"status": "fail", "error": "no_valid_comp_stars"}
 
-    zp_arr = np.array(zero_points, dtype=np.float64)
-    w_arr = np.array(weights, dtype=np.float64)
+    n_comps_raw = len(comp_rows)
+    clipped_rows, n_rejected = _sigma_clip_comps(comp_rows)
+
+    if len(clipped_rows) < MIN_CLIPPED_COMPS:
+        return {
+            "status": "fail",
+            "error": f"insufficient_valid_comps_after_clip: {len(clipped_rows)}",
+            "n_comps_raw": n_comps_raw,
+            "n_comps_rejected": n_rejected,
+        }
+
+    zp_arr = np.array([row["zp"] for row in clipped_rows], dtype=np.float64)
+    w_arr = np.array([row["weight"] for row in clipped_rows], dtype=np.float64)
     w_sum = w_arr.sum()
 
     avg_zp = float(np.sum(w_arr * zp_arr) / w_sum)
@@ -291,15 +302,20 @@ def differential_magnitude(
     snr_err = 1.0857 / target_snr if target_snr > 0 else 9.99
     total_err = round(math.sqrt(zp_std ** 2 + snr_err ** 2), 3)
 
+    brightest = min(clipped_rows, key=lambda row: row["v_mag"])
+
     return {
         "status": "ok",
         "mag": round(magnitude, 3),
         "err": total_err,
-        "n_comps": len(zero_points),
+        "n_comps": len(clipped_rows),
+        "n_comps_raw": n_comps_raw,
+        "n_comps_rejected": n_rejected,
         "zero_point": round(avg_zp, 4),
         "zp_std": round(zp_std, 4),
         "channel": channel,
         "target_snr": round(target_snr, 1),
         "peak_adu": round(t.get("peak", 0), 1),
         "r_ap_used": target_r_ap,
+        "comp_label": brightest["source_id"],
     }

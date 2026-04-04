@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/postflight/accountant.py
-Version: 2.2.0
+Version: 2.4.0
 Objective: Sweep local_buffer, require real solved WCS, require dark-calibrated working frames,
-run Bayer differential photometry, and stamp scientific results into the ledger.
+run Bayer differential photometry, and stamp TG scientific results into the ledger.
 """
 
 import json
@@ -61,7 +61,7 @@ def save_ledger(entries: dict):
         "#objective": "Master Observational Register and Status Ledger",
         "metadata": {
             "last_updated": datetime.now(timezone.utc).isoformat(),
-            "schema_version": "2026.4",
+            "schema_version": "2026.6",
         },
         "entries": entries,
     }
@@ -80,7 +80,11 @@ def _blank_entry() -> dict:
         "last_err": None,
         "last_snr": None,
         "last_filter": None,
+        "last_photometric_system": None,
+        "last_measurement_kind": None,
         "last_comps": None,
+        "last_comps_raw": None,
+        "last_comps_rejected": None,
         "last_zp": None,
         "last_zp_std": None,
         "last_obs_utc": None,
@@ -266,13 +270,14 @@ def process_buffer():
 
             if snr >= MIN_SNR:
                 log.info(
-                    "  OK %s  mag=%.3f +/- %.3f  SNR=%.1f  comps=%d  filter=%s",
+                    "  OK %s  TG=%.3f +/- %.3f  SNR=%.1f  comps=%d/%d  rej=%d",
                     key,
                     result.get("mag", 0),
                     result.get("err", 0),
                     snr,
                     result.get("n_comps", 0),
-                    result.get("filter", "?"),
+                    result.get("n_comps_raw", result.get("n_comps", 0)),
+                    result.get("n_comps_rejected", 0),
                 )
 
                 ledger[key].update({
@@ -282,7 +287,11 @@ def process_buffer():
                     "last_err": result.get("err"),
                     "last_snr": round(snr, 1),
                     "last_filter": result.get("filter"),
+                    "last_photometric_system": result.get("photometric_system", "TG"),
+                    "last_measurement_kind": result.get("measurement_kind", "raw_bayer_green_untransformed"),
                     "last_comps": result.get("n_comps"),
+                    "last_comps_raw": result.get("n_comps_raw", result.get("n_comps")),
+                    "last_comps_rejected": result.get("n_comps_rejected", 0),
                     "last_zp": result.get("zero_point"),
                     "last_zp_std": result.get("zp_std"),
                     "last_obs_utc": date_obs,
@@ -315,6 +324,12 @@ def process_buffer():
             else:
                 log.warning("  %s failed: %s", key, error)
                 ledger[key]["status"] = "FAILED_QC"
+
+            ledger[key]["last_comps_raw"] = result.get("n_comps_raw")
+            ledger[key]["last_comps_rejected"] = result.get("n_comps_rejected")
+            ledger[key]["last_photometric_system"] = result.get("photometric_system", "TG")
+            ledger[key]["last_measurement_kind"] = result.get("measurement_kind", "raw_bayer_green_untransformed")
+            ledger[key]["last_calibration_state"] = "DARKSUB"
 
         else:
             log.error("  %s calibration error: %s", key, error)

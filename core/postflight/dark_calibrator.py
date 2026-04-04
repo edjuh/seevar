@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/postflight/dark_calibrator.py
-Version: 1.0.0
+Version: 1.0.1
 Objective: Match and apply master dark calibration to science FITS frames before photometry.
 """
 
@@ -43,6 +43,28 @@ def _header_int(header, key, default=None):
         return int(round(float(value)))
     except Exception:
         return default
+
+
+def _calibrated_output_path(science_fits: Path) -> Path:
+    name = science_fits.name
+    lower = name.lower()
+
+    if lower.endswith(".fits"):
+        stem = name[:-5]
+        suffix = ".fits"
+    elif lower.endswith(".fit"):
+        stem = name[:-4]
+        suffix = ".fit"
+    else:
+        stem = science_fits.stem
+        suffix = science_fits.suffix or ".fits"
+
+    if stem.endswith("_cal"):
+        out_name = f"{stem}{suffix}"
+    else:
+        out_name = f"{stem}_cal{suffix}"
+
+    return CALIBRATED_BUFFER / out_name
 
 
 class DarkCalibrator:
@@ -93,7 +115,7 @@ class DarkCalibrator:
         calibrated = sci_data - dark_data
         calibrated = np.clip(calibrated, 0, 65535).astype(np.uint16)
 
-        out_path = CALIBRATED_BUFFER / science_fits.name.replace(".fits", "_cal.fits").replace(".fit", "_cal.fit")
+        out_path = _calibrated_output_path(science_fits)
 
         sci_header["CALSTAT"] = "DARKSUB"
         sci_header["DARKKEY"] = Path(dark_path).stem[:68]

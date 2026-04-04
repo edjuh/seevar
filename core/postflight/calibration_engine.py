@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/postflight/calibration_engine.py
-Version: 2.1.0
-Objective: Orchestrate differential photometry for a single FITS frame using a real solved WCS, Gaia DR3 comparison stars, and Bayer-aware measurement.
+Version: 2.2.0
+Objective: Orchestrate differential photometry for a single FITS frame using a real solved WCS,
+Gaia/AAVSO-style comparison stars, and raw Bayer-green TG photometry.
 """
 
 import logging
@@ -16,13 +17,14 @@ from core.postflight.gaia_resolver import get_comp_stars
 logger = logging.getLogger("seevar.calibration_engine")
 
 SCIENCE_CHANNEL = "G"
+SCIENCE_FILTER_LABEL = "TG"
 MIN_COMPS = 3
 MIN_SNR = 5.0
 
 
 class CalibrationEngine:
     """
-    End-to-end calibration for one FITS frame to one magnitude measurement.
+    End-to-end calibration for one FITS frame to one TG magnitude measurement.
     """
 
     def calibrate(
@@ -47,10 +49,11 @@ class CalibrationEngine:
             return {"status": "fail", "error": "no_wcs"}
 
         logger.info(
-            "Calibrating %s  target=%s  channel=%s",
+            "Calibrating %s  target=%s  channel=%s (%s)",
             fits_path.name,
             target_name or "unnamed",
             channel,
+            SCIENCE_FILTER_LABEL,
         )
 
         comp_stars = get_comp_stars(
@@ -89,7 +92,9 @@ class CalibrationEngine:
 
         result["fits_path"] = str(fits_path)
         result["target_name"] = target_name
-        result["filter"] = "TG" if channel == "G" else channel
+        result["filter"] = SCIENCE_FILTER_LABEL
+        result["photometric_system"] = "TG"
+        result["measurement_kind"] = "raw_bayer_green_untransformed"
         result["wcs_path"] = str(wcs_path) if wcs_path else str(fits_path.with_suffix(".wcs"))
 
         if solve_result and solve_result.get("ok"):
@@ -101,7 +106,7 @@ class CalibrationEngine:
             result["comp_label"] = brightest.get("source_id", "GAIA")
 
         logger.info(
-            "OK %s  mag=%.3f +/- %.3f  SNR=%.1f  comps=%d  ZP=%.4f",
+            "OK %s  TG=%.3f +/- %.3f  SNR=%.1f  comps=%d  ZP=%.4f",
             target_name,
             result["mag"],
             result["err"],
@@ -147,7 +152,8 @@ if __name__ == "__main__":
         raise SystemExit(1)
 
     print(f"\nOK {out['target_name']}")
-    print(f"   Magnitude : {out['mag']:.3f} +/- {out['err']:.3f}  [{out['filter']}]")
+    print(f"   TG        : {out['mag']:.3f} +/- {out['err']:.3f}")
+    print(f"   System    : {out['photometric_system']}")
     print(f"   SNR       : {out['target_snr']:.1f}")
     print(f"   Comp stars: {out['n_comps']}")
     print(f"   Zero-point: {out['zero_point']:.4f}  (sigma={out['zp_std']:.4f})")
