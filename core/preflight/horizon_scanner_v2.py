@@ -2,21 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/horizon_scanner_v2.py
-Version: 2.0.5
+Version: 2.0.6
 Objective: Rooftop-aware daytime horizon scanner using burst-median wide-camera frames
-and robust skyline detection for balcony / urban sites.
-
-Design:
-- Uses the wide camera through Alpaca as an engineering vision sensor
-- Captures a short burst at each azimuth stop (video-like behavior)
-- Uses temporal median to suppress transient noise
-- Ignores side edges and aggressively crops the lower frame for balcony railings
-- Uses per-degree median aggregation, never max
-- Saves debug preview images so the detected skyline can be inspected visually
-- Supports optional manual west-house override for known hard obstructions
-- Can test a saved .npy burst frame offline without touching the telescope
-- Writes JSON, CSV, and a horizon plot PNG
-- Recovers more gracefully from slew timeout / 0x4ff telescope failures
+and vectorized skyline detection for balcony / urban sites.
 """
 
 import argparse
@@ -411,12 +399,6 @@ def capture_burst(camera, client_id, expose_sec, n_frames=BURST_FRAMES, retries=
     return np.median(stack, axis=0)
 
 
-def smooth_1d(arr, kernel=9):
-    if kernel <= 1 or len(arr) < kernel:
-        return arr
-    return np.convolve(arr, np.ones(kernel) / kernel, mode="same")
-
-
 def _stretch_to_u8(img):
     p2 = float(np.percentile(img, 2))
     p98 = float(np.percentile(img, 98))
@@ -461,32 +443,6 @@ def write_debug_preview(img, debug, out_path):
         f.write(rgb.tobytes())
 
 
-def column_horizon_row(column, min_row, max_row, contrast_abs_min, contrast_sigma):
-    usable = column[min_row:max_row]
-    if len(usable) < 2 * ROW_WINDOW + 1:
-        return None, 0.0
-
-    best_row = None
-    best_score = -1e9
-
-    noise = float(np.std(usable))
-    threshold = max(contrast_abs_min, contrast_sigma * noise)
-
-    for row in range(min_row + ROW_WINDOW, max_row - ROW_WINDOW):
-        above = float(np.mean(column[row - ROW_WINDOW:row]))
-        below = float(np.mean(column[row:row + ROW_WINDOW]))
-        contrast = above - below
-
-        if contrast > best_score:
-            best_score = contrast
-            best_row = row
-
-    if best_row is None or best_score < threshold:
-        return None, best_score
-
-    return best_row, best_score
-
-
 def detect_horizon_in_frame(
     img,
     az_center,
@@ -510,28 +466,93 @@ def detect_horizon_in_frame(
     min_row = int(max(0, h / 2 - (alt_center - MIN_HORIZON_ALT) / alt_per_pixel))
     max_row = int(min(bottom_limit, h / 2 + (MAX_HORIZON_ALT - alt_center) / alt_per_pixel))
 
+    crop = img_f[:, left:right]
+    n_cols = crop.shape[1]
+
+    if n_cols <= 0 or max_row - min_row < 2 * ROW_WINDOW + 1:
+        debug = {
+            "hits": [],
+            "left": left,
+            "right": right,
+            "min_row": min_row,
+            "max_row": max_row,
+            "bottom_limit": bottom_limit,
+            "confident_cols": 0,
+        }
+        return {}, {}, debug
+
+    # Vertical smoothing for all columns at once.
+    kernel = 11
+    pad = kernel // 2
+    padded = np.pad(crop, ((pad, pad), (0, 0)), mode="edge")
+    cs_smooth = np.vstack([
+        np.zeros((1, n_cols), dtype=np.float64),
+        np.cumsum(padded, axis=0, dtype=np.float64),
+    ])
+    smoothed = (cs_smooth[kernel:, :] - cs_smooth[:-kernel, :]) / kernel
+    smoothed = smoothed[:h, :]
+
+    # Search range only.
+    search = smoothed[min_row:max_row, :]
+    n_rows = search.shape[0]
+    if n_rows < 2 * ROW_WINDOW + 1:
+        debug = {
+            "hits": [],
+            "left": left,
+            "right": right,
+            "min_row": min_row,
+            "max_row": max_row,
+            "bottom_limit": bottom_limit,
+            "confident_cols": 0,
+        }
+        return {}, {}, debug
+
+    # Sliding-window contrast across all rows/columns.
+    cs = np.vstack([
+        np.zeros((1, n_cols), dtype=np.float64),
+        np.cumsum(search, axis=0, dtype=np.float64),
+    ])
+
+    r_start = ROW_WINDOW
+    r_end = n_rows - ROW_WINDOW
+    r_idx = np.arange(r_start, r_end)
+
+    above = cs[r_idx, :] - cs[r_idx - ROW_WINDOW, :]
+    below = cs[r_idx + ROW_WINDOW, :] - cs[r_idx, :]
+    contrast = (above - below) / ROW_WINDOW
+
+    best_local = np.argmax(contrast, axis=0)
+    best_score = contrast[best_local, np.arange(n_cols)]
+    best_row = best_local + r_start + min_row
+
+    # Preserve per-column noise-aware thresholding.
+    noise = np.std(search, axis=0)
+    thresholds = np.maximum(float(contrast_abs_min), float(contrast_sigma) * noise)
+    confident = best_score >= thresholds
+
+    col_indices = np.arange(left, right)
+    az_offset = (col_indices - w / 2) * az_per_pixel
+    az_vals = (az_center + az_offset) % 360.0
+    az_ints = np.round(az_vals).astype(int) % 360
+
+    alt_offset = (h / 2 - best_row) * alt_per_pixel
+    alt_vals = np.clip(alt_center + alt_offset, MIN_HORIZON_ALT, MAX_HORIZON_ALT)
+
     per_degree = defaultdict(list)
-    confident_cols = 0
     hits = []
+    confident_cols = 0
 
-    for col in range(left, right):
-        column = smooth_1d(img_f[:, col], kernel=11)
-        row, score = column_horizon_row(column, min_row, max_row, contrast_abs_min, contrast_sigma)
-        if row is None:
+    for i in range(n_cols):
+        if not confident[i]:
             continue
-
         confident_cols += 1
-        hits.append({"col": int(col), "row": int(row), "score": round(float(score), 2)})
-
-        az_offset = (col - w / 2) * az_per_pixel
-        az = (az_center + az_offset) % 360.0
-        az_int = int(round(az)) % 360
-
-        alt_offset = (h / 2 - row) * alt_per_pixel
-        alt = alt_center + alt_offset
-        alt = max(MIN_HORIZON_ALT, min(MAX_HORIZON_ALT, alt))
-
-        per_degree[az_int].append(float(alt))
+        az_int = int(az_ints[i])
+        per_degree[az_int].append(float(alt_vals[i]))
+        hits.append({
+            "col": int(col_indices[i]),
+            "row": int(best_row[i]),
+            "score": round(float(best_score[i]), 2),
+        })
 
     result = {}
     stats = {}
@@ -548,11 +569,11 @@ def detect_horizon_in_frame(
             "n_cols": len(samples),
         }
 
-    pct = confident_cols / max(1, (right - left)) * 100.0
+    pct = confident_cols / max(1, n_cols) * 100.0
     log.info(
         "Skyline confidence: %d/%d center columns (%.0f%%), %d az degrees accepted",
         confident_cols,
-        max(1, (right - left)),
+        n_cols,
         pct,
         len(result),
     )
@@ -753,7 +774,7 @@ def run_scan(
     location, lat, lon, elev = get_location()
 
     log.info("=" * 60)
-    log.info("HORIZON SCANNER v2.0.5")
+    log.info("HORIZON SCANNER v2.0.6")
     log.info("Wide camera rooftop skyline mode")
     log.info("Az step %.1f° (70%% overlap)", AZ_STEP_DEG)
     log.info("Side crop %.0f%% each edge, bottom crop %.0f%%", side_crop_frac * 100, bottom_crop_frac * 100)
@@ -1003,7 +1024,7 @@ def write_horizon(
         "#objective": "Per-degree horizon profile from burst-median wide-camera skyline scan.",
         "source": "camera_scan_v2",
         "camera": "Camera #1 (IMX586, wide-angle)",
-        "scanner_version": "2.0.5",
+        "scanner_version": "2.0.6",
         "method": "burst_median_rooftop_skyline",
         "az_step_deg": AZ_STEP_DEG,
         "burst_frames": BURST_FRAMES,
@@ -1110,8 +1131,8 @@ def main():
         })
 
     print("+" + "=" * 62 + "+")
-    print("|                HORIZON SCANNER v2.0.5                |")
-    print("|   Rooftop skyline mode with recovery and offline test |")
+    print("|                HORIZON SCANNER v2.0.6                |")
+    print("|     Rooftop skyline mode with vectorized detector     |")
     print("+" + "=" * 62 + "+")
     print(f"Target IP          : {ip}:{args.port}")
     print(f"Telescope #        : {args.telescope_num}")
