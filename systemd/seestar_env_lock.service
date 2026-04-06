@@ -1,19 +1,33 @@
 [Unit]
-Description=Federation Environment Guardian (v1.5.6 - Armored Stake)
+Description=Federation Environment Guardian
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 WorkingDirectory=%h/seevar
-ExecStart=/usr/bin/env python3 %h/seevar/core/utils/env_vampire_hunter.py
-StandardOutput=append:%h/seevar/logs/guardian_debug.log
-StandardError=append:%h/seevar/logs/guardian_debug.log
-RemainAfterExit=yes
+Environment=PYTHONPATH=%h/seevar
+ExecStart=%h/seevar/.venv/bin/python3 core/utils/env_vampire_hunter.py
+StandardOutput=append:%h/seevar/logs/guardian.log
+StandardError=append:%h/seevar/logs/guardian.err
 
-Restart=on-failure
+Restart=always
 RestartSec=30
-StartLimitIntervalSec=0
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+ReadWritePaths=%h/seevar/data %h/seevar/logs
+TimeoutStartSec=30s
+TimeoutStopSec=10s
 
 [Install]
 WantedBy=default.target

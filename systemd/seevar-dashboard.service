@@ -1,6 +1,7 @@
 [Unit]
-Description=SeeVar Dashboard (Sovereign Link)
-After=network.target
+Description=SeeVar Dashboard
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -9,8 +10,23 @@ Environment=PYTHONPATH=%h/seevar
 ExecStart=%h/seevar/.venv/bin/python3 core/dashboard/dashboard.py
 Restart=always
 RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
 StandardOutput=append:%h/seevar/logs/dashboard.log
 StandardError=append:%h/seevar/logs/dashboard.err
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+ReadWritePaths=%h/seevar/data %h/seevar/logs
+TimeoutStartSec=30s
+TimeoutStopSec=10s
 
 [Install]
 WantedBy=default.target

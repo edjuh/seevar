@@ -1,15 +1,32 @@
 [Unit]
 Description=SeeVar Continuous GPS Monitor
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 WorkingDirectory=%h/seevar
+Environment=PYTHONPATH=%h/seevar
 ExecStart=%h/seevar/.venv/bin/python3 core/utils/gps_monitor.py
 Restart=always
 RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
 StandardOutput=append:%h/seevar/logs/gps.log
 StandardError=append:%h/seevar/logs/gps.err
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+ReadWritePaths=%h/seevar/data %h/seevar/logs
+TimeoutStartSec=30s
+TimeoutStopSec=10s
 
 [Install]
 WantedBy=default.target
