@@ -19,7 +19,8 @@
 #   - Serial console disabled automatically on aarch64
 # =============================================================================
  
-set -e
+set -euo pipefail
+IFS=$'\n\t'
  
 SEEVAR_REPO="https://github.com/edjuh/seevar.git"
 SEEVAR_DIR="$HOME/seevar"
@@ -58,20 +59,22 @@ function validate_access {
   fi
  
   # Python version check
+  # Python version check
   PY_MAJOR=$(python3 -c "import sys; print(sys.version_info.major)")
   PY_MINOR=$(python3 -c "import sys; print(sys.version_info.minor)")
   PY_VERSION="${PY_MAJOR}.${PY_MINOR}"
- 
+
+  if [ "$PY_MAJOR" -lt 3 ] || { [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -lt 11 ]; }; then
+    error "Python 3.11+ required. Detected ${PY_VERSION}."
+  fi
+
   if [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -eq 11 ]; then
     info "Python ${PY_VERSION} — fully supported."
-  elif [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -ge 13 ]; then
-    warn "Python ${PY_VERSION} detected (Trixie?). SeeVar is tested on 3.11."
-    warn "Most features will work. RPi.GPIO replaced by rpi-lgpio automatically."
-    warn "opencv-python wheels may lag on aarch64 — install may take longer."
   elif [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -eq 12 ]; then
-    info "Python ${PY_VERSION} — should work, not formally tested."
-  else
-    warn "Python ${PY_VERSION} — untested. Proceed with caution."
+    info "Python ${PY_VERSION} — supported."
+  elif [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -ge 13 ]; then
+    warn "Python ${PY_VERSION} detected. SeeVar is tested primarily on 3.11-3.12."
+    warn "Most features should work, but some platform-specific wheels may lag."
   fi
  
   info "Environment validated — user: $(whoami), arch: $ARCH, python: ${PY_VERSION}"

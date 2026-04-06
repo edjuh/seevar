@@ -1,14 +1,15 @@
 # =============================================================================
 # Filename:  requirements.txt
-# Version:   2026.03.18
+# Version:   2026.04.06
 # Objective: SeeVar runtime dependencies — delta on top of seestar_alp.
 #            Install after running the seestar_alp bootstrap.
+#            Requires Python >= 3.11 (tomllib).
 # =============================================================================
 
 # --- Astronomy & Science -----------------------------------------------------
 alpyca==3.1.2
 astropy==7.1.0
-astroquery==0.4.11.dev10199
+astroquery>=0.4.11,<0.5
 photutils==2.3.0
 skyfield==1.53
 ephem==4.2
@@ -43,8 +44,7 @@ RPi.GPIO==0.7.1
 gps==3.19
 
 # --- Optional: Fog / IR Cloud Sensor (MLX90614) ------------------------------
-# Only required if you have an MLX90614 infrared sensor wired to the Pi.
-# Comment out if not using fog_monitor.py hardware.
+# Consider moving this to requirements-optional.txt if the dependency stays optional.
 adafruit-circuitpython-mlx90614
 Adafruit-Blinka==8.69.0
 
@@ -58,9 +58,7 @@ python-dateutil==2.9.0.post0
 pytz==2022.7.1
 tzlocal==5.3.1
 tzdata==2025.3
-paramiko>=3.4.0
+paramiko>=3.4.0,<4.0
 
 # Clear Outside astronomy weather scraper
-clear-outside-apy>=1.0.0
-tomli-w
-
+clear-outside-apy>=1.0.0,<2.0

@@ -1,23 +1,28 @@
 ### What does this PR do?
 
-Ensure data integrety of the core/ modules
+Describe the change clearly and concretely.
 
 ### Type
 - [ ] Bug fix
 - [ ] Feature
 - [ ] Refactor
-- [ ] Core change (protocol/state machine)
+- [ ] Science pipeline change
+- [ ] Protocol / hardware control change
 
 ### Does this affect:
-- [ ] Protocol (port 4700)
-- [ ] State machine
-- [ ] Transport layer
+- [ ] Alpaca control path (`32323`)
+- [ ] State machine / orchestrator
+- [ ] Preflight planning / horizon logic
+- [ ] Postflight calibration / photometry
+- [ ] Reporting / AAVSO staging
 
 If yes, link discussion issue:
-→ #
+-> #
 
 ### Testing
-- [ ] Tested against mock server
+- [ ] Syntax checked
+- [ ] Regression tests run
+- [ ] Tested against mock/simulated path
 - [ ] Tested against real device (if applicable)
 
 ### Notes

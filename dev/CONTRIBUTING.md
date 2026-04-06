@@ -1,30 +1,41 @@
-# 🤝 Contributing to the Seestar Federation
+# Contributing to SeeVar
 
-> **Objective:** Defines the strict technical standards, workflow protocols, and "Garmt" purified header requirements for all project contributors (AI or Human).
-> **Version:** 1.2.0 (Garmt)
+Objective: Defines the technical standards, workflow rules, and header requirements for SeeVar contributors.
 
-Welcome to the Rommeldam architectural tradition. To maintain the stability of the S30-PRO observatory, all contributions must adhere to the following "Regelen van het Fatsoen" (Rules of Decorum).
+Version: 1.3.0
 
-## 🏰 1. The Purified Header Standard
-Every Python file (`.py`) MUST begin with a PEP 257 docstring. No exceptions. This prevents "AI Tripping" and ensures functional clarity.
-* **Filename:** The relative path from root.
-* **Version:** Current Epoch (e.g., 1.2.0 Garmt).
-* **Objective:** A single, unclipped sentence defining the file's primary responsibility.
+## 1. Garmt Header Standard
+Every Python file (`.py`) must begin with a PEP 257 docstring.
 
-## 🛰️ 2. Architectural Pillars
-All new logic must be categorized into one of the three established pillars:
-1.  **🛫 PREFLIGHT**: Data harvesting, vetting, and scheduling (Hardware remains OFF).
-2.  **🚀 FLIGHT**: Hardware orchestration, slewing, and integration via sovereign TCP port 4700 (JSON-RPC). No Alpaca bridge. <!-- SeeVar-contrib-v1.6.0 -->
-3.  **🧪 POSTFLIGHT**: Data syncing, photometry, and AAVSO reporting.
+Required fields:
+- Filename
+- Version
+- Objective
 
-## 🏮 3. Core Logic Constraints
-* **The Aperture Grip**: New selectors must respect the Westward Priority (Azimuth 180°-350°) to ensure science-grade photons are captured before targets set.
-* **Throttling**: Any script hitting the AAVSO VSP API must implement the mandatory **188.4s (Pi-Minute)** sleep to prevent IP throttling. Pi IP was hard-blocked by AAVSO at 3.14s on 2026-03-13.
-* **Path Integrity**: Never hardcode paths. Resolve all directories via `config.toml` to support the Lifeboat/RAID1 storage model.
+## 2. Architectural Pillars
+All new logic must fall into one of these pillars:
+1. PREFLIGHT: data harvesting, vetting, horizon logic, scheduling
+2. FLIGHT: hardware orchestration and acquisition via Alpaca-native control
+3. POSTFLIGHT: solved astrometry, dark-calibrated photometry, and reporting
 
-## 🛠️ 4. The Pull Request (Git) Protocol
-1.  Verify the **Logic Hub** links in `logic/README.md` are intact.
-2.  Ensure `main.py` remains the only primary execution entry point for the daemon.
-3.  Commit messages must reference the current Milestone (e.g., "Garmt: Added PSF fitting to Analyst").
+## 3. Protocol Reality
+SeeVar’s current hardware control path is:
 
-"Wij handelen hier volgens de regelen van het fatsoen!"
+- primary control: Alpaca HTTP on port `32323`
+- discovery: Alpaca UDP beacon on port `32227`
+- legacy/event paths may still exist in old notes, but are not the primary control doctrine
+
+Do not write new code against the old “TCP 4700 as main control path” assumption.
+
+## 4. Core Logic Constraints
+- Never hardcode install-specific paths when a project-root-relative or config-based path will do.
+- Current production photometry is raw Bayer-green, untransformed `TG`.
+- Production photometry should not depend on naive debayering.
+- If a frame is not proven by calibration/WCS/QC, it must not be accepted.
+
+## 5. Pull Request Protocol
+Before merging:
+1. Verify the logic docs still reflect the real architecture.
+2. Run the regression tests in `dev/test_*.py`.
+3. Keep changes scoped and scientifically honest.
+
