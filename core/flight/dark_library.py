@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/flight/dark_library.py
-Version: 2.1.0
+Version: 2.2.0
 Objective: Post-session dark frame acquisition via Alpaca REST.
            Captures downloadable dark frames, combines them into a master dark,
            and stores reusable calibration assets for postflight subtraction.
@@ -25,14 +25,17 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.utils.env_loader import DATA_DIR
 from core.flight.pilot import (
     AlpacaCamera, AlpacaFilterWheel, TelemetryBlock,
-    SEESTAR_HOST, ALPACA_PORT, GAIN, EXPOSE_TIMEOUT,
+    SEESTAR_HOST, ALPACA_PORT, EXPOSE_TIMEOUT,
 )
 
 logger = logging.getLogger("seevar.dark_library")
 
 DARK_LIBRARY_DIR = DATA_DIR / "dark_library"
-TEMP_BIN_SIZE = 5
-TEMP_BIN_TOLS = 10
+
+# Tighter temperature matching for more defensible dark current behavior.
+TEMP_BIN_SIZE = 2
+TEMP_BIN_TOLS = 4
+
 N_DARK_FRAMES = 5
 DARK_SETTLE_S = 2
 
@@ -76,11 +79,10 @@ class DarkLibrary:
         self._index = _load_index()
         DARK_LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
 
+    def _refresh_index(self):
+        self._index = _load_index()
+
     def acquire_darks(self, sequences: list, telemetry: Optional[TelemetryBlock] = None) -> dict:
-        """
-        Acquire master darks for each (exp_ms, gain) pair.
-        Each set is downloaded, median-combined, written to disk, and indexed.
-        """
         temp_c = telemetry.temp_c if telemetry and telemetry.temp_c is not None else 0.0
         if temp_c == 0.0:
             logger.warning("acquire_darks: no temp_c — using bin 0")
@@ -108,6 +110,7 @@ class DarkLibrary:
                 results[key] = status
 
                 if status["status"] == "ok":
+                    self._refresh_index()
                     self._index[key] = {
                         "temp_bin": tb,
                         "exp_ms": exp_ms,
@@ -132,7 +135,6 @@ class DarkLibrary:
         return results
 
     def _capture_dark_set(self, camera: AlpacaCamera, exp_ms: int, gain: int, temp_bin: int, temp_c: float) -> dict:
-        """Capture N dark frames, download them, median-combine into a master dark."""
         exp_sec = exp_ms / 1000.0
         frames = []
 
@@ -180,10 +182,8 @@ class DarkLibrary:
         }
 
     def best_dark(self, temp_c: float, exp_ms: int, gain: int) -> tuple[bool, Optional[dict], str]:
-        """
-        Resolve the best available master dark.
-        Returns (ok, entry, message).
-        """
+        self._refresh_index()
+
         tb = _temp_bin(temp_c)
         key = _key(tb, exp_ms, gain)
 
@@ -194,7 +194,7 @@ class DarkLibrary:
                 return True, entry, f"dark confirmed: {key}"
 
         candidates = []
-        for k, entry in self._index.items():
+        for _, entry in self._index.items():
             if entry.get("exp_ms") == exp_ms and entry.get("gain") == gain:
                 master_path = Path(entry.get("master_path", ""))
                 if not master_path.exists():

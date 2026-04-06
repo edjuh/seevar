@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/postflight/dark_calibrator.py
-Version: 1.0.1
+Version: 1.1.0
 Objective: Match and apply master dark calibration to science FITS frames before photometry.
 """
 
@@ -107,14 +107,25 @@ class DarkCalibrator:
             return {"status": "fail", "error": f"dark_load_failed: {e}"}
 
         if sci_data.shape != dark_data.shape:
+            hint = ""
+            if sci_data.shape == dark_data.shape[::-1]:
+                hint = " (possible 90-degree rotation mismatch)"
             return {
                 "status": "fail",
-                "error": f"dark_shape_mismatch: science={sci_data.shape} dark={dark_data.shape}",
+                "error": f"dark_shape_mismatch: science={sci_data.shape} dark={dark_data.shape}{hint}",
             }
 
-        calibrated = sci_data - dark_data
-        calibrated = np.clip(calibrated, 0, 65535).astype(np.uint16)
+        calibrated = sci_data.astype(np.float32) - dark_data.astype(np.float32)
 
+        neg_frac = float(np.mean(calibrated < 0.0))
+        if neg_frac > 0.001:
+            logger.warning(
+                "Dark subtraction yielded %.2f%% negative pixels for %s; dark may be too bright or mismatched",
+                neg_frac * 100.0,
+                science_fits.name,
+            )
+
+        calibrated = np.clip(calibrated, 0, 65535).astype(np.uint16)
         out_path = _calibrated_output_path(science_fits)
 
         sci_header["CALSTAT"] = "DARKSUB"
@@ -129,8 +140,8 @@ class DarkCalibrator:
         if raw_wcs.exists():
             try:
                 shutil.copy2(raw_wcs, cal_wcs)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to copy WCS sidecar %s -> %s: %s", raw_wcs.name, cal_wcs.name, e)
 
         logger.info("Dark calibrated %s using %s -> %s", science_fits.name, dark_path.name, out_path.name)
 
@@ -139,6 +150,7 @@ class DarkCalibrator:
             "calibrated_path": str(out_path),
             "dark_path": str(dark_path),
             "dark_key": Path(dark_path).stem,
+            "negative_pixel_fraction": round(neg_frac, 6),
         }
 
 
