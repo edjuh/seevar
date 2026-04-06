@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/postflight/bayer_photometry.py
-Version: 2.2.0
+Version: 2.4.0
 Objective: Bayer-channel aperture photometry engine for the IMX585 using real solved WCS
-products for source placement, with sigma-clipped comparison-star ensembles.
+products for source placement, with header-validated Bayer pattern handling and
+astropy-backed sigma clipping on comparison-star zero points.
 """
 
 import logging
@@ -14,11 +15,13 @@ from typing import Optional, Tuple
 
 import numpy as np
 from astropy.io import fits
+from astropy.stats import sigma_clip
 from astropy.wcs import WCS
 
 logger = logging.getLogger("seevar.bayer_photometry")
 
-BAYER_PATTERN = "GRBG"
+EXPECTED_BAYER_PATTERN = "GRBG"
+SUPPORTED_BAYER_PATTERNS = {"RGGB", "GRBG", "GBRG", "BGGR"}
 
 R_AP_DEFAULT = 8
 R_SKY_IN_DEFAULT = 12
@@ -29,8 +32,54 @@ SATURATION_CEILING = 60000
 MIN_COMP_SNR = 5.0
 MIN_CLIPPED_COMPS = 3
 CLIP_SIGMA = 2.5
-CLIP_MAX_ITERS = 2
+CLIP_MAX_ITERS = 5
 PSF_MODEL = "moffat"
+
+
+def _channel_mask(abs_y: np.ndarray, abs_x: np.ndarray, pattern: str, channel: str) -> np.ndarray:
+    pattern = pattern.upper()
+
+    y_even = (abs_y % 2) == 0
+    x_even = (abs_x % 2) == 0
+    y_odd = ~y_even
+    x_odd = ~x_even
+
+    if channel == "ALL":
+        return np.ones_like(abs_y, dtype=bool)
+
+    if pattern == "RGGB":
+        if channel == "R":
+            return y_even & x_even
+        if channel == "G":
+            return (y_even & x_odd) | (y_odd & x_even)
+        if channel == "B":
+            return y_odd & x_odd
+
+    if pattern == "GRBG":
+        if channel == "R":
+            return y_even & x_odd
+        if channel == "G":
+            return (y_even & x_even) | (y_odd & x_odd)
+        if channel == "B":
+            return y_odd & x_even
+
+    if pattern == "GBRG":
+        if channel == "R":
+            return y_odd & x_even
+        if channel == "G":
+            return (y_even & x_even) | (y_odd & x_odd)
+        if channel == "B":
+            return y_even & x_odd
+
+    if pattern == "BGGR":
+        if channel == "R":
+            return y_odd & x_odd
+        if channel == "G":
+            return (y_even & x_odd) | (y_odd & x_even)
+        if channel == "B":
+            return y_even & x_even
+
+    raise ValueError(f"Unsupported Bayer pattern: {pattern}")
 
 
 def aperture_flux(
@@ -41,24 +90,21 @@ def aperture_flux(
     r_sky_in: int = R_SKY_IN_DEFAULT,
     r_sky_out: int = R_SKY_OUT_DEFAULT,
     bayer_channel: str = "ALL",
+    bayer_pattern: str = EXPECTED_BAYER_PATTERN,
 ) -> Tuple[float, float, float]:
     """
-    Circular aperture photometry with strict Bayer-matrix channel slicing.
+    Circular aperture photometry with Bayer-aware channel slicing.
 
     Returns (net_flux, sky_median, snr).
+    SNR model includes:
+    - target photon noise (Poisson approximation)
+    - sky/background noise across the aperture
     """
     y_idx, x_idx = np.ogrid[-cy:image.shape[0] - cy, -cx:image.shape[1] - cx]
     abs_y = y_idx + cy
     abs_x = x_idx + cx
 
-    if bayer_channel == "G":
-        b_mask = (abs_y % 2) == (abs_x % 2)
-    elif bayer_channel == "R":
-        b_mask = (abs_y % 2 == 0) & (abs_x % 2 == 1)
-    elif bayer_channel == "B":
-        b_mask = (abs_y % 2 == 1) & (abs_x % 2 == 0)
-    else:
-        b_mask = np.ones_like(abs_y, dtype=bool)
+    b_mask = _channel_mask(abs_y, abs_x, bayer_pattern, bayer_channel)
 
     r2 = (x_idx ** 2 + y_idx ** 2).astype(np.float64)
     ap_mask = (r2 <= r_ap ** 2) & b_mask
@@ -71,7 +117,11 @@ def aperture_flux(
     ap_sum = float(image[ap_mask].astype(np.float64).sum())
     n_ap = int(ap_mask.sum())
     net_flux = ap_sum - sky_median * n_ap
-    snr = net_flux / (sky_std * math.sqrt(n_ap)) if sky_std > 0 and n_ap > 0 else 0.0
+
+    photon_noise_sq = max(net_flux, 0.0)
+    sky_noise_sq = (sky_std ** 2) * n_ap
+    total_noise = math.sqrt(photon_noise_sq + sky_noise_sq) if n_ap > 0 else 0.0
+    snr = net_flux / total_noise if total_noise > 0 else 0.0
 
     return net_flux, sky_median, snr
 
@@ -86,10 +136,34 @@ class BayerFITS:
         self.header: dict = {}
         self.array: Optional[np.ndarray] = None
         self._wcs: Optional[WCS] = None
+        self.bayer_pattern = EXPECTED_BAYER_PATTERN
 
     @property
     def has_wcs(self) -> bool:
         return self._wcs is not None
+
+    def _resolve_bayer_pattern(self, header: dict) -> str:
+        raw = header.get("BAYERPAT", EXPECTED_BAYER_PATTERN)
+        pattern = str(raw).strip().upper()
+
+        if pattern not in SUPPORTED_BAYER_PATTERNS:
+            logger.warning(
+                "Unsupported or missing BAYERPAT=%r in %s, falling back to %s",
+                raw,
+                self.path.name,
+                EXPECTED_BAYER_PATTERN,
+            )
+            return EXPECTED_BAYER_PATTERN
+
+        if pattern != EXPECTED_BAYER_PATTERN:
+            logger.warning(
+                "BAYERPAT mismatch in %s: header=%s expected=%s; using header value",
+                self.path.name,
+                pattern,
+                EXPECTED_BAYER_PATTERN,
+            )
+
+        return pattern
 
     def load(self, wcs_path: Optional[Path] = None) -> bool:
         try:
@@ -115,6 +189,7 @@ class BayerFITS:
         self.header = dict(hdr)
         self.array = arr
         self._wcs = None
+        self.bayer_pattern = self._resolve_bayer_pattern(hdr)
 
         solve_path = Path(wcs_path) if wcs_path else self.path.with_suffix(".wcs")
         if solve_path.exists():
@@ -122,97 +197,143 @@ class BayerFITS:
                 self._wcs = WCS(str(solve_path))
             except Exception as e:
                 logger.error("Failed to load WCS %s: %s", solve_path, e)
+                self._wcs = None
 
         return True
 
-    def world_to_pixel(self, ra_deg: float, dec_deg: float) -> Tuple[float, float]:
-        if not self._wcs:
-            raise RuntimeError("No solved WCS loaded")
-        x, y = self._wcs.world_to_pixel_values(ra_deg, dec_deg)
-        return float(x), float(y)
+    def world_to_pixel(self, ra: float, dec: float) -> Tuple[int, int]:
+        if self._wcs is None:
+            raise RuntimeError("no_wcs")
+        px, py = self._wcs.all_world2pix(ra, dec, 0)
+        if not np.isfinite(px) or not np.isfinite(py):
+            raise RuntimeError("no_wcs")
+        return int(round(float(px))), int(round(float(py)))
 
-    def measure_star(self, ra_deg: float, dec_deg: float, r_ap: Optional[int] = None) -> dict:
-        if self.array is None:
-            return {"error": "image_not_loaded"}
-        if not self._wcs:
+    def is_saturated(self, cx: int, cy: int, box: int = 5) -> Tuple[bool, float]:
+        arr = self.array
+        y0, y1 = max(0, cy - box), min(arr.shape[0], cy + box)
+        x0, x1 = max(0, cx - box), min(arr.shape[1], cx + box)
+        peak = float(arr[y0:y1, x0:x1].max())
+        return peak >= SATURATION_CEILING, peak
+
+    def _fit_aperture(self, cx: int, cy: int) -> int:
+        try:
+            from core.postflight.psf_models import fit_psf
+            from core.postflight.pastinakel_math import calculate_dynamic_aperture
+
+            g_image = self.array.astype(np.float64).copy()
+            yy, xx = np.mgrid[0:g_image.shape[0], 0:g_image.shape[1]]
+            non_g = ~_channel_mask(yy, xx, self.bayer_pattern, "G")
+            g_image[non_g] = 0
+
+            result = fit_psf(g_image, cx, cy, model=PSF_MODEL)
+            if not result.converged:
+                logger.debug("PSF fit did not converge at (%d,%d), using default aperture", cx, cy)
+                return R_AP_DEFAULT
+
+            r_ap = int(round(calculate_dynamic_aperture(result.fwhm_pixels)))
+            r_ap = max(4, min(20, r_ap))
+
+            logger.debug(
+                "PSF FWHM=%.2fpx -> r_ap=%dpx (model=%s, beta=%s)",
+                result.fwhm_pixels,
+                r_ap,
+                result.model,
+                result.beta,
+            )
+            return r_ap
+        except Exception as e:
+            logger.debug("PSF fit failed: %s, using default aperture", e)
+            return R_AP_DEFAULT
+
+    def measure_star(
+        self,
+        ra: float,
+        dec: float,
+        r_ap: Optional[int] = None,
+        r_sky_in: int = R_SKY_IN_DEFAULT,
+        r_sky_out: int = R_SKY_OUT_DEFAULT,
+    ) -> dict:
+        try:
+            cx, cy = self.world_to_pixel(ra, dec)
+        except Exception:
             return {"error": "no_wcs"}
 
-        try:
-            x, y = self.world_to_pixel(ra_deg, dec_deg)
-        except Exception as e:
-            return {"error": f"world_to_pixel_failed: {e}"}
+        arr = self.array.astype(np.float64)
+        h, w = arr.shape
 
-        h, w = self.array.shape
-        if x < SEARCH_RADIUS or y < SEARCH_RADIUS or x >= (w - SEARCH_RADIUS) or y >= (h - SEARCH_RADIUS):
-            return {"error": "out_of_frame"}
+        if not (r_sky_out < cx < w - r_sky_out and r_sky_out < cy < h - r_sky_out):
+            return {"error": "out_of_frame", "cx": cx, "cy": cy}
 
-        cx = int(round(x))
-        cy = int(round(y))
-        r_ap_eff = int(r_ap if r_ap is not None else R_AP_DEFAULT)
+        x0, x1 = max(0, cx - SEARCH_RADIUS), min(w, cx + SEARCH_RADIUS)
+        y0, y1 = max(0, cy - SEARCH_RADIUS), min(h, cy + SEARCH_RADIUS)
+        patch = arr[y0:y1, x0:x1]
+        pk = np.unravel_index(patch.argmax(), patch.shape)
+        cx, cy = x0 + pk[1], y0 + pk[0]
 
-        peak = float(np.max(self.array[max(0, cy - 2):min(h, cy + 3), max(0, cx - 2):min(w, cx + 3)]))
-        saturated = peak >= SATURATION_CEILING
+        saturated, peak = self.is_saturated(cx, cy)
+        if saturated:
+            logger.warning("Star at (%d,%d) saturated, peak ADU %.0f", cx, cy, peak)
 
-        flux_g, sky_g, snr_g = aperture_flux(self.array, cx, cy, r_ap=r_ap_eff, bayer_channel="G")
-        flux_r, sky_r, snr_r = aperture_flux(self.array, cx, cy, r_ap=r_ap_eff, bayer_channel="R")
-        flux_b, sky_b, snr_b = aperture_flux(self.array, cx, cy, r_ap=r_ap_eff, bayer_channel="B")
+        if r_ap is None:
+            r_ap = self._fit_aperture(cx, cy)
 
-        return {
-            "x": x,
-            "y": y,
-            "r_ap": r_ap_eff,
+        r_sky_in_used = max(r_sky_in, r_ap + 4)
+        r_sky_out_used = max(r_sky_out, r_ap + 10)
+
+        result = {
+            "cx": cx,
+            "cy": cy,
             "peak": peak,
             "saturated": saturated,
-            "flux_G": flux_g,
-            "flux_R": flux_r,
-            "flux_B": flux_b,
-            "sky_G": sky_g,
-            "sky_R": sky_r,
-            "sky_B": sky_b,
-            "snr_G": snr_g,
-            "snr_R": snr_r,
-            "snr_B": snr_b,
+            "r_ap": r_ap,
+            "bayer_pattern": self.bayer_pattern,
         }
 
+        for ch in ("G", "R", "B", "ALL"):
+            flux, sky, snr = aperture_flux(
+                arr,
+                cx,
+                cy,
+                r_ap,
+                r_sky_in_used,
+                r_sky_out_used,
+                ch,
+                self.bayer_pattern,
+            )
+            result[f"flux_{ch}"] = round(flux, 2)
+            result[f"sky_{ch}"] = round(sky, 2)
+            result[f"snr_{ch}"] = round(snr, 2)
 
-def _robust_sigma(values: np.ndarray) -> float:
-    if len(values) < 2:
-        return 0.0
-    med = float(np.median(values))
-    mad = float(np.median(np.abs(values - med)))
-    if mad > 0:
-        return 1.4826 * mad
-    return float(np.std(values))
+        return result
 
 
 def _sigma_clip_comps(comp_rows: list) -> tuple[list, int]:
-    survivors = list(comp_rows)
-    rejected_total = 0
+    if not comp_rows:
+        return [], 0
 
-    for _ in range(CLIP_MAX_ITERS):
-        if len(survivors) < MIN_CLIPPED_COMPS:
-            break
+    zp_arr = np.array([row["zp"] for row in comp_rows], dtype=np.float64)
 
-        zp_arr = np.array([row["zp"] for row in survivors], dtype=np.float64)
-        med = float(np.median(zp_arr))
-        sigma = _robust_sigma(zp_arr)
+    clipped = sigma_clip(
+        zp_arr,
+        sigma=CLIP_SIGMA,
+        maxiters=CLIP_MAX_ITERS,
+        cenfunc="median",
+        stdfunc="mad_std",
+        masked=True,
+    )
 
-        if sigma <= 0:
-            break
+    if not np.ma.isMaskedArray(clipped):
+        return list(comp_rows), 0
 
-        next_survivors = [row for row in survivors if abs(row["zp"] - med) <= CLIP_SIGMA * sigma]
-        newly_rejected = len(survivors) - len(next_survivors)
+    mask = np.array(clipped.mask, dtype=bool)
+    if mask.ndim == 0:
+        mask = np.zeros(len(comp_rows), dtype=bool)
 
-        if newly_rejected <= 0:
-            break
+    survivors = [row for idx, row in enumerate(comp_rows) if not mask[idx]]
+    rejected = int(mask.sum())
 
-        if len(next_survivors) < MIN_CLIPPED_COMPS:
-            break
-
-        rejected_total += newly_rejected
-        survivors = next_survivors
-
-    return survivors, rejected_total
+    return survivors, rejected
 
 
 def differential_magnitude(
@@ -318,4 +439,5 @@ def differential_magnitude(
         "peak_adu": round(t.get("peak", 0), 1),
         "r_ap_used": target_r_ap,
         "comp_label": brightest["source_id"],
+        "bayer_pattern": fits_file.bayer_pattern,
     }
