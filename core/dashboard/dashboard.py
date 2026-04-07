@@ -14,6 +14,7 @@ import tomllib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from flask import Flask, render_template, jsonify
+import flask.cli
 
 import requests as http_requests
 from astropy import units as u
@@ -34,7 +35,8 @@ ENV_STATUS        = Path("/dev/shm/env_status.json")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%H:%M:%S"
+    datefmt="%H:%M:%S",
+    force=True,
 )
 log = logging.getLogger("dashboard")
 log.setLevel(logging.INFO)
@@ -50,6 +52,7 @@ except ImportError:
 
 TEMPLATE_DIR = BASE_DIR / "templates"
 app = Flask(__name__, template_folder=str(TEMPLATE_DIR))
+flask.cli.show_server_banner = lambda *args, **kwargs: None
 
 @app.after_request
 def add_no_cache_headers(response):
@@ -83,6 +86,96 @@ HW_CACHE = {
 HW_CACHE_TTL = 5
 WEATHER_STALE_SEC = 1800
 TELEMETRY_STALE_SEC = 300
+
+DASHBOARD_EVENT_STATE = {
+    "orchestrator": None,
+    "weather": None,
+    "hardware": None,
+    "env_missing": None,
+    "state_missing": None,
+    "weather_missing": None,
+}
+
+def _set_event_flag(key: str, active: bool, message: str, *, level: int = logging.WARNING):
+    previous = DASHBOARD_EVENT_STATE.get(key)
+    if previous is active:
+        return
+    DASHBOARD_EVENT_STATE[key] = active
+    if previous is None:
+        if active:
+            log.log(level, message)
+        return
+    if active:
+        log.log(level, message)
+    else:
+        log.info("Recovered: %s", message)
+
+
+def _log_dashboard_deltas(orchestrator: dict, weather: dict, hardware: dict):
+    orch_now = (
+        orchestrator.get("state"),
+        orchestrator.get("sub"),
+        orchestrator.get("msg"),
+    )
+    if DASHBOARD_EVENT_STATE["orchestrator"] != orch_now:
+        if DASHBOARD_EVENT_STATE["orchestrator"] is not None:
+            log.info(
+                "Orchestrator -> state=%s sub=%s msg=%s",
+                orch_now[0],
+                orch_now[1],
+                orch_now[2],
+            )
+        DASHBOARD_EVENT_STATE["orchestrator"] = orch_now
+
+    weather_now = (
+        weather.get("status"),
+        weather.get("stale"),
+        weather.get("imaging_go"),
+    )
+    if DASHBOARD_EVENT_STATE["weather"] != weather_now:
+        if DASHBOARD_EVENT_STATE["weather"] is not None:
+            log.info(
+                "Weather -> status=%s stale=%s imaging_go=%s age_s=%s",
+                weather.get("status"),
+                weather.get("stale"),
+                weather.get("imaging_go"),
+                round(weather.get("age_s"), 1) if weather.get("age_s") is not None else "n/a",
+            )
+        DASHBOARD_EVENT_STATE["weather"] = weather_now
+
+    hardware_now = (
+        hardware.get("link_status"),
+        hardware.get("operational_state"),
+        hardware.get("battery"),
+    )
+    if DASHBOARD_EVENT_STATE["hardware"] != hardware_now:
+        if DASHBOARD_EVENT_STATE["hardware"] is not None:
+            log.info(
+                "Hardware -> link=%s op=%s battery=%s temp=%s",
+                hardware.get("link_status"),
+                hardware.get("operational_state"),
+                hardware.get("battery"),
+                hardware.get("temp_c"),
+            )
+        DASHBOARD_EVENT_STATE["hardware"] = hardware_now
+
+
+def _check_dashboard_sources(env: dict, state_data: dict, weather_data: dict):
+    _set_event_flag(
+        "env_missing",
+        not bool(env),
+        f"Environment status unavailable: {ENV_STATUS}",
+    )
+    _set_event_flag(
+        "state_missing",
+        not bool(state_data),
+        f"System state unavailable: {STATE_FILE}",
+    )
+    _set_event_flag(
+        "weather_missing",
+        not bool(weather_data),
+        f"Weather state unavailable: {WEATHER_FILE}",
+    )
 
 def _payload_age_seconds(payload: dict) -> float | None:
     if not isinstance(payload, dict):
@@ -513,6 +606,7 @@ def get_telemetry():
         })
 
     ledger = load_json_file(LEDGER_FILE, {})
+    _check_dashboard_sources(env, state_data, weather_data)
     last_audit = ledger.get("metadata", {}).get("last_updated", "N/A")
 
     dusk_dt = get_dusk_utc(
@@ -531,6 +625,7 @@ def get_telemetry():
     orchestrator["next_reason"] = nightly_progress["next_reason"]
 
     refresh_hw_cache()
+    _log_dashboard_deltas(orchestrator, weather, HW_CACHE["data"])
 
     return jsonify({
         "gps_status": state.get("gps_status"),
