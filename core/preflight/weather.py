@@ -18,6 +18,7 @@ Objective: Tri-source weather consensus daemon providing dark-window timing and 
 """
 
 import json
+import fcntl
 import time
 import logging
 import requests
@@ -37,6 +38,26 @@ logging.basicConfig(level=logging.INFO,
 log = logging.getLogger("WeatherSentinel")
 
 POLL_INTERVAL_S = 14400  # 4 hours
+LOCK_FILE = DATA_DIR / "locks" / "weather.lock"
+_LOCK_HANDLE = None
+
+
+
+def _acquire_singleton_lock() -> bool:
+    global _LOCK_HANDLE
+    try:
+        LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _LOCK_HANDLE = open(LOCK_FILE, "w")
+        fcntl.flock(_LOCK_HANDLE.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _LOCK_HANDLE.write("weather\n")
+        _LOCK_HANDLE.flush()
+        return True
+    except BlockingIOError:
+        log.warning("Another WeatherSentinel instance already holds %s — exiting duplicate process.", LOCK_FILE)
+        return False
+    except Exception as e:
+        log.error("Could not acquire weather singleton lock %s: %s", LOCK_FILE, e)
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -711,6 +732,8 @@ class WeatherSentinel:
 
 
 if __name__ == "__main__":
+    if not _acquire_singleton_lock():
+        raise SystemExit(0)
     log.info("WeatherSentinel v1.8.0 starting...")
     sentinel = WeatherSentinel()
     while True:
