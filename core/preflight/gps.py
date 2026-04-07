@@ -37,7 +37,7 @@ class GPSLocation:
             with open(ENV_STATUS, "r") as f:
                 status = json.load(f)
 
-            if status.get("gps_status") == "FIXED":
+            if str(status.get("gps_status", "")).startswith("FIXED"):
                 ram_lat = status.get("lat")
                 ram_lon = status.get("lon")
                 ram_mh = status.get("maidenhead")

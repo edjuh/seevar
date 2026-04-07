@@ -74,10 +74,10 @@ class HardwareAudit:
             logger.info("Audit PASSED — %s", telemetry.summary())
         else:
             logger.error("Audit FAILED — %s", warnings)
-
         payload = {
-            "#objective": "Alpaca hardware telemetry from port 32323.",
+            "#objective": "Hardware telemetry from Alpaca plus optional battery side-channel.",
             "timestamp":      datetime.now(timezone.utc).isoformat(),
+            "updated_utc":    datetime.now(timezone.utc).isoformat(),
             "passed":         safe,
             "link_status":    "ACTIVE" if passed else "OFFLINE",
             "warnings":       warnings,
@@ -90,8 +90,6 @@ class HardwareAudit:
             "dec_deg":        telemetry.dec_deg,
             "altitude":       telemetry.altitude,
             "azimuth":        telemetry.azimuth,
-            # battery_pct not available via Alpaca — dashboard reads
-            # from WilhelminaMonitor event stream instead
         }
 
         try:

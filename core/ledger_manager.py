@@ -177,7 +177,7 @@ def filter_by_cadence(targets: list) -> list:
 
 
 def record_attempt(name: str):
-    """Increment attempt counter for a target. Called before acquire()."""
+    """Increment acquisition-attempt counter for a target before runtime capture."""
     ledger = load_ledger()
     if name not in ledger:
         ledger[name] = _blank_entry()
@@ -185,15 +185,33 @@ def record_attempt(name: str):
     save_ledger(ledger)
 
 
-def record_success(name: str, fits_path: str = ""):
-    """Stamp last_success timestamp after a successful acquire().
-    Full photometry fields are stamped later by accountant.py.
-    """
+def record_capture(name: str, fits_path: str = ""):
+    """Record a raw science capture without claiming scientific success."""
     ledger = load_ledger()
     if name not in ledger:
         ledger[name] = _blank_entry()
-    ledger[name]["status"]       = "OBSERVED"
-    ledger[name]["last_success"] = datetime.now(timezone.utc).isoformat()
+
+    entry = ledger[name]
+    entry["status"] = "CAPTURED_RAW"
+    entry["last_capture_utc"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    if fits_path:
+        entry["last_capture_path"] = str(fits_path)
+
+    save_ledger(ledger)
+    logger.info("Ledger: %s → CAPTURED_RAW", name)
+
+
+def record_success(name: str, fits_path: str = ""):
+    """Stamp scientific success after postflight closure, not mere runtime capture."""
+    ledger = load_ledger()
+    if name not in ledger:
+        ledger[name] = _blank_entry()
+
+    entry = ledger[name]
+    entry["status"] = "OBSERVED"
+    entry["last_success"] = datetime.now(timezone.utc).isoformat()
+    if fits_path:
+        entry["last_capture_path"] = str(fits_path)
     save_ledger(ledger)
     logger.info("Ledger: %s → OBSERVED", name)
 

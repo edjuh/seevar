@@ -105,7 +105,9 @@ def _build_startup_item(mount_mode):
 
 def _build_target_item(target, exp_time):
     ra_str, dec_str = convert_to_seestar_coords(target["ra"], target["dec"])
-    duration = int(target.get("duration", 600))
+    duration = int(round(float(target.get("integration_sec") or target.get("duration") or 600)))
+    frame_exp = int(round(float(target.get("exp_ms", exp_time * 1000)) / 1000.0))
+    frame_exp = max(1, frame_exp)
     name = target.get("name", target.get("target_name", "unnamed"))
 
     compiler_notes = {
@@ -117,6 +119,12 @@ def _build_target_item(target, exp_time):
         "max_alt_deg": target.get("max_alt_deg"),
         "efficiency_score": target.get("efficiency_score"),
         "estimated_slew_cost_deg": target.get("estimated_slew_cost_deg"),
+        "exp_ms": target.get("exp_ms"),
+        "n_frames": target.get("n_frames"),
+        "integration_sec": target.get("integration_sec"),
+        "planner_mag": target.get("planner_mag"),
+        "planner_bright_mag": target.get("planner_bright_mag"),
+        "exposure_note": target.get("exposure_note"),
     }
 
     return {
@@ -133,7 +141,7 @@ def _build_target_item(target, exp_time):
             "panel_overlap_percent": 0,
             "selected_panels": "1",
             "gain": 80,
-            "exp_time": exp_time,
+            "exp_time": frame_exp,
             "is_use_autofocus": True,
             "num_tries": 3,
             "retry_wait_s": 15,

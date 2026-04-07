@@ -106,7 +106,8 @@ def update_status() -> bool:
 
                     if report.get("class") != "TPV":
                         continue
-                    if report.get("mode", 0) < 3:
+                    mode = int(report.get("mode", 0) or 0)
+                    if mode < 2:
                         continue
 
                     lat = round(report.get("lat", 0.0), 5)
@@ -117,7 +118,8 @@ def update_status() -> bool:
                         log.debug("Null Island fix rejected (0.0, 0.0) — waiting for real fix.")
                         continue
 
-                    status["gps_status"] = "FIXED"
+                    status["gps_status"] = "FIXED_3D" if mode >= 3 else "FIXED_2D"
+                    status["gps_mode"]    = mode
                     status["lat"]         = lat
                     status["lon"]         = lon
                     status["maidenhead"]  = get_maidenhead_6char(lat, lon)
@@ -126,6 +128,7 @@ def update_status() -> bool:
                     # Atomic write
                     tmp_path = Path(str(ENV_STATUS) + ".tmp")
                     try:
+                        ENV_STATUS.parent.mkdir(parents=True, exist_ok=True)
                         with open(tmp_path, "w") as fh:
                             json.dump(status, fh)
                         os.replace(tmp_path, ENV_STATUS)
@@ -134,7 +137,13 @@ def update_status() -> bool:
                         tmp_path.unlink(missing_ok=True)
                         return False
 
-                    log.info("Fix acquired: %s  (%.5f, %.5f)", status["maidenhead"], lat, lon)
+                    log.info(
+                        "Fix acquired (%s): %s  (%.5f, %.5f)",
+                        status["gps_status"],
+                        status["maidenhead"],
+                        lat,
+                        lon,
+                    )
                     return True
 
     except socket.timeout:

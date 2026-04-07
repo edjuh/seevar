@@ -21,6 +21,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(PROJECT_ROOT))
 
 from core.utils.env_loader import load_config
+from core.flight.exposure_planner import plan_exposure, DEFAULT_BORTLE
 
 try:
     from core.preflight.horizon import required_altitude, clearance_margin, horizon_altitude
@@ -77,7 +78,38 @@ def astronomical_dark_mask(times, location, sun_limit_deg):
     return np.array(sun_alt <= sun_limit_deg, dtype=bool)
 
 
-def estimate_required_block_minutes(target):
+def _science_exposure_hint(target, sky_bortle=DEFAULT_BORTLE):
+    bright_mag = target.get("mag_max")
+    faint_mag = target.get("min_mag")
+
+    try:
+        bright_mag = float(bright_mag) if bright_mag is not None else None
+    except Exception:
+        bright_mag = None
+    try:
+        faint_mag = float(faint_mag) if faint_mag is not None else None
+    except Exception:
+        faint_mag = None
+
+    target_mag = faint_mag if faint_mag is not None else bright_mag
+    if target_mag is None:
+        target_mag = 12.5
+    if bright_mag is None:
+        bright_mag = target_mag
+
+    try:
+        return plan_exposure(target_mag=target_mag, mag_bright=bright_mag, sky_bortle=int(sky_bortle))
+    except Exception:
+        return None
+
+
+def estimate_required_block_minutes(target, sky_bortle=DEFAULT_BORTLE):
+    hint = _science_exposure_hint(target, sky_bortle=sky_bortle)
+    if hint is not None:
+        integration_min = math.ceil(float(hint.total_sec) / 60.0)
+        settle_min = 1 if float(hint.exp_sec) <= 5.0 else 2
+        return max(6, min(25, integration_min + DEFAULT_BLOCK_OVERHEAD_MIN + settle_min))
+
     duration_sec = int(target.get("duration", 600))
     imaging_min = math.ceil(duration_sec / 60.0)
     # exposure block + slew/settle/acquire overhead
@@ -164,7 +196,7 @@ def score_window(start_idx, end_idx, times, alt_arr, az_arr, req_arr, block_minu
     }
 
 
-def analyze_target(target, times, altaz_frame, dark_mask):
+def analyze_target(target, times, altaz_frame, dark_mask, sky_bortle=DEFAULT_BORTLE):
     coord = SkyCoord(
         ra=float(target.get("ra", 0.0)) * u.deg,
         dec=float(target.get("dec", 0.0)) * u.deg,
@@ -184,7 +216,7 @@ def analyze_target(target, times, altaz_frame, dark_mask):
     any_above_horizon = bool(np.any(dark_mask & (alt_arr >= horizon_arr)))
     any_above_margin = bool(np.any(dark_mask & (alt_arr >= req_arr)))
 
-    block_minutes = estimate_required_block_minutes(target)
+    block_minutes = estimate_required_block_minutes(target, sky_bortle=sky_bortle)
     min_samples = max(1, math.ceil(block_minutes / SAMPLE_MINUTES))
 
     usable = dark_mask & (alt_arr >= req_arr)
@@ -216,6 +248,8 @@ def analyze_target(target, times, altaz_frame, dark_mask):
     current_margin = float(clearance_margin(current_az, current_alt, clearance_margin_deg=CLEARANCE_MARGIN_DEG))
 
     out = dict(target)
+    exposure_hint = _science_exposure_hint(target, sky_bortle=sky_bortle)
+
     out["current_alt"] = round(current_alt, 2)
     out["current_az"] = round(current_az, 2)
     out["current_required_alt"] = round(current_req, 2)
@@ -234,6 +268,13 @@ def analyze_target(target, times, altaz_frame, dark_mask):
     out["sector"] = best["sector"]
     out["urgency_score"] = best["urgency_score"]
     out["efficiency_score"] = best["efficiency_score"]
+    if exposure_hint is not None:
+        out["exp_ms"] = int(exposure_hint.exp_ms)
+        out["n_frames"] = int(exposure_hint.n_frames)
+        out["integration_sec"] = float(exposure_hint.total_sec)
+        out["planner_mag"] = float(exposure_hint.target_mag)
+        out["planner_bright_mag"] = float(exposure_hint.mag_bright)
+        out["exposure_note"] = exposure_hint.note
     out["_best_start_dt"] = best["window_start_dt"]
     out["_best_end_dt"] = best["window_end_dt"]
     return out, diagnostics
@@ -299,6 +340,7 @@ def run_funnel():
     lon = float(location_cfg.get("lon", 0.0))
     elev = float(location_cfg.get("elevation", 0.0))
     sun_limit = float(planner_cfg.get("sun_altitude_limit", -18.0))
+    sky_bortle = int(planner_cfg.get("sky_bortle", location_cfg.get("bortle", DEFAULT_BORTLE)))
 
     with open(FEDERATION_CATALOG, "r") as f:
         data = json.load(f)
@@ -338,7 +380,7 @@ def run_funnel():
             gate_counts["cadence_skipped"] += 1
             continue
 
-        analyzed_target, diag = analyze_target(t, trimmed_times, altaz_frame, trimmed_dark_mask)
+        analyzed_target, diag = analyze_target(t, trimmed_times, altaz_frame, trimmed_dark_mask, sky_bortle=sky_bortle)
 
         if diag["dark"]:
             gate_counts["survive_dark"] += 1
@@ -376,6 +418,7 @@ def run_funnel():
             "sample_minutes": SAMPLE_MINUTES,
             "clearance_margin_deg": CLEARANCE_MARGIN_DEG,
             "sun_altitude_threshold_deg": sun_limit,
+            "sky_bortle": sky_bortle,
             "catalog_target_count": len(targets),
             "visible_target_count": len(ordered),
             "planned_target_count": len(ordered),

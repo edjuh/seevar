@@ -54,6 +54,10 @@
         .status-main { color: var(--text-bright); font-size: 2em; letter-spacing: 5px; font-weight: 900; margin-bottom: 10px; transition: color 0.5s ease;}
         .status-sub { color: var(--text-bright); font-size: 0.9em; font-weight: bold; margin-bottom: 30px; letter-spacing: 1px; }
         .status-msg { color: var(--text-muted); font-size: 0.8em; font-style: italic; }
+        .preview-strip { display:flex; gap:10px; width:100%; margin-top:18px; }
+        .preview-card { flex:1; border:1px solid #333; background:#121212; padding:8px; }
+        .preview-title { color:#777; font-size:0.65em; letter-spacing:1.5px; margin-bottom:6px; text-transform:uppercase; }
+        .preview-frame { width:100%; aspect-ratio:16/9; object-fit:cover; display:block; background:#050505; border:1px solid #222; }
 
         @keyframes pulse-green { 0% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } 50% { box-shadow: 0 0 30px rgba(57,255,20,0.8); } 100% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } }
         @keyframes pulse-blue { 0% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } 50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(93,173,226,0.8); } 100% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } }
@@ -126,13 +130,12 @@
         <div class="panel">
             <h2>SYSTEM VITALS</h2>
             <div class="flight-window-row"><span class="label">FLIGHT WINDOW</span> <span class="fw-val">{{ flight_window }}</span></div>
-            <div class="row"><span class="label">SEESTAR (LINK)</span> <span id="tel-link-val" class="val">WAITING...</span> <div id="tel-link-led" class="led grey"></div></div>
+            <div class="row"><span class="label">SEESTAR (STATE)</span> <span id="tel-link-val" class="val">WAITING...</span> <div id="tel-link-led" class="led grey"></div></div>
             <div class="row"><span class="label">GPS (LOCK)</span> <span id="gps-val" class="val"></span> <div id="gps-led" class="led grey"></div></div>
             <div class="row"><span class="label">WEATHER (PRED)</span> <span id="weather-val" class="val">CLEAR</span> <div id="weather-icon-led" class="led weather-icon">⭐</div></div>
             <div class="row"><span class="label">FOG (VIS)</span> <span class="val">DISCONNECTED</span> <div class="led blue-grey"></div></div>
             
             <div class="row"><span class="label">BATTERY</span> <span id="bb-batt" class="val stat-val">--%</span></div>
-            <div class="row"><span class="label">STORAGE</span> <span id="bb-store" class="val stat-val">-- MB</span></div>
             <div class="row"><span class="label">MOUNT POS</span> <span id="bb-mount" class="val stat-val">--</span></div>
             <div class="row"><span class="label">FLEET</span> <span id="bb-fleet" class="val stat-val">--</span></div>
             
@@ -155,7 +158,18 @@
                 <div id="orch-icon" class="icon-p state-parked">P</div>
                 <div id="orch-main" class="status-main" style="color: #1e90ff;">PARKED</div>
                 <div id="orch-sub" class="status-sub">OFF-DUTY</div>
+                <div id="orch-progress" class="status-sub" style="font-size:0.8em;color:#888;">0 done · 0 left</div>
                 <div id="orch-msg" class="status-msg">Waiting for orchestrator...</div>
+                <div class="preview-strip">
+                    <div class="preview-card">
+                        <div class="preview-title">Latest Science</div>
+                        <img id="preview-science" class="preview-frame" src="/preview/science.jpg" alt="Latest science preview">
+                    </div>
+                    <div class="preview-card">
+                        <div class="preview-title">Latest Verify</div>
+                        <img id="preview-verify" class="preview-frame" src="/preview/verify.jpg" alt="Latest verify preview">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -255,7 +269,7 @@
         }
 
         function fetchTelemetry() {
-            fetch('/telemetry')
+            fetch('/telemetry?ts=' + Date.now(), { cache: 'no-store' })
                 .then(res => res.json())
                 .then(data => {
                     if(data.maidenhead) document.getElementById('telemetry-mh').innerText = data.maidenhead;
@@ -264,16 +278,17 @@
                         const gpsLed = document.getElementById('gps-led');
                         const gpsVal = document.getElementById('gps-val');
                         if(gpsLed && gpsVal) {
-                            const locked = ['3D','FIX','LOCK','FIXED'].some(s => data.gps_status.includes(s));
+                            const gpsStatus = String(data.gps_status || '');
+                            const locked = ['3D','FIX','LOCK','FIXED'].some(s => gpsStatus.includes(s));
                             if(locked) {
                                 gpsLed.className = 'led green';
-                                gpsVal.innerText = '3D LOCK';
-                            } else if(data.gps_status === 'NO-GPS-LOCK' || data.gps_status === 'NO-DATA') {
+                                gpsVal.innerText = gpsStatus.includes('2D') ? '2D LOCK' : '3D LOCK';
+                            } else if(gpsStatus === 'NO-GPS-LOCK' || gpsStatus === 'NO-DATA') {
                                 gpsLed.className = 'led orange';
                                 gpsVal.innerText = 'ACQUIRING';
                             } else {
                                 gpsLed.className = 'led grey';
-                                gpsVal.innerText = data.gps_status;
+                                gpsVal.innerText = gpsStatus;
                             }
                         }
                     }
@@ -289,10 +304,24 @@
                     if(data.weather) {
                         const wVal = document.getElementById('weather-val');
                         const wLed = document.getElementById('weather-icon-led');
-                        if(wVal) wVal.innerText = data.weather.status || 'N/A';
+                        const stale = !!data.weather.stale;
+                        const status = data.weather.status || 'N/A';
+                        const currentStatus = data.weather.current_status || status;
+
+                        if(wVal) {
+                            const label = stale ? `STALE (${status})` : `${status} tonight / ${currentStatus} now`;
+                            wVal.innerText = label;
+                            wVal.style.color = stale ? '#ff9900' : '';
+                            wVal.style.fontStyle = stale ? 'italic' : 'normal';
+                        }
                         if(wLed) {
-                            wLed.innerText = data.weather.icon || '❓';
+                            wLed.innerText = stale ? '⏳' : (data.weather.icon || '❓');
                             wLed.style.color = '#fff';
+                        }
+
+                        const gpsLed = document.getElementById('gps-led');
+                        if (stale && gpsLed) {
+                            // no-op placeholder to keep weather handling grouped
                         }
                     }
 
@@ -300,7 +329,13 @@
                         const state = data.orchestrator.state || 'PARKED';
                         document.getElementById('orch-main').innerText = state;
                         document.getElementById('orch-sub').innerText = data.orchestrator.sub || 'OFF-DUTY';
-                        document.getElementById('orch-msg').innerText = data.orchestrator.msg || '';
+                        const done = data.orchestrator.done_count || 0;
+                        const remaining = data.orchestrator.remaining_count || 0;
+                        const planned = data.orchestrator.planned_count || (done + remaining);
+                        const expired = data.orchestrator.expired_count || 0;
+                        const nextReason = data.orchestrator.next_reason || '';
+                        document.getElementById('orch-progress').innerText = `${done} done · ${remaining} left · ${expired} expired · ${planned} planned`;
+                        document.getElementById('orch-msg').innerText = nextReason || data.orchestrator.msg || '';
 
                         const ct = data.orchestrator.current_target;
                         if(ct && ct.name) {
@@ -329,6 +364,8 @@
                             icon.innerText = 'I'; icon.className = 'icon-p state-parked'; mainText.style.color = '#555555';
                         } else if(state === 'PREFLIGHT') {
                             icon.innerText = '✓'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
+                        } else if(state === 'WAITING') {
+                            icon.innerText = '…'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
                         } else if(state === 'PLANNING') {
                             icon.innerText = '⊞'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
                         } else if(state === 'FLIGHT') {
@@ -364,36 +401,30 @@
                         const linkVal = document.getElementById('tel-link-val');
                         const linkLed = document.getElementById('tel-link-led');
                         const battTxt = document.getElementById('bb-batt');
-                        const storeTxt = document.getElementById('bb-store');
                         const mountTxt = document.getElementById('bb-mount');
 
                         if(["ACTIVE","ONLINE"].includes(data.hardware.link_status)) {
                             const statusLabels = {"ACTIVE": "NATIVE COMMS UP", "ONLINE": "ONLINE", "CONNECTING": "CONNECTING..."};
                             linkVal.innerText = statusLabels[data.hardware.link_status] || data.hardware.link_status;
                             linkLed.className = "led green";
+                        } else if (data.hardware.link_status === "WAITING") {
+                            linkVal.innerText = "WAITING";
+                            linkLed.className = "led orange";
                         } else {
-                            linkVal.innerText = "NO SIGNAL";
+                            linkVal.innerText = "OFFLINE";
                             linkLed.className = "led red";
                         }
 
                         const batt = data.hardware.battery;
-                        if (batt !== "N/A" && batt !== undefined) {
+                        if (batt !== "N/A" && batt !== undefined && batt !== null && batt !== "") {
                             battTxt.innerText = batt + "%";
                             if (parseInt(batt) > 30) battTxt.className = "val stat-val";
                             else if (parseInt(batt) > 15) battTxt.className = "val stat-val batt-warn";
                             else battTxt.className = "val stat-val batt-crit";
                         } else {
-                            battTxt.innerText = "--%";
-                            battTxt.className = "val stat-val batt-crit";
+                            battTxt.innerText = "UNKNOWN";
+                            battTxt.className = "val";
                         }
-
-                        const rawMb = parseFloat(data.hardware.storage_mb);
-                        if(data.hardware.storage_free_gb != null) {
-                            storeTxt.innerText = data.hardware.storage_free_gb.toFixed(1) + ' GB free / ' + (data.hardware.storage_total_gb || '?') + ' GB';
-                        } else {
-                            storeTxt.innerText = isNaN(rawMb) ? '-- MB' : rawMb >= 1000 ? (rawMb / 1024).toFixed(1) + ' GB' : rawMb + ' MB';
-                        }
-                        
                         // New Live Mount Coordinate handling
                         if (data.hardware.ra !== undefined && data.hardware.dec !== undefined && data.hardware.ra !== "N/A") {
                             const ra = parseFloat(data.hardware.ra).toFixed(3);
@@ -408,8 +439,9 @@
                             const fleetTxt = document.getElementById("bb-fleet");
                             if (fleetTxt) {
                                 const summary = data.fleet.map(f => {
-                                    const icon = f.link_status === "ACTIVE" ? "●" : "○";
-                                    return icon + " " + f.name;
+                                    const st = f.operational_state || f.link_status || "OFFLINE";
+                                    const icon = ["IMAGING", "TRACKING"].includes(st) ? "●" : (["SLEWING", "IDLE", "ONLINE"].includes(st) ? "◐" : "○");
+                                    return icon + " " + f.name + "(" + st + ")";
                                 }).join("  ");
                                 fleetTxt.innerText = summary;
                             }
@@ -489,6 +521,14 @@
                 .catch(err => console.error("Telemetry error:", err));
         }
 
+        function refreshPreviews() {
+            const ts = Date.now();
+            const science = document.getElementById('preview-science');
+            const verify = document.getElementById('preview-verify');
+            if (science) science.src = '/preview/science.jpg?ts=' + ts;
+            if (verify) verify.src = '/preview/verify.jpg?ts=' + ts;
+        }
+
         function updateJDate() {
             const now = new Date();
             const jd = (now.getTime() / 86400000) + 2440587.5;
@@ -497,8 +537,9 @@
 
         setInterval(updateTicker, 4000);
         setInterval(fetchTelemetry, 2000);
+        setInterval(refreshPreviews, 4000);
         setInterval(updateJDate, 1000);
-        updateTicker(); fetchTelemetry(); updateJDate();
+        updateTicker(); fetchTelemetry(); refreshPreviews(); updateJDate();
     </script>
 </body>
 </html>

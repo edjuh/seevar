@@ -11,6 +11,7 @@ dark acquisition followed by postflight accounting.
 import json
 import logging
 import math
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -32,6 +33,7 @@ from core.flight.pilot import (
     SEESTAR_HOST,
     GAIN,
     TelemetryBlock,
+    VETO_BATTERY,
     FrameResult,
     write_fits,
     sovereign_stamp,
@@ -42,6 +44,7 @@ from core.flight.neutralizer import enforce_zero_state
 from core.preflight.vsx_catalog import get_target_mag
 from core.flight.fsm import SovereignFSM
 import core.ledger_manager as ledger_manager
+from core.hardware.live_battery import poll_battery_snapshot
 
 LOG_DIR = PROJECT_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -86,8 +89,8 @@ def _parse_plan_dt(value):
 
 
 class PipelineState:
-    IDLE, PREFLIGHT, PLANNING, FLIGHT, POSTFLIGHT, ABORTED, PARKED = (
-        "IDLE", "PREFLIGHT", "PLANNING", "FLIGHT", "POSTFLIGHT", "ABORTED", "PARKED"
+    IDLE, PREFLIGHT, PLANNING, FLIGHT, WAITING, POSTFLIGHT, ABORTED, PARKED = (
+        "IDLE", "PREFLIGHT", "PLANNING", "FLIGHT", "WAITING", "POSTFLIGHT", "ABORTED", "PARKED"
     )
 
 
@@ -296,6 +299,8 @@ class Orchestrator:
         self._dark_library = DarkLibrary(host=SEESTAR_HOST)
         self._tonights_sequences = set()
         self._last_telemetry = None
+        self._planned_target_count = 0
+        self._battery_park_pct = int(self._cfg.get("power", {}).get("battery_park_pct", VETO_BATTERY))
 
         self.simulation_mode = "--simulate" in sys.argv
 
@@ -324,6 +329,10 @@ class Orchestrator:
                 time.sleep(max(1, self.LOOP_SLEEP_SEC * 4))
 
     def _tick(self):
+        if not self.simulation_mode and self._state not in (PipelineState.PARKED, PipelineState.ABORTED):
+            if self._enforce_battery_guard():
+                return
+
         if self._state == PipelineState.IDLE:
             self._run_idle()
         elif self._state == PipelineState.PREFLIGHT:
@@ -331,6 +340,8 @@ class Orchestrator:
         elif self._state == PipelineState.PLANNING:
             self._run_planning()
         elif self._state == PipelineState.FLIGHT:
+            self._run_flight()
+        elif self._state == PipelineState.WAITING:
             self._run_flight()
         elif self._state == PipelineState.POSTFLIGHT:
             self._run_postflight()
@@ -340,7 +351,7 @@ class Orchestrator:
             self._run_aborted()
 
     def _check_weather_veto(self) -> tuple[bool, str]:
-        hard_abort = {"RAIN", "FOGGY", "CLOUDY", "WINDY"}
+        hard_abort = {"RAIN", "FOGGY", "WINDY", "THUNDER"}
         try:
             if not WEATHER_FILE.exists():
                 log.warning("weather_state.json not found — proceeding without weather veto")
@@ -396,10 +407,9 @@ class Orchestrator:
             self._log_flight("[A2] Safety gate — securing zero-state")
             zero = enforce_zero_state()
             if not zero:
-                self._log_flight("[A2] ❌ zero-state failed — aborting")
-                self._transition(PipelineState.ABORTED, msg="Hardware zero-state not secured")
-                return
-            self._log_flight("[A2] ✅ zero-state secured")
+                self._log_flight("[A2] ⚠️ zero-state unconfirmed — continuing to session init")
+            else:
+                self._log_flight("[A2] ✅ zero-state secured")
 
         self._log_flight("[A3] Session init baseline")
         self._last_telemetry = self.fsm.sequence.init_session(level_ok=True)
@@ -413,51 +423,100 @@ class Orchestrator:
         self._transition(PipelineState.PLANNING, msg="Preflight complete.")
 
     def _run_planning(self):
+        def _extract_targets(payload):
+            return payload if isinstance(payload, list) else payload.get("targets", [])
+
+        def _plan_is_stale(payload, now_utc):
+            if not isinstance(payload, dict):
+                return False
+            meta = payload.get("metadata", {})
+            planning_end = _parse_plan_dt(meta.get("planning_end_utc"))
+            generated = _parse_plan_dt(meta.get("generated"))
+
+            if planning_end and planning_end <= now_utc:
+                return True
+
+            if generated and generated.date() != now_utc.date():
+                return True
+
+            return False
+
+        def _order_and_filter(mission, now_utc):
+            if any("recommended_order" in t for t in mission):
+                ordered = sorted(
+                    mission,
+                    key=lambda t: (
+                        int(t.get("recommended_order", 999999)),
+                        -float(t.get("efficiency_score", 0.0)),
+                        t.get("name", ""),
+                    ),
+                )
+            else:
+                ordered = list(mission)
+
+            ready_now = []
+            later = []
+            expired = 0
+
+            for target in ordered:
+                start_dt = _parse_plan_dt(target.get("best_start_utc"))
+                end_dt = _parse_plan_dt(target.get("best_end_utc"))
+
+                if end_dt and end_dt <= now_utc:
+                    expired += 1
+                    continue
+
+                if start_dt and start_dt > now_utc:
+                    later.append(target)
+                else:
+                    ready_now.append(target)
+
+            return ready_now + later, expired
+
         self._log_flight("📋 Loading mission targets...")
-        mission = self._load_mission_targets()
+        now_utc = datetime.now(timezone.utc)
+        payload = _safe_load_json(MISSION_FILE, {})
+        refreshed = False
+
+        if not payload or _plan_is_stale(payload, now_utc):
+            why = "missing" if not payload else "stale"
+            self._log_flight(f"♻️ Nightly plan {why} — attempting refresh")
+            refreshed = self._refresh_mission_plan()
+            if refreshed:
+                payload = _safe_load_json(MISSION_FILE, {})
+
+        mission = _extract_targets(payload)
         if not mission:
-            self._transition(PipelineState.ABORTED, msg="No mission targets available.")
+            self._transition(PipelineState.PARKED, msg="No mission targets available for current night.")
             return
 
-        now_utc = datetime.now(timezone.utc)
+        final, expired = _order_and_filter(mission, now_utc)
 
-        if any("recommended_order" in t for t in mission):
-            ordered = sorted(
-                mission,
-                key=lambda t: (
-                    int(t.get("recommended_order", 999999)),
-                    -float(t.get("efficiency_score", 0.0)),
-                    t.get("name", ""),
-                ),
-            )
-        else:
-            ordered = list(mission)
+        mission_cfg = self._cfg.get("mission", {}) if isinstance(self._cfg, dict) else {}
+        max_targets = mission_cfg.get("max_targets")
+        try:
+            max_targets = int(max_targets) if max_targets not in (None, "", 0) else 0
+        except Exception:
+            max_targets = 0
+        if max_targets > 0 and len(final) > max_targets:
+            self._log_flight(f"✂️ Mission cap active — limiting tonight to first {max_targets} target(s)")
+            final = final[:max_targets]
 
-        ready_now = []
-        later = []
-        expired = 0
-
-        for target in ordered:
-            start_dt = _parse_plan_dt(target.get("best_start_utc"))
-            end_dt = _parse_plan_dt(target.get("best_end_utc"))
-
-            if end_dt and end_dt <= now_utc:
-                expired += 1
-                continue
-
-            if start_dt and start_dt > now_utc:
-                later.append(target)
-            else:
-                ready_now.append(target)
-
-        final = ready_now + later
+        if not final and not refreshed:
+            self._log_flight("♻️ All current target windows expired — refreshing nightly plan once")
+            if self._refresh_mission_plan():
+                payload = _safe_load_json(MISSION_FILE, {})
+                mission = _extract_targets(payload)
+                now_utc = datetime.now(timezone.utc)
+                final, expired = _order_and_filter(mission, now_utc)
 
         if not final:
             reason = "All planned target windows have expired." if expired else "No executable mission targets."
-            self._transition(PipelineState.ABORTED, msg=reason)
+            self._transition(PipelineState.PARKED, msg=reason)
             return
 
         self._targets = final
+        self._planned_target_count = len(final)
         self._write_plan(final)
         self._log_flight(f"✅ Flight plan locked from tonights_plan.json: {len(final)} target(s)")
         if expired:
@@ -484,7 +543,19 @@ class Orchestrator:
             if start_dt and now_utc < start_dt:
                 wait_s = int((start_dt - now_utc).total_seconds())
                 wait_s = max(1, min(wait_s, max(1, self.LOOP_SLEEP_SEC)))
-                self._write_state(state="WAITING", sub=name, msg="Waiting for observing window to open.")
+                open_utc = start_dt.strftime("%H:%M UTC")
+
+                alt_deg = self._target_altitude_deg(ra_deg_val, dec_deg_val)
+                if alt_deg is not None and alt_deg < 0.0:
+                    reason = f"Waiting for {name} to rise above horizon (alt {alt_deg:.1f}°) until {open_utc}."
+                else:
+                    reason = f"Waiting for {name} window to open at {open_utc} ({wait_s}s)."
+
+                self._write_state(
+                    state="WAITING",
+                    sub=name,
+                    msg=reason,
+                )
                 time.sleep(wait_s)
                 return
         else:
@@ -502,16 +573,23 @@ class Orchestrator:
         dec_deg_val = float(dec_str) if isinstance(dec_str, (int, float)) else float(SkyCoord(ra=ra_str, dec=dec_str, unit=(u.hourangle, u.deg)).dec.deg)
         ra_hours_val = ra_deg_val / 15.0
 
+        planned_n_frames = target.get("n_frames")
+
         if target.get("exp_ms") is not None:
             exp_ms = int(target.get("exp_ms"))
+            n_frames = max(1, int(planned_n_frames or 1))
         else:
             try:
                 exp_plan = plan_exposure(get_target_mag(name), sky_bortle=self._sky_bortle())
-                exp_ms = exp_plan.exp_ms
+                exp_ms = int(exp_plan.exp_ms)
+                n_frames = max(1, int(planned_n_frames or getattr(exp_plan, "n_frames", 1)))
             except Exception:
                 exp_ms = 5000
+                n_frames = max(1, int(planned_n_frames or 1))
 
-        self._log_flight(f"[A9] Exposure plan — exp_ms={exp_ms}")
+        self._log_flight(f"[A9] Exposure plan — exp_ms={exp_ms} n_frames={n_frames}")
+
+        integration_sec = float(target.get("integration_sec")) if target.get("integration_sec") is not None else (float(exp_ms) / 1000.0) * float(n_frames)
 
         acq_target = AcquisitionTarget(
             name=name,
@@ -520,7 +598,8 @@ class Orchestrator:
             auid=target.get("auid", ""),
             exp_ms=exp_ms,
             observer_code=self._obs["observer_id"],
-            n_frames=1,
+            n_frames=n_frames,
+            integration_sec=integration_sec,
         )
 
         self._session_stats["targets_attempted"] += 1
@@ -535,7 +614,12 @@ class Orchestrator:
             "auid": target.get("auid", ""),
         }
 
-        self._write_state(state="SLEWING", sub=name, msg=f"FSM Handing over: {name}")
+        done, remaining, planned = self._progress_counts()
+        self._write_state(
+            state="SLEWING",
+            sub=name,
+            msg=f"FSM handover: {name} ({done} done / {remaining} left / {planned} planned)",
+        )
         self._log_flight(f"Executing target via FSM: {name} RA={acq_target.ra_hours:.2f}h")
 
         ledger_manager.record_attempt(name)
@@ -547,10 +631,11 @@ class Orchestrator:
         if success:
             self._session_stats["targets_completed"] += 1
             self._log_flight("[A12] Commit success to ledger/system state")
-            ledger_manager.record_success(name, fits_path="LOCAL_BUFFER")
+            ledger_manager.record_capture(name, fits_path="LOCAL_BUFFER")
             self._log_flight(f"✅ FSM Sequence complete for {name}")
             self._write_state(state="TRACKING", sub=name, msg="Observation complete.")
-            self._tonights_sequences.add((acq_target.exp_ms, GAIN))
+            used_target = getattr(self.fsm, "last_prepared_target", None) or acq_target
+            self._tonights_sequences.add((int(used_target.exp_ms), GAIN))
         else:
             self._log_flight("[A12] Commit failure state")
             self._log_flight(f"❌ FSM Sequence failed for {name}")
@@ -604,9 +689,13 @@ class Orchestrator:
                     else:
                         self._log_flight(f"  dark {key}: {status} ({n_frames} frames)")
 
-                if dark_fail == 0:
+                if dark_ok > 0 and dark_frames > 0 and dark_fail == 0:
                     self._log_flight(
                         f"✅ Dark closure complete: {dark_ok}/{len(seqs)} master(s), {dark_frames} raw dark frame(s)"
+                    )
+                elif dark_ok == 0 and dark_frames == 0:
+                    self._log_flight(
+                        f"⚠️ Dark acquisition yielded no usable darks: 0/{len(seqs)} master(s), 0 raw dark frame(s)"
                     )
                 else:
                     self._log_flight(
@@ -641,11 +730,12 @@ class Orchestrator:
         else:
             self._log_flight("  [simulation] accountant skipped")
 
-        final_msg = (
-            "Mission complete."
-            if dark_fail == 0
-            else f"Mission complete with partial dark failures ({dark_fail})."
-        )
+        if dark_ok > 0 and dark_fail == 0:
+            final_msg = "Mission complete. Hardware park not confirmed by this state alone."
+        elif dark_fail == 0 and dark_frames == 0:
+            final_msg = "Mission complete. No usable darks captured. Hardware park not confirmed by this state alone."
+        else:
+            final_msg = f"Mission complete with partial dark failures ({dark_fail}). Hardware park not confirmed by this state alone."
         self._transition(PipelineState.PARKED, msg=final_msg)
 
     def _run_parked(self):
@@ -667,6 +757,77 @@ class Orchestrator:
     def _load_mission_targets(self) -> list:
         data = _safe_load_json(MISSION_FILE, [])
         return data if isinstance(data, list) else data.get("targets", [])
+
+    def _refresh_mission_plan(self) -> bool:
+        planner = PROJECT_ROOT / "core/preflight/nightly_planner.py"
+        compiler = PROJECT_ROOT / "core/preflight/schedule_compiler.py"
+
+        try:
+            self._log_flight("♻️ Regenerating tonights_plan.json")
+            subprocess.run([sys.executable, str(planner)], cwd=str(PROJECT_ROOT), check=True)
+            subprocess.run([sys.executable, str(compiler)], cwd=str(PROJECT_ROOT), check=True)
+            return True
+        except Exception as e:
+            self._log_flight(f"⚠️ Nightly plan refresh failed: {e}")
+            return False
+
+    def _current_battery_snapshot(self) -> dict:
+        for scope in self._cfg.get("seestars", []):
+            snapshot = poll_battery_snapshot(scope.get("ip"))
+            if snapshot:
+                return snapshot
+
+        tel = getattr(self, "_last_telemetry", None)
+        if tel and tel.battery_pct is not None:
+            return {
+                "battery_pct": int(tel.battery_pct),
+                "charge_online": tel.charge_online,
+                "charger_status": tel.charger_status,
+            }
+
+        return {}
+
+    def _enforce_battery_guard(self) -> bool:
+        snapshot = self._current_battery_snapshot()
+        battery_pct = snapshot.get("battery_pct", snapshot.get("battery_capacity"))
+        if battery_pct in (None, "", "N/A"):
+            return False
+
+        try:
+            battery_pct = int(float(battery_pct))
+        except Exception:
+            return False
+
+        if battery_pct > self._battery_park_pct:
+            return False
+
+        charger_status = snapshot.get("charger_status") or ("Charging" if snapshot.get("charge_online") else "Discharging")
+        self._log_flight(f"🔋 Battery guard triggered at {battery_pct}% ({charger_status})")
+        try:
+            self.fsm.sequence.park()
+            self._log_flight("🔋 Battery guard requested telescope park")
+        except Exception as e:
+            self._log_flight(f"⚠️ Battery guard park request failed: {e}")
+
+        self._current_target = None
+        self._transition(PipelineState.PARKED, msg=f"Battery guard parked telescope at {battery_pct}%.")
+        return True
+
+    def _progress_counts(self) -> tuple[int, int, int]:
+        done = int(self._session_stats.get("targets_completed", 0))
+        current = 1 if self._current_target else 0
+        remaining = len(self._targets) + current
+        planned = max(self._planned_target_count, done + remaining)
+        return done, remaining, planned
+
+    def _target_altitude_deg(self, ra_deg: float, dec_deg: float) -> float | None:
+        try:
+            now = Time.now()
+            coord = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame="icrs")
+            altaz = coord.transform_to(AltAz(obstime=now, location=self._location))
+            return float(altaz.alt.deg)
+        except Exception:
+            return None
 
     def _sky_bortle(self) -> float:
         try:
@@ -693,15 +854,23 @@ class Orchestrator:
         PLAN_FILE.write_text(json.dumps(payload, indent=2))
 
     def _write_state(self, state=None, sub="", msg=""):
+        now_utc = datetime.now(timezone.utc).isoformat()
+        done, remaining, planned = self._progress_counts()
         payload = _safe_load_json(STATE_FILE, {})
         payload.update({
             "state": state or self._state,
+            "sub": sub,
             "substate": sub,
+            "msg": msg,
             "message": msg,
-            "updated_utc": datetime.now(timezone.utc).isoformat(),
+            "updated": now_utc,
+            "updated_utc": now_utc,
             "current_target": self._current_target,
             "session_stats": self._session_stats,
             "flight_log": self._flight_log[-20:],
+            "done_count": done,
+            "remaining_count": remaining,
+            "planned_count": planned,
         })
         STATE_FILE.write_text(json.dumps(payload, indent=2))
 

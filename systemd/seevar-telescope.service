@@ -1,19 +1,20 @@
 [Unit]
-Description=SeeVar Telescope Monitor (Wilhelmina)
+Description=SeeVar Fleet Monitor
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
 WorkingDirectory=%h/seevar
 Environment=PYTHONPATH=%h/seevar
-ExecStart=%h/seevar/.venv/bin/python3 core/hardware/wilhelmina_monitor.py
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/seevar/.venv/bin/python3 core/hardware/fleet_monitor.py
 Restart=always
 RestartSec=10
-StartLimitIntervalSec=300
-StartLimitBurst=5
 StandardOutput=append:%h/seevar/logs/telescope.log
-StandardError=append:%h/seevar/logs/telescope.err
+StandardError=append:%h/seevar/logs/telescope.log
 
 NoNewPrivileges=yes
 ProtectSystem=strict

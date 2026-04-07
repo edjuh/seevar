@@ -2,18 +2,19 @@
 Description=SeeVar Science Orchestrator
 After=network-online.target seevar-weather.service seevar-gps.service
 Wants=network-online.target seevar-weather.service seevar-gps.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
 WorkingDirectory=%h/seevar
 Environment=PYTHONPATH=%h/seevar
+Environment=PYTHONUNBUFFERED=1
 ExecStart=%h/seevar/.venv/bin/python3 core/flight/orchestrator.py
 Restart=always
 RestartSec=15
-StartLimitIntervalSec=300
-StartLimitBurst=5
 StandardOutput=append:%h/seevar/logs/orchestrator.log
-StandardError=append:%h/seevar/logs/orchestrator.err
+StandardError=append:%h/seevar/logs/orchestrator.log
 
 NoNewPrivileges=yes
 ProtectSystem=strict

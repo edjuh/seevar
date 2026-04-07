@@ -22,6 +22,11 @@ logger = logging.getLogger("MasterAnalyst")
 
 warnings.filterwarnings("ignore", category=AstropyWarning, append=True)
 
+SOLVE_RADIUS_DEG = 5.0
+SOLVE_CPULIMIT_SEC = 120
+SOLVE_TIMEOUT_SEC = 150
+SOLVE_SCALE_FUZZ = 0.25
+
 
 class MasterAnalyst:
     def __init__(self):
@@ -67,6 +72,31 @@ class MasterAnalyst:
 
         return target_name, ra_deg, dec_deg
 
+    def _extract_scale_arcsec_per_px(self, header) -> float | None:
+        for key in ("PIXSCALE", "SCALE", "SECPIX"):
+            value = header.get(key)
+            if value not in (None, "", "UNKNOWN"):
+                try:
+                    scale = float(value)
+                    if scale > 0:
+                        return scale
+                except Exception:
+                    pass
+
+        cdelt1 = header.get("CDELT1")
+        cdelt2 = header.get("CDELT2")
+        for value in (cdelt1, cdelt2):
+            if value in (None, "", "UNKNOWN"):
+                continue
+            try:
+                scale = abs(float(value)) * 3600.0
+                if scale > 0:
+                    return scale
+            except Exception:
+                pass
+
+        return None
+
     def solve_frame(self, fits_path_str) -> dict:
         fits_file = Path(fits_path_str)
         wcs_file = fits_file.with_suffix(".wcs")
@@ -96,15 +126,31 @@ class MasterAnalyst:
                 "--dir", str(fits_file.parent),
                 "--ra", str(ra_deg),
                 "--dec", str(dec_deg),
-                "--radius", "2",
-                "--downsample", "2",
+                "--radius", str(SOLVE_RADIUS_DEG),
+                "--downsample", "1",
                 "--no-plots",
+                "--no-verify",
                 "--overwrite",
+                "--resort",
+                "--objs", "1000",
                 "--tweak-order", "1",
-                "--cpulimit", "45",
+                "--cpulimit", str(SOLVE_CPULIMIT_SEC),
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            scale_arcsec = self._extract_scale_arcsec_per_px(hdr)
+            if scale_arcsec:
+                low = max(0.1, scale_arcsec * (1.0 - SOLVE_SCALE_FUZZ))
+                high = scale_arcsec * (1.0 + SOLVE_SCALE_FUZZ)
+                cmd.extend([
+                    "--scale-units", "arcsecperpix",
+                    "--scale-low", f"{low:.3f}",
+                    "--scale-high", f"{high:.3f}",
+                ])
+
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=SOLVE_TIMEOUT_SEC)
+            except subprocess.TimeoutExpired:
+                return {"ok": False, "error": f"plate_solve_timeout:{SOLVE_TIMEOUT_SEC}s"}
 
             if not wcs_file.exists():
                 stderr_tail = (result.stderr or "").strip()[-300:]
