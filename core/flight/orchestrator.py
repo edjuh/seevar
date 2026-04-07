@@ -579,6 +579,8 @@ class Orchestrator:
 
         self._log_flight(f"[A9] Exposure plan — exp_ms={exp_ms} n_frames={n_frames}")
 
+        integration_sec = float(target.get("integration_sec")) if target.get("integration_sec") is not None else (float(exp_ms) / 1000.0) * float(n_frames)
+
         acq_target = AcquisitionTarget(
             name=name,
             ra_hours=ra_hours_val,
@@ -587,6 +589,7 @@ class Orchestrator:
             exp_ms=exp_ms,
             observer_code=self._obs["observer_id"],
             n_frames=n_frames,
+            integration_sec=integration_sec,
         )
 
         self._session_stats["targets_attempted"] += 1

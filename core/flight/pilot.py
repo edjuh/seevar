@@ -39,6 +39,7 @@ from astropy.wcs import WCS
 import astropy.units as u
 
 from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config
+from core.flight.field_rotation import max_exposure_s as rotation_limited_exposure
 
 # ---------------------------------------------------------------------------
 # Dynamic IP Resolution
@@ -117,6 +118,7 @@ class AcquisitionTarget:
     exp_ms: int = EXP_MS_DEFAULT
     observer_code: str = ""
     n_frames: int = 1
+    integration_sec: Optional[float] = None
 
 
 @dataclass
@@ -621,6 +623,79 @@ class DiamondSequence:
         except Exception:
             return False
 
+    def _site_latitude_deg(self) -> float | None:
+        gps = _read_gps_ram()
+        lat = gps.get("lat")
+        if lat not in (None, 0.0):
+            return float(lat)
+        try:
+            cfg = load_config()
+            return float(cfg.get("location", {}).get("lat"))
+        except Exception:
+            return None
+
+    def _mount_mode(self) -> str:
+        try:
+            cfg = load_config()
+            seestars = cfg.get("seestars", [])
+            if seestars:
+                return str(seestars[0].get("mount", "altaz")).strip().lower()
+        except Exception:
+            pass
+        return "altaz"
+
+    def prepare_target(self, target: AcquisitionTarget, telemetry: Optional[TelemetryBlock] = None, notify=None) -> AcquisitionTarget:
+        def emit(msg: str):
+            if notify:
+                notify("A9", msg)
+            logger.info("[A9] %s", msg)
+
+        if self._mount_mode() not in {"altaz", "alt/az", "alt-az"}:
+            return target
+
+        lat_deg = self._site_latitude_deg()
+        if lat_deg is None:
+            emit("Field rotation cap skipped: site latitude unavailable")
+            return target
+
+        try:
+            alt_deg = float(self._telescope.altitude)
+            az_deg = float(self._telescope.azimuth)
+        except Exception as e:
+            emit(f"Field rotation cap skipped: live alt/az unavailable ({e})")
+            return target
+
+        try:
+            rot = rotation_limited_exposure(az_deg, alt_deg, lat_deg, PIXSCALE)
+        except Exception as e:
+            emit(f"Field rotation cap skipped: solver failed ({e})")
+            return target
+
+        current_exp_sec = max(1.0, float(target.exp_ms) / 1000.0)
+        if rot.max_exp_s >= current_exp_sec - 0.05:
+            return target
+
+        capped_exp_sec = max(1.0, float(rot.max_exp_s))
+        capped_exp_ms = max(1000, int(round(capped_exp_sec * 1000.0)))
+        planned_total_sec = float(target.integration_sec) if target.integration_sec is not None else current_exp_sec * max(1, int(target.n_frames))
+        new_n_frames = max(int(target.n_frames), int(math.ceil(planned_total_sec / capped_exp_sec)))
+
+        emit(
+            f"Field rotation cap: alt={alt_deg:.1f}° az={az_deg:.1f}° mount=ALT/AZ "
+            f"frame {current_exp_sec:.1f}s -> {capped_exp_sec:.1f}s; n_frames {target.n_frames} -> {new_n_frames}"
+        )
+
+        return AcquisitionTarget(
+            name=target.name,
+            ra_hours=target.ra_hours,
+            dec_deg=target.dec_deg,
+            auid=target.auid,
+            exp_ms=capped_exp_ms,
+            observer_code=target.observer_code,
+            n_frames=new_n_frames,
+            integration_sec=planned_total_sec,
+        )
+
     def _capture_temp_frame(self, target: AcquisitionTarget, exposure_sec: float, suffix: str, ccd_temp=None) -> Path:
         self._camera.start_exposure(exposure_sec, light=True)
         image_timeout = exposure_sec + EXPOSE_TIMEOUT
@@ -855,6 +930,7 @@ class DiamondSequence:
                     exp_ms=target.exp_ms,
                     observer_code=target.observer_code,
                     n_frames=1,
+                    integration_sec=target.integration_sec,
                 )
 
                 solve = self._pointing_verify(verify_target, notify, ccd_temp=ccd_temp)
@@ -922,6 +998,7 @@ class DiamondSequence:
                 exp_ms=target.exp_ms,
                 observer_code=target.observer_code,
                 n_frames=1,
+                integration_sec=target.integration_sec,
             )
             header = sovereign_stamp(science_target, utc_obs, width, height, ccd_temp=ccd_temp)
             ok = write_fits(img, header, out_path)

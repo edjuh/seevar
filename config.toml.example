@@ -140,3 +140,8 @@ okta_limit    = 6                   # Cloud cover abort threshold (0-9 oktas)
 vv_limit      = 5000                # Visibility abort threshold (metres)
 ww_rain_limit = 50                  # Present weather code >= 50 = rain abort
 ww_fog_limit  = 10                  # Present weather code >= 10 = fog warning
+[astrometry_net]
+api_key = ""
+base_url = "https://nova.astrometry.net/api/"
+enabled = false
+
