@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/hardware/live_battery.py
-Version: 1.0.1
+Version: 1.3.0
 Objective: Live battery and charger polling helper for configured scopes, returning only fresh JSON-RPC telemetry without telescope-specific hardcoding.
 """
 
@@ -11,26 +11,44 @@ import socket
 from datetime import datetime, timezone
 
 
-def poll_battery_snapshot(ip: str, port: int = 4700, timeout: float = 3.0) -> dict:
+
+def poll_battery_snapshot(ip: str, port: int = 4702, timeout: float = 3.0) -> dict:
     if not ip or ip == "TBD":
         return {}
 
     payload = {"id": 10001, "method": "get_device_state"}
-    wire = (json.dumps(payload) + "\\r\\n").encode("utf-8")
+    wire = (json.dumps(payload) + "\r\n").encode("utf-8")
 
-    try:
-        with socket.create_connection((ip, port), timeout=timeout) as sock:
-            sock.settimeout(timeout)
-            sock.sendall(wire)
-            response = sock.recv(16384)
-    except Exception:
-        return {}
+    response = b""
+    for candidate_port in (port, 4700):
+        if candidate_port in (None, 0):
+            continue
+        try:
+            with socket.create_connection((ip, candidate_port), timeout=timeout) as sock:
+                sock.settimeout(timeout)
+                sock.sendall(wire)
+                chunks = []
+                while True:
+                    try:
+                        data = sock.recv(4096)
+                    except socket.timeout:
+                        break
+                    if not data:
+                        break
+                    chunks.append(data)
+                    if b"\r\n" in data:
+                        break
+                response = b"".join(chunks)
+            if response:
+                break
+        except Exception:
+            response = b""
 
     if not response:
         return {}
 
     try:
-        data = json.loads(response.decode("utf-8"))
+        data = json.loads(response.decode("utf-8", errors="replace").strip())
     except Exception:
         return {}
 
