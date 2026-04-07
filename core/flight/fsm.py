@@ -28,6 +28,7 @@ class SovereignFSM:
     def __init__(self):
         self.state = "IDLE"
         self.telemetry: Optional[TelemetryBlock] = None
+        self.last_prepared_target: Optional[AcquisitionTarget] = None
         self.sequence = DiamondSequence()
         logger.info("🧠 FSM Initialized in state: %s", self.state)
 
@@ -80,6 +81,7 @@ class SovereignFSM:
         FSM owns A3-A11 execution and state handling.
         """
         self.update("WORKING")
+        self.last_prepared_target = None
 
         def bridge(msg: str):
             logger.info("Bridge: %s", msg)
@@ -101,6 +103,7 @@ class SovereignFSM:
                 return False
 
             target = self.sequence.prepare_target(target, telemetry=self.telemetry, notify=bridge)
+            self.last_prepared_target = target
             logger.info("[A10] Acquire %d frame(s) for %s", target.n_frames, target.name)
 
             successful_frames = 0

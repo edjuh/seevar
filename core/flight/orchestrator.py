@@ -624,7 +624,8 @@ class Orchestrator:
             ledger_manager.record_capture(name, fits_path="LOCAL_BUFFER")
             self._log_flight(f"✅ FSM Sequence complete for {name}")
             self._write_state(state="TRACKING", sub=name, msg="Observation complete.")
-            self._tonights_sequences.add((acq_target.exp_ms, GAIN))
+            used_target = getattr(self.fsm, "last_prepared_target", None) or acq_target
+            self._tonights_sequences.add((int(used_target.exp_ms), GAIN))
         else:
             self._log_flight("[A12] Commit failure state")
             self._log_flight(f"❌ FSM Sequence failed for {name}")
@@ -844,6 +845,7 @@ class Orchestrator:
 
     def _write_state(self, state=None, sub="", msg=""):
         now_utc = datetime.now(timezone.utc).isoformat()
+        done, remaining, planned = self._progress_counts()
         payload = _safe_load_json(STATE_FILE, {})
         payload.update({
             "state": state or self._state,
@@ -856,6 +858,9 @@ class Orchestrator:
             "current_target": self._current_target,
             "session_stats": self._session_stats,
             "flight_log": self._flight_log[-20:],
+            "done_count": done,
+            "remaining_count": remaining,
+            "planned_count": planned,
         })
         STATE_FILE.write_text(json.dumps(payload, indent=2))
 
