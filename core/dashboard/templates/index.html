@@ -162,12 +162,12 @@
                 <div id="orch-msg" class="status-msg">Waiting for orchestrator...</div>
                 <div class="preview-strip">
                     <div class="preview-card">
-                        <div class="preview-title">Tele Stream</div>
-                        <img id="preview-science" class="preview-frame" src="/preview/tele.jpg" alt="Tele preview">
+                        <div class="preview-title">Latest Science</div>
+                        <img id="preview-science" class="preview-frame" src="/preview/science.jpg" alt="Latest science preview">
                     </div>
                     <div class="preview-card">
-                        <div class="preview-title">Wide Stream</div>
-                        <img id="preview-verify" class="preview-frame" src="/preview/wide.jpg" alt="Wide preview">
+                        <div class="preview-title">Latest Verify</div>
+                        <img id="preview-verify" class="preview-frame" src="/preview/verify.jpg" alt="Latest verify preview">
                     </div>
                 </div>
             </div>
@@ -525,8 +525,8 @@
             const ts = Date.now();
             const science = document.getElementById('preview-science');
             const verify = document.getElementById('preview-verify');
-            if (science) science.src = '/preview/tele.jpg?ts=' + ts;
-            if (verify) verify.src = '/preview/wide.jpg?ts=' + ts;
+            if (science) science.src = '/preview/science.jpg?ts=' + ts;
+            if (verify) verify.src = '/preview/verify.jpg?ts=' + ts;
         }
 
         function updateJDate() {
