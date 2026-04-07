@@ -2,18 +2,19 @@
 Description=SeeVar Continuous GPS Monitor
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
 WorkingDirectory=%h/seevar
 Environment=PYTHONPATH=%h/seevar
+Environment=PYTHONUNBUFFERED=1
 ExecStart=%h/seevar/.venv/bin/python3 core/utils/gps_monitor.py
 Restart=always
 RestartSec=10
-StartLimitIntervalSec=300
-StartLimitBurst=5
 StandardOutput=append:%h/seevar/logs/gps.log
-StandardError=append:%h/seevar/logs/gps.err
+StandardError=append:%h/seevar/logs/gps.log
 
 NoNewPrivileges=yes
 ProtectSystem=strict

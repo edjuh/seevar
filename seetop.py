@@ -9,8 +9,8 @@ Objective: Ncurses live dashboard for SeeVar — orchestrator state, weather
            Three-column layout. Atomic screen updates via doupdate.
            Refreshes every 5 seconds. Press q to quit.
 Changes v1.2.0:
-  - Fleet panel: reads all [[seestars]] from config.toml, shows live
-    battery/temp/tracking/level from /dev/shm/wilhelmina_state.json
+  - Fleet panel: reads all [[seestars]] from config.toml and shows live status
+    from generic scope pollers
   - GPS row: lat/lon/maidenhead from /dev/shm/env_status.json
   - Log tail: deduplicates consecutive identical lines, adds telescope.log
   - 3-column layout
@@ -24,6 +24,8 @@ import tomllib
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
+
+from core.hardware.live_scope_status import poll_scope_status
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -41,7 +43,6 @@ CAMPAIGN_FILE    = CATALOG_DIR / "campaign_targets.json"
 FED_FILE         = CATALOG_DIR / "federation_catalog.json"
 CHARTS_DIR       = CATALOG_DIR / "reference_stars"
 CONFIG_FILE      = SEEVAR_ROOT / "config.toml"
-WILHELMINA_STATE = Path("/dev/shm/wilhelmina_state.json")
 ENV_STATUS       = Path("/dev/shm/env_status.json")
 
 LOG_FILES = [
@@ -54,6 +55,8 @@ LOG_FILES = [
 REFRESH_S  = 5
 LOG_LINES  = 10
 VERSION    = "1.2.0"
+WEATHER_STALE_SEC = 1800
+
 
 # ---------------------------------------------------------------------------
 # Data readers
@@ -71,11 +74,14 @@ def read_orchestrator() -> dict:
     if not isinstance(s, dict) or not s:
         return {"empty": True}
     return {
-        "empty":   False,
-        "state":   s.get("state",   "UNKNOWN"),
-        "sub":     s.get("sub",     ""),
-        "msg":     s.get("msg",     ""),
-        "updated": s.get("updated", ""),
+        "empty":     False,
+        "state":     s.get("state", "UNKNOWN"),
+        "sub":       s.get("sub", s.get("substate", "")),
+        "msg":       s.get("msg", s.get("message", "")),
+        "updated":   s.get("updated", s.get("updated_utc", "")),
+        "done":      s.get("done_count", 0),
+        "remaining": s.get("remaining_count", 0),
+        "planned":   s.get("planned_count", 0),
     }
 
 
@@ -83,20 +89,27 @@ def read_weather() -> dict:
     w = _read_json(WEATHER_FILE)
     if not isinstance(w, dict) or not w:
         return {"empty": True}
+
+    last_update = w.get("last_update", None)
+    age = int(time.time() - last_update) if isinstance(last_update, (int, float)) else None
+    stale = age is None or age > WEATHER_STALE_SEC
+
     return {
         "empty":        False,
-        "status":       w.get("status",               "UNKNOWN"),
-        "imaging_go":   w.get("imaging_go",           None),
-        "win_start":    w.get("imaging_window_start",  None),
-        "win_end":      w.get("imaging_window_end",    None),
-        "clear_hours":  w.get("clear_hours",           0),
-        "abort_hours":  w.get("abort_hours",           0),
-        "clouds_pct":   w.get("clouds_pct",            0),
-        "humidity_pct": w.get("humidity_pct",          0),
-        "knmi_oktas":   w.get("knmi_oktas",            None),
-        "dark_start":   w.get("dark_start",            "?"),
-        "dark_end":     w.get("dark_end",              "?"),
-        "last_update":  w.get("last_update",           None),
+        "status":       w.get("status", "UNKNOWN"),
+        "imaging_go":   None if stale else w.get("imaging_go", None),
+        "win_start":    w.get("imaging_window_start", None),
+        "win_end":      w.get("imaging_window_end", None),
+        "clear_hours":  w.get("clear_hours", 0),
+        "abort_hours":  w.get("abort_hours", 0),
+        "clouds_pct":   w.get("clouds_pct", 0),
+        "humidity_pct": w.get("humidity_pct", 0),
+        "knmi_oktas":   w.get("knmi_oktas", None),
+        "dark_start":   w.get("dark_start", "?"),
+        "dark_end":     w.get("dark_end", "?"),
+        "last_update":  last_update,
+        "age_s":        age,
+        "stale":        stale,
     }
 
 
@@ -158,17 +171,9 @@ def read_fleet() -> list:
     except Exception:
         seestars = []
 
-    # Load live telemetry (only Wilhelmina for now — extend when Anna arrives)
-    live = _read_json(WILHELMINA_STATE) if WILHELMINA_STATE.exists() else {}
-
-    # Future: map name -> state file when multiple monitors exist
+    # No telescope-specific shm telemetry here.
+    # Live truth should come from generic fleet sources, not hardcoded scope files.
     live_by_name = {}
-    if live and isinstance(live, dict):
-        # Infer name from config — first scope with ip matching
-        for s in seestars:
-            if s.get("ip", "TBD") not in ("TBD", "10.0.0.1", ""):
-                live_by_name[s["name"]] = live
-                break
 
     for s in seestars:
         name   = s.get("name",  "Unknown")
@@ -396,8 +401,10 @@ def draw_orchestrator(win, data: dict):
     safe_addstr(win, 1, 11, f"{state:<12}", state_colour(state))
     if data["sub"]:
         safe_addstr(win, 1, 24, f"({data['sub']})", curses.color_pair(C_DIM))
-    safe_addstr(win, 2, 2,  "Message: ", curses.color_pair(C_DIM))
-    safe_addstr(win, 2, 11, data["msg"],  curses.color_pair(C_DIM))
+    safe_addstr(win, 2, 2,  "Progress:", curses.color_pair(C_DIM))
+    safe_addstr(win, 2, 11, f"{data['done']} done / {data['remaining']} left / {data['planned']} planned", curses.color_pair(C_DIM))
+    safe_addstr(win, 3, 2,  "Message: ", curses.color_pair(C_DIM))
+    safe_addstr(win, 3, 11, data["msg"],  curses.color_pair(C_DIM))
 
 
 def draw_weather(win, data: dict):
@@ -413,8 +420,14 @@ def draw_weather(win, data: dict):
          else (curses.color_pair(C_ABORT) | curses.A_BOLD) if imaging_go is False \
          else curses.color_pair(C_DIM)
 
+    stale = data.get("stale", False)
+    shown_status = f"STALE {status}" if stale else status
+
     safe_addstr(win, 1, 2,  "Status : ", curses.color_pair(C_DIM))
-    safe_addstr(win, 1, 11, f"{status:<10}", weather_colour(status, imaging_go))
+    safe_addstr(
+        win, 1, 11, f"{shown_status:<16}",
+        curses.color_pair(C_WARN) | curses.A_BOLD if stale else weather_colour(status, imaging_go)
+    )
     safe_addstr(win, 1, 22, "Imaging: ", curses.color_pair(C_DIM))
     safe_addstr(win, 1, 31, go_str, go_attr)
     safe_addstr(win, 2, 2,  "Dark   : ", curses.color_pair(C_DIM))
@@ -438,10 +451,10 @@ def draw_weather(win, data: dict):
                 f"KNMI: {oktas}/9 oktas",
                 curses.color_pair(C_DIM) | curses.A_DIM)
 
-    if data["last_update"]:
-        age = int(time.time() - data["last_update"])
-        safe_addstr(win, 5, 2, f"Updated: {age}s ago",
-                    curses.color_pair(C_DIM) | curses.A_DIM)
+    if data["age_s"] is not None:
+        age = int(data["age_s"])
+        attr = curses.color_pair(C_WARN) | curses.A_BOLD if stale else curses.color_pair(C_DIM) | curses.A_DIM
+        safe_addstr(win, 5, 2, f"Updated: {age}s ago", attr)
 
 
 def draw_fleet(win, fleet: list):
@@ -451,6 +464,7 @@ def draw_fleet(win, fleet: list):
         name   = scope["name"]
         model  = scope["model"]
         link   = scope["link"]
+        op     = scope.get("op_state", link)
         active = scope["active"]
 
         # Name + model

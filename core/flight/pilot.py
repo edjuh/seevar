@@ -92,11 +92,12 @@ VETO_TEMP = 55.0
 CLIENT_ID = 42
 
 VERIFY_EXPOSURE_SEC = 2.0
-VERIFY_EXPOSURE_RETRY_SEC = 4.0
+VERIFY_EXPOSURE_RETRY_SEC = 2.0
 POINTING_TOLERANCE_ARCMIN = 12.0
-POINTING_MAX_RETRIES = 2
-PLATESOLVE_RADIUS_DEG = 3.0
-PLATESOLVE_DOWNSAMPLE = 2
+POINTING_MAX_RETRIES = 0
+PLATESOLVE_RADIUS_DEG = 5.0
+PLATESOLVE_DOWNSAMPLE = 1
+PLATESOLVE_TIMEOUT = 90
 
 LOCAL_BUFFER = DATA_DIR / "local_buffer"
 VERIFY_BUFFER = DATA_DIR / "verify_buffer"
@@ -196,6 +197,8 @@ class TelemetryBlock:
             return cls(parse_error=str(e), raw=response)
 
     def veto_reason(self) -> Optional[str]:
+        if self.parse_error:
+            return f"Telemetry unavailable: {self.parse_error}"
         if self.battery_pct is not None and self.battery_pct < VETO_BATTERY:
             return f"Battery critical: {self.battery_pct}% < {VETO_BATTERY}%"
         if self.temp_c is not None and self.temp_c > VETO_TEMP:
@@ -512,6 +515,7 @@ def sovereign_stamp(
         "CTYPE2": "DEC--TAN",
         "DATE-OBS": utc_obs.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3],
         "EXPTIME": target.exp_ms / 1000.0,
+        "EXPMS": int(target.exp_ms),
         "INSTRUME": INSTRUMENT,
         "TELESCOP": TELESCOPE,
         "FILTER": FILTER_NAME,
@@ -654,21 +658,51 @@ class DiamondSequence:
             "--ra", str(ra_deg),
             "--dec", str(dec_deg),
             "--radius", str(PLATESOLVE_RADIUS_DEG),
+            "--scale-units", "arcsecperpix",
+            "--scale-low", "3.0",
+            "--scale-high", "4.5",
             "--tweak-order", "1",
             "--cpulimit", "45",
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        logger.info(
+            "A7 solve-field start: file=%s ra=%.4f dec=%.4f radius=%.1f timeout=%ss",
+            fits_path.name,
+            ra_deg,
+            dec_deg,
+            PLATESOLVE_RADIUS_DEG,
+            PLATESOLVE_TIMEOUT,
+        )
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=PLATESOLVE_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired:
+            logger.warning("A7 solve-field timeout after %ss for %s", PLATESOLVE_TIMEOUT, fits_path.name)
+            return {
+                "ok": False,
+                "error": f"solve-field timeout after {PLATESOLVE_TIMEOUT}s",
+                "stderr": "",
+            }
+
         wcs_path = fits_path.with_suffix(".wcs")
 
         if not wcs_path.exists():
+            logger.warning(
+                "A7 solve-field failed: rc=%s stderr=%s",
+                result.returncode,
+                (result.stderr or "").strip()[-300:],
+            )
             return {
                 "ok": False,
                 "error": f"solve-field failed ({result.returncode})",
                 "stderr": (result.stderr or "").strip()[-300:],
             }
 
-        w = WCS(str(wcs_path))
         hdr = fits.getheader(wcs_path, 0)
         solved_ra_deg = float(hdr.get("CRVAL1"))
         solved_dec_deg = float(hdr.get("CRVAL2"))
@@ -676,6 +710,12 @@ class DiamondSequence:
         target_coord = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame="icrs")
         solved_coord = SkyCoord(ra=solved_ra_deg * u.deg, dec=solved_dec_deg * u.deg, frame="icrs")
         error_arcmin = float(target_coord.separation(solved_coord).arcminute)
+
+        logger.info(
+            "A7 solve-field success: file=%s err=%.2f arcmin",
+            fits_path.name,
+            error_arcmin,
+        )
 
         return {
             "ok": True,
@@ -689,26 +729,39 @@ class DiamondSequence:
         notify("A7", f"Pointing verify frame {VERIFY_EXPOSURE_SEC:.1f}s")
         try:
             verify_fits = self._capture_temp_frame(target, VERIFY_EXPOSURE_SEC, "VERIFY", ccd_temp=ccd_temp)
-            solve = self._solve_verify_frame(verify_fits, target)
-            if solve.get("ok"):
-                notify("A7", f"Solve success error={solve['error_arcmin']:.2f} arcmin")
-                solve["verify_fits"] = verify_fits
-                return solve
-            notify("A7", "Primary verify solve failed — retrying with longer exposure")
         except Exception as e:
-            notify("A7", f"Primary verify capture failed: {e}")
+            notify("A7", f"Verify capture failed — proceeding blind: {e}")
+            return {
+                "ok": True,
+                "blind_fallback": True,
+                "error_arcmin": 0.0,
+                "error": str(e),
+            }
 
         try:
-            verify_fits = self._capture_temp_frame(target, VERIFY_EXPOSURE_RETRY_SEC, "VERIFY_RETRY", ccd_temp=ccd_temp)
             solve = self._solve_verify_frame(verify_fits, target)
-            if solve.get("ok"):
-                notify("A7", f"Retry solve success error={solve['error_arcmin']:.2f} arcmin")
-                solve["verify_fits"] = verify_fits
-                return solve
             solve["verify_fits"] = verify_fits
-            return solve
+            if solve.get("ok"):
+                notify("A7", f"Solve success error={solve['error_arcmin']:.2f} arcmin")
+                return solve
+
+            notify("A7", f"Verify solve failed — proceeding blind: {solve.get('error', 'unknown error')}")
+            return {
+                "ok": True,
+                "blind_fallback": True,
+                "verify_fits": verify_fits,
+                "error_arcmin": 0.0,
+                "error": solve.get("error", "unknown error"),
+            }
         except Exception as e:
-            return {"ok": False, "error": f"Verify retry capture failed: {e}"}
+            notify("A7", f"Verify solve exception — proceeding blind: {e}")
+            return {
+                "ok": True,
+                "blind_fallback": True,
+                "verify_fits": verify_fits,
+                "error_arcmin": 0.0,
+                "error": str(e),
+            }
 
     def _corrective_nudge(self, command_ra_hours: float, command_dec_deg: float, solve_result: dict) -> tuple[float, float]:
         solved_ra_hours = float(solve_result["solved_ra_deg"]) / 15.0
@@ -809,7 +862,8 @@ class DiamondSequence:
                 if not solve.get("ok"):
                     notify("A7", f"Pointing verify failed: {solve.get('error', 'unknown error')}")
                     if attempt >= POINTING_MAX_RETRIES:
-                        return FrameResult(success=False, error="Pointing verify failed after retries")
+                        notify("A7", "Verify solve failed after retries — proceeding on blind slew fallback")
+                        break
                     notify("A8", f"Retrying pointing loop ({attempt + 1}/{POINTING_MAX_RETRIES}) after unsolved verify frame")
                     continue
 

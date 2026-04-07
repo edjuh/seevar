@@ -30,16 +30,18 @@ LEDGER_FILE       = DATA_DIR / "ledger.json"
 WEATHER_FILE      = DATA_DIR / "weather_state.json"
 SIRIL_LOG         = PROJECT_ROOT / "logs" / "siril_extraction.log"
 ENV_STATUS        = Path("/dev/shm/env_status.json")
-WILHELMINA_STATE  = Path("/dev/shm/wilhelmina_state.json")
 
 logging.basicConfig(
-    level=logging.WARNING,
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S"
 )
 log = logging.getLogger("dashboard")
+log.setLevel(logging.INFO)
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 sys.path.append(str(PROJECT_ROOT))
+from core.hardware.live_scope_status import poll_scope_status
 try:
     from core.utils.observer_math import get_maidenhead_6char
 except ImportError:
@@ -49,47 +51,15 @@ except ImportError:
 TEMPLATE_DIR = BASE_DIR / "templates"
 app = Flask(__name__, template_folder=str(TEMPLATE_DIR))
 
+@app.after_request
+def add_no_cache_headers(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 ALPACA_TIMEOUT = 2.0
 
-def _alpaca_get(ip: str, port: int, device_type: str, device_num: int, prop: str):
-    try:
-        r = http_requests.get(
-            f"http://{ip}:{port}/api/v1/{device_type}/{device_num}/{prop}",
-            params={"ClientID": 42, "ClientTransactionID": 1},
-            timeout=ALPACA_TIMEOUT)
-        data = r.json()
-        if data.get("ErrorNumber", 0) == 0:
-            return data.get("Value")
-    except Exception:
-        pass
-    return None
-
-def _alpaca_poll_telescope(ip: str, port: int = 32323) -> dict:
-    result = {}
-    try:
-        r = http_requests.get(f"http://{ip}:{port}/management/v1/description", timeout=ALPACA_TIMEOUT)
-        if r.status_code != 200:
-            return {}
-        desc = r.json().get("Value", {})
-        result["alpaca_version"] = desc.get("ManufacturerVersion", "unknown")
-
-        r2 = http_requests.get(f"http://{ip}:{port}/management/v1/configureddevices", timeout=ALPACA_TIMEOUT)
-        if r2.status_code == 200:
-            devices = r2.json().get("Value", [])
-            result["device_count"] = len(devices)
-
-        result["ra"]       = _alpaca_get(ip, port, "telescope", 0, "rightascension")
-        result["dec"]      = _alpaca_get(ip, port, "telescope", 0, "declination")
-        result["tracking"] = _alpaca_get(ip, port, "telescope", 0, "tracking")
-        result["at_park"]  = _alpaca_get(ip, port, "telescope", 0, "atpark")
-        result["altitude"] = _alpaca_get(ip, port, "telescope", 0, "altitude")
-        result["azimuth"]  = _alpaca_get(ip, port, "telescope", 0, "azimuth")
-        result["temp_c"]   = _alpaca_get(ip, port, "camera", 0, "ccdtemperature")
-
-        result["link_status"] = "ACTIVE"
-        return result
-    except Exception:
-        return {}
 
 HW_CACHE = {
     "timestamp": 0,
@@ -99,7 +69,6 @@ HW_CACHE = {
         "device_count": 0,
         "battery": "N/A",
         "temp_c": "N/A",
-        "storage_mb": "N/A",
         "tracking": False,
         "at_park": False,
         "level_angle": None,
@@ -112,11 +81,52 @@ HW_CACHE = {
     "fleet": [],
 }
 HW_CACHE_TTL = 5
+WEATHER_STALE_SEC = 1800
+TELEMETRY_STALE_SEC = 300
+
+def _payload_age_seconds(payload: dict) -> float | None:
+    if not isinstance(payload, dict):
+        return None
+
+    ts = payload.get("last_update")
+    if isinstance(ts, (int, float)):
+        return max(0.0, time.time() - float(ts))
+
+    for key in ("updated_utc", "updated", "timestamp"):
+        value = payload.get(key)
+        if not value:
+            continue
+        try:
+            dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return max(0.0, time.time() - dt.timestamp())
+        except Exception:
+            pass
+
+    return None
+
 
 def refresh_hw_cache():
     now = time.time()
     if now - HW_CACHE["timestamp"] < HW_CACHE_TTL:
         return
+
+    HW_CACHE["data"] = {
+        "link_status": "OFFLINE",
+        "alpaca_version": "N/A",
+        "device_count": 0,
+        "battery": "N/A",
+        "temp_c": "N/A",
+        "tracking": False,
+        "at_park": False,
+        "level_angle": None,
+        "level_ok": True,
+        "ra": "N/A",
+        "dec": "N/A",
+        "altitude": "N/A",
+        "azimuth": "N/A",
+    }
 
     cfg = load_config("~/seevar/config.toml")
     seestars = cfg.get("seestars", [])
@@ -133,30 +143,36 @@ def refresh_hw_cache():
             fleet.append({"name": name, "ip": ip, "link_status": "UNCONFIGURED", "alpaca_version": "N/A"})
             continue
 
-        state = _alpaca_poll_telescope(ip, port)
+        state = poll_scope_status(ip, port)
         if state:
             fleet.append({
                 "name": name,
                 "ip": ip,
-                "link_status": "ACTIVE",
+                "link_status": state.get("link_status", "ONLINE"),
                 "alpaca_version": state.get("alpaca_version", "?"),
                 "device_count": state.get("device_count", 0),
                 "tracking": state.get("tracking", False),
                 "at_park": state.get("at_park", False),
                 "temp_c": state.get("temp_c"),
+                "slewing": state.get("slewing", False),
+                "camera_state_name": state.get("camera_state_name", "UNKNOWN"),
+                "operational_state": state.get("operational_state", "IDLE"),
             })
             if primary is None:
-                primary = state
+                primary = {**state, "ip": ip}
         else:
             fleet.append({"name": name, "ip": ip, "link_status": "OFFLINE", "alpaca_version": "N/A"})
 
     HW_CACHE["fleet"] = fleet
 
     if primary:
-        HW_CACHE["data"]["link_status"] = "ACTIVE"
+        HW_CACHE["data"]["link_status"] = primary.get("link_status", "ONLINE")
         HW_CACHE["data"]["alpaca_version"] = primary.get("alpaca_version", "N/A")
         HW_CACHE["data"]["device_count"] = primary.get("device_count", 0)
         HW_CACHE["data"]["tracking"] = primary.get("tracking", False)
+        HW_CACHE["data"]["slewing"] = primary.get("slewing", False)
+        HW_CACHE["data"]["camera_state_name"] = primary.get("camera_state_name", "UNKNOWN")
+        HW_CACHE["data"]["operational_state"] = primary.get("operational_state", "IDLE")
         HW_CACHE["data"]["at_park"] = primary.get("at_park", False)
 
         if primary.get("ra") is not None:
@@ -167,50 +183,14 @@ def refresh_hw_cache():
             HW_CACHE["data"]["azimuth"] = primary["azimuth"]
         if primary.get("temp_c") is not None:
             HW_CACHE["data"]["temp_c"] = str(round(primary["temp_c"], 1))
-
-    if ENV_STATUS.exists():
-        try:
-            with open(ENV_STATUS, "r") as f:
-                env = json.load(f)
-            for key in ("storage_mb",):
-                if key in env:
-                    HW_CACHE["data"][key] = env[key]
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    if HW_CACHE["data"]["storage_mb"] in ("N/A", None):
-        try:
-            local_buffer = DATA_DIR / "local_buffer"
-            if local_buffer.exists():
-                total_bytes = sum(f.stat().st_size for f in local_buffer.rglob("*") if f.is_file())
-                HW_CACHE["data"]["storage_mb"] = round(total_bytes / (1024 * 1024), 1)
-            else:
-                HW_CACHE["data"]["storage_mb"] = 0.0
-        except OSError:
-            pass
-
-    if STATE_FILE.exists():
-        try:
-            with open(STATE_FILE, "r") as f:
-                state = json.load(f)
-            tel = state.get("telemetry", {})
-            batt = tel.get("battery_pct")
-            if batt is not None:
-                HW_CACHE["data"]["battery"] = str(batt)
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    if WILHELMINA_STATE.exists():
-        try:
-            with open(WILHELMINA_STATE, "r") as f:
-                w = json.load(f)
-            batt = w.get("battery_pct")
-            if batt is not None:
-                HW_CACHE["data"]["battery"] = f"{batt}%"
-            HW_CACHE["data"]["level_angle"] = w.get("level_angle")
-            HW_CACHE["data"]["level_ok"] = w.get("level_ok", True)
-        except (json.JSONDecodeError, OSError):
-            pass
+    if primary and primary.get("battery_pct") is not None:
+        HW_CACHE["data"]["battery"] = str(primary.get("battery_pct"))
+    if primary and primary.get("charge_online") is not None:
+        HW_CACHE["data"]["charge_online"] = bool(primary.get("charge_online"))
+    if primary and primary.get("charger_status"):
+        HW_CACHE["data"]["charger_status"] = str(primary.get("charger_status"))
+    if primary and primary.get("battery_updated_utc"):
+        HW_CACHE["data"]["battery_updated_utc"] = primary.get("battery_updated_utc")
 
     HW_CACHE["timestamp"] = now
 
@@ -279,6 +259,75 @@ def get_dusk_utc(lat, lon, elev):
     except Exception as e:
         log.error("get_dusk_utc failed: %s", e)
     return None
+
+def _parse_utcish(value):
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def build_nightly_progress(plan_targets: list, ledger: dict, dusk_dt, now_utc: datetime) -> dict:
+    entries = ledger.get("entries", {}) if isinstance(ledger, dict) else {}
+
+    done_names = set()
+    for name, entry in entries.items():
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("status") != "OBSERVED":
+            continue
+        obs_dt = _parse_utcish(entry.get("last_obs_utc") or entry.get("last_success"))
+        if obs_dt is None:
+            continue
+        if dusk_dt and obs_dt < dusk_dt:
+            continue
+        done_names.add(name)
+
+    done = 0
+    remaining = 0
+    expired = 0
+    next_name = "—"
+    next_reason = "No active target window."
+
+    for target in plan_targets:
+        name = target.get("name", "UNKNOWN")
+
+        if name in done_names:
+            done += 1
+            continue
+
+        start_dt = _parse_utcish(target.get("best_start_utc"))
+        end_dt = _parse_utcish(target.get("best_end_utc"))
+
+        if end_dt and end_dt <= now_utc:
+            expired += 1
+            continue
+
+        remaining += 1
+
+        if next_name == "—":
+            next_name = name
+            if start_dt and now_utc < start_dt:
+                next_reason = f"Waiting for {name} window at {start_dt.strftime('%H:%M UTC')}"
+            else:
+                next_reason = f"Next eligible target: {name}"
+
+    planned = len(plan_targets)
+
+    return {
+        "planned": planned,
+        "done": done,
+        "remaining": remaining,
+        "expired": expired,
+        "next_name": next_name,
+        "next_reason": next_reason,
+    }
+
 
 def get_flight_window(lat: float, lon: float, elev: float) -> str:
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -423,10 +472,15 @@ def get_telemetry():
     if env:
         state.update(env)
 
-    weather = {"status": "FETCHING", "icon": "❓"}
+    weather = {"status": "FETCHING", "icon": "❓", "stale": False, "age_s": None}
     weather_data = load_json_file(WEATHER_FILE, {})
     if weather_data:
         weather.update(weather_data)
+        age_s = _payload_age_seconds(weather_data)
+        weather["age_s"] = age_s
+        weather["stale"] = age_s is None or age_s > WEATHER_STALE_SEC
+        if weather["stale"]:
+            weather["imaging_go"] = None
 
     science = {"photometry": "grey", "aavso_ready": "grey", "siril_tail": []}
     if SIRIL_LOG.exists():
@@ -437,17 +491,25 @@ def get_telemetry():
             pass
 
     orchestrator = {
-        "state": "PARKED", "sub": "OFF-DUTY",
-        "msg": "No state file found.", "flight_log": []
+        "state": "PARKED",
+        "sub": "OFF-DUTY",
+        "msg": "No state file found.",
+        "flight_log": [],
+        "done_count": 0,
+        "remaining_count": 0,
+        "planned_count": 0,
     }
     state_data = load_json_file(STATE_FILE, {})
     if state_data:
         orchestrator.update({
             "state": state_data.get("state", orchestrator["state"]),
-            "sub": state_data.get("sub", orchestrator["sub"]),
-            "msg": state_data.get("msg", orchestrator["msg"]),
+            "sub": state_data.get("sub", state_data.get("substate", orchestrator["sub"])),
+            "msg": state_data.get("msg", state_data.get("message", orchestrator["msg"])),
             "flight_log": state_data.get("flight_log", orchestrator["flight_log"]),
             "current_target": state_data.get("current_target", None),
+            "done_count": state_data.get("done_count", 0),
+            "remaining_count": state_data.get("remaining_count", 0),
+            "planned_count": state_data.get("planned_count", 0),
         })
 
     ledger = load_json_file(LEDGER_FILE, {})
@@ -457,6 +519,16 @@ def get_telemetry():
         loc.get('lat', 51.4769), loc.get('lon', 0.0), loc.get('elevation', 0.0)
     )
     postflight = build_postflight(ledger, dusk_dt)
+
+    plan_targets = load_plan()
+    nightly_progress = build_nightly_progress(plan_targets, ledger, dusk_dt, datetime.now(timezone.utc))
+
+    orchestrator["done_count"] = nightly_progress["done"]
+    orchestrator["remaining_count"] = nightly_progress["remaining"]
+    orchestrator["planned_count"] = nightly_progress["planned"]
+    orchestrator["expired_count"] = nightly_progress["expired"]
+    orchestrator["next_target_name"] = nightly_progress["next_name"]
+    orchestrator["next_reason"] = nightly_progress["next_reason"]
 
     refresh_hw_cache()
 

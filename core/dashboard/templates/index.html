@@ -126,13 +126,12 @@
         <div class="panel">
             <h2>SYSTEM VITALS</h2>
             <div class="flight-window-row"><span class="label">FLIGHT WINDOW</span> <span class="fw-val">{{ flight_window }}</span></div>
-            <div class="row"><span class="label">SEESTAR (LINK)</span> <span id="tel-link-val" class="val">WAITING...</span> <div id="tel-link-led" class="led grey"></div></div>
+            <div class="row"><span class="label">SEESTAR (STATE)</span> <span id="tel-link-val" class="val">WAITING...</span> <div id="tel-link-led" class="led grey"></div></div>
             <div class="row"><span class="label">GPS (LOCK)</span> <span id="gps-val" class="val"></span> <div id="gps-led" class="led grey"></div></div>
             <div class="row"><span class="label">WEATHER (PRED)</span> <span id="weather-val" class="val">CLEAR</span> <div id="weather-icon-led" class="led weather-icon">⭐</div></div>
             <div class="row"><span class="label">FOG (VIS)</span> <span class="val">DISCONNECTED</span> <div class="led blue-grey"></div></div>
             
             <div class="row"><span class="label">BATTERY</span> <span id="bb-batt" class="val stat-val">--%</span></div>
-            <div class="row"><span class="label">STORAGE</span> <span id="bb-store" class="val stat-val">-- MB</span></div>
             <div class="row"><span class="label">MOUNT POS</span> <span id="bb-mount" class="val stat-val">--</span></div>
             <div class="row"><span class="label">FLEET</span> <span id="bb-fleet" class="val stat-val">--</span></div>
             
@@ -155,6 +154,7 @@
                 <div id="orch-icon" class="icon-p state-parked">P</div>
                 <div id="orch-main" class="status-main" style="color: #1e90ff;">PARKED</div>
                 <div id="orch-sub" class="status-sub">OFF-DUTY</div>
+                <div id="orch-progress" class="status-sub" style="font-size:0.8em;color:#888;">0 done · 0 left</div>
                 <div id="orch-msg" class="status-msg">Waiting for orchestrator...</div>
             </div>
         </div>
@@ -255,7 +255,7 @@
         }
 
         function fetchTelemetry() {
-            fetch('/telemetry')
+            fetch('/telemetry?ts=' + Date.now(), { cache: 'no-store' })
                 .then(res => res.json())
                 .then(data => {
                     if(data.maidenhead) document.getElementById('telemetry-mh').innerText = data.maidenhead;
@@ -289,10 +289,22 @@
                     if(data.weather) {
                         const wVal = document.getElementById('weather-val');
                         const wLed = document.getElementById('weather-icon-led');
-                        if(wVal) wVal.innerText = data.weather.status || 'N/A';
+                        const stale = !!data.weather.stale;
+                        const status = data.weather.status || 'N/A';
+
+                        if(wVal) {
+                            wVal.innerText = stale ? `STALE (${status})` : status;
+                            wVal.style.color = stale ? '#ff9900' : '';
+                            wVal.style.fontStyle = stale ? 'italic' : 'normal';
+                        }
                         if(wLed) {
-                            wLed.innerText = data.weather.icon || '❓';
+                            wLed.innerText = stale ? '⏳' : (data.weather.icon || '❓');
                             wLed.style.color = '#fff';
+                        }
+
+                        const gpsLed = document.getElementById('gps-led');
+                        if (stale && gpsLed) {
+                            // no-op placeholder to keep weather handling grouped
                         }
                     }
 
@@ -300,7 +312,13 @@
                         const state = data.orchestrator.state || 'PARKED';
                         document.getElementById('orch-main').innerText = state;
                         document.getElementById('orch-sub').innerText = data.orchestrator.sub || 'OFF-DUTY';
-                        document.getElementById('orch-msg').innerText = data.orchestrator.msg || '';
+                        const done = data.orchestrator.done_count || 0;
+                        const remaining = data.orchestrator.remaining_count || 0;
+                        const planned = data.orchestrator.planned_count || (done + remaining);
+                        const expired = data.orchestrator.expired_count || 0;
+                        const nextReason = data.orchestrator.next_reason || '';
+                        document.getElementById('orch-progress').innerText = `${done} done · ${remaining} left · ${expired} expired · ${planned} planned`;
+                        document.getElementById('orch-msg').innerText = nextReason || data.orchestrator.msg || '';
 
                         const ct = data.orchestrator.current_target;
                         if(ct && ct.name) {
@@ -329,6 +347,8 @@
                             icon.innerText = 'I'; icon.className = 'icon-p state-parked'; mainText.style.color = '#555555';
                         } else if(state === 'PREFLIGHT') {
                             icon.innerText = '✓'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
+                        } else if(state === 'WAITING') {
+                            icon.innerText = '…'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
                         } else if(state === 'PLANNING') {
                             icon.innerText = '⊞'; icon.className = 'icon-p state-slewing'; mainText.style.color = '#ff9900';
                         } else if(state === 'FLIGHT') {
@@ -364,36 +384,30 @@
                         const linkVal = document.getElementById('tel-link-val');
                         const linkLed = document.getElementById('tel-link-led');
                         const battTxt = document.getElementById('bb-batt');
-                        const storeTxt = document.getElementById('bb-store');
                         const mountTxt = document.getElementById('bb-mount');
 
                         if(["ACTIVE","ONLINE"].includes(data.hardware.link_status)) {
                             const statusLabels = {"ACTIVE": "NATIVE COMMS UP", "ONLINE": "ONLINE", "CONNECTING": "CONNECTING..."};
                             linkVal.innerText = statusLabels[data.hardware.link_status] || data.hardware.link_status;
                             linkLed.className = "led green";
+                        } else if (data.hardware.link_status === "WAITING") {
+                            linkVal.innerText = "WAITING";
+                            linkLed.className = "led orange";
                         } else {
-                            linkVal.innerText = "NO SIGNAL";
+                            linkVal.innerText = "OFFLINE";
                             linkLed.className = "led red";
                         }
 
                         const batt = data.hardware.battery;
-                        if (batt !== "N/A" && batt !== undefined) {
+                        if (batt !== "N/A" && batt !== undefined && batt !== null && batt !== "") {
                             battTxt.innerText = batt + "%";
                             if (parseInt(batt) > 30) battTxt.className = "val stat-val";
                             else if (parseInt(batt) > 15) battTxt.className = "val stat-val batt-warn";
                             else battTxt.className = "val stat-val batt-crit";
                         } else {
-                            battTxt.innerText = "--%";
-                            battTxt.className = "val stat-val batt-crit";
+                            battTxt.innerText = "UNKNOWN";
+                            battTxt.className = "val";
                         }
-
-                        const rawMb = parseFloat(data.hardware.storage_mb);
-                        if(data.hardware.storage_free_gb != null) {
-                            storeTxt.innerText = data.hardware.storage_free_gb.toFixed(1) + ' GB free / ' + (data.hardware.storage_total_gb || '?') + ' GB';
-                        } else {
-                            storeTxt.innerText = isNaN(rawMb) ? '-- MB' : rawMb >= 1000 ? (rawMb / 1024).toFixed(1) + ' GB' : rawMb + ' MB';
-                        }
-                        
                         // New Live Mount Coordinate handling
                         if (data.hardware.ra !== undefined && data.hardware.dec !== undefined && data.hardware.ra !== "N/A") {
                             const ra = parseFloat(data.hardware.ra).toFixed(3);
@@ -408,8 +422,9 @@
                             const fleetTxt = document.getElementById("bb-fleet");
                             if (fleetTxt) {
                                 const summary = data.fleet.map(f => {
-                                    const icon = f.link_status === "ACTIVE" ? "●" : "○";
-                                    return icon + " " + f.name;
+                                    const st = f.operational_state || f.link_status || "OFFLINE";
+                                    const icon = ["IMAGING", "TRACKING"].includes(st) ? "●" : (["SLEWING", "IDLE", "ONLINE"].includes(st) ? "◐" : "○");
+                                    return icon + " " + f.name + "(" + st + ")";
                                 }).join("  ");
                                 fleetTxt.innerText = summary;
                             }
