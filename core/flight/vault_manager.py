@@ -42,7 +42,7 @@ class VaultManager:
             try:
                 with open(ENV_STATUS, "r") as f:
                     live = json.load(f)
-                    if live.get("gps_status") == "FIXED":
+                    if str(live.get("gps_status", "")).startswith("FIXED"):
                         lat = live.get("lat", lat)
                         lon = live.get("lon", lon)
                         maidenhead = live.get("maidenhead", maidenhead)

@@ -264,16 +264,17 @@
                         const gpsLed = document.getElementById('gps-led');
                         const gpsVal = document.getElementById('gps-val');
                         if(gpsLed && gpsVal) {
-                            const locked = ['3D','FIX','LOCK','FIXED'].some(s => data.gps_status.includes(s));
+                            const gpsStatus = String(data.gps_status || '');
+                            const locked = ['3D','FIX','LOCK','FIXED'].some(s => gpsStatus.includes(s));
                             if(locked) {
                                 gpsLed.className = 'led green';
-                                gpsVal.innerText = '3D LOCK';
-                            } else if(data.gps_status === 'NO-GPS-LOCK' || data.gps_status === 'NO-DATA') {
+                                gpsVal.innerText = gpsStatus.includes('2D') ? '2D LOCK' : '3D LOCK';
+                            } else if(gpsStatus === 'NO-GPS-LOCK' || gpsStatus === 'NO-DATA') {
                                 gpsLed.className = 'led orange';
                                 gpsVal.innerText = 'ACQUIRING';
                             } else {
                                 gpsLed.className = 'led grey';
-                                gpsVal.innerText = data.gps_status;
+                                gpsVal.innerText = gpsStatus;
                             }
                         }
                     }

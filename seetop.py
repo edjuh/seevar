@@ -233,6 +233,7 @@ def read_gps() -> dict:
     return {
         "empty":      False,
         "status":     e.get("gps_status", "NO-DATA"),
+        "mode":       e.get("gps_mode"),
         "lat":        e.get("lat"),
         "lon":        e.get("lon"),
         "maidenhead": e.get("maidenhead", "—"),
@@ -385,7 +386,9 @@ def draw_header(stdscr, cols: int, gps: dict):
         mh   = gps.get("maidenhead", "—")
         lat  = f"{gps['lat']:.4f}" if gps.get("lat") else "—"
         lon  = f"{gps['lon']:.4f}" if gps.get("lon") else "—"
-        gps_str = f" GPS:{mh} ({lat},{lon}) "
+        mode = gps.get("mode")
+        mode_str = f"{mode}D" if mode in (2, 3) else status
+        gps_str = f" GPS:{mh} {mode_str} ({lat},{lon}) "
         safe_addstr(stdscr, 0, len(title) + 5, gps_str, gps_attr)
 
     safe_addstr(stdscr, 0, cols - len(now) - 3, f" {now} ",
