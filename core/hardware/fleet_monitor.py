@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Periodic generic fleet status logger for configured Seestar scopes."""
+"""
+Filename: core/hardware/fleet_monitor.py
+Version: 1.0.1
+Objective: Periodic generic fleet status logger for configured scopes, emitting stable per-scope operational telemetry into telescope.log for dashboard and seetop consumption.
+"""
 
 from __future__ import annotations
 

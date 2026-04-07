@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Live battery/charger polling for configured Seestar scopes."""
+"""
+Filename: core/hardware/live_battery.py
+Version: 1.0.1
+Objective: Live battery and charger polling helper for configured scopes, returning only fresh JSON-RPC telemetry without telescope-specific hardcoding.
+"""
 
 import json
 import socket

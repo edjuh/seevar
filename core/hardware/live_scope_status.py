@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Generic live status polling for configured Seestar scopes."""
+"""
+Filename: core/hardware/live_scope_status.py
+Version: 1.0.1
+Objective: Generic live scope-status polling helper that fuses Alpaca telescope/camera state with optional live battery telemetry into a single operational snapshot.
+"""
 
 import requests
 
