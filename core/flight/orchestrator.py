@@ -492,6 +492,16 @@ class Orchestrator:
 
         final, expired = _order_and_filter(mission, now_utc)
 
+        mission_cfg = self._cfg.get("mission", {}) if isinstance(self._cfg, dict) else {}
+        max_targets = mission_cfg.get("max_targets")
+        try:
+            max_targets = int(max_targets) if max_targets not in (None, "", 0) else 0
+        except Exception:
+            max_targets = 0
+        if max_targets > 0 and len(final) > max_targets:
+            self._log_flight(f"✂️ Mission cap active — limiting tonight to first {max_targets} target(s)")
+            final = final[:max_targets]
+
         if not final and not refreshed:
             self._log_flight("♻️ All current target windows expired — refreshing nightly plan once")
             if self._refresh_mission_plan():

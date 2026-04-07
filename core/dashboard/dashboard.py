@@ -10,16 +10,21 @@ import logging
 import os
 import sys
 import time
+import subprocess
 import tomllib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, Response
 import flask.cli
 
 import requests as http_requests
 from astropy import units as u
 from astropy.coordinates import AltAz, EarthLocation, get_sun
 from astropy.time import Time
+from astropy.io import fits
+import numpy as np
+from PIL import Image
+import io
 
 BASE_DIR          = Path(__file__).resolve().parent
 PROJECT_ROOT      = Path(__file__).resolve().parents[2]
@@ -31,6 +36,10 @@ LEDGER_FILE       = DATA_DIR / "ledger.json"
 WEATHER_FILE      = DATA_DIR / "weather_state.json"
 SIRIL_LOG         = PROJECT_ROOT / "logs" / "siril_extraction.log"
 ENV_STATUS        = Path("/dev/shm/env_status.json")
+LOCAL_BUFFER      = DATA_DIR / "local_buffer"
+VERIFY_BUFFER     = DATA_DIR / "verify_buffer"
+ARCHIVE_DIR       = DATA_DIR / "archive"
+PROCESS_DIR       = DATA_DIR / "process"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -351,6 +360,78 @@ def load_json_file(path, default=None):
     except (json.JSONDecodeError, OSError):
         return default if default is not None else {}
 
+def _primary_scope_ip() -> str | None:
+    cfg = load_config("~/seevar/config.toml")
+    seestars = cfg.get("seestars", [])
+    if not seestars:
+        return None
+    ip = seestars[0].get("ip")
+    return ip if ip and ip != "TBD" else None
+
+
+def _rtsp_snapshot_jpeg(kind: str) -> bytes | None:
+    ip = _primary_scope_ip()
+    stream_port = {"tele": 4554, "wide": 4555}.get(kind)
+    if not ip or stream_port is None:
+        return None
+    url = f"rtsp://{ip}:{stream_port}/stream"
+    cmd = [
+        "ffmpeg", "-hide_banner", "-loglevel", "error",
+        "-rtsp_transport", "tcp",
+        "-i", url,
+        "-frames:v", "1",
+        "-f", "image2pipe",
+        "-vcodec", "mjpeg",
+        "-",
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=8, check=True)
+        return result.stdout or None
+    except Exception as e:
+        log.info("RTSP snapshot unavailable for %s: %s", kind, e)
+        return None
+
+
+def _latest_preview_file(kind: str) -> Path | None:
+    groups = {
+        "science": [LOCAL_BUFFER, PROCESS_DIR, ARCHIVE_DIR],
+        "verify": [VERIFY_BUFFER, LOCAL_BUFFER, ARCHIVE_DIR],
+    }
+    candidates = []
+    for directory in groups.get(kind, []):
+        if not directory.exists():
+            continue
+        candidates.extend(directory.glob("*.fits"))
+        candidates.extend(directory.glob("*.fit"))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.stat().st_mtime)
+
+
+def _render_preview_jpeg(fits_path: Path) -> bytes:
+    data = fits.getdata(fits_path, 0).astype(np.float32)
+    if data.ndim != 2:
+        raise ValueError("preview expects 2D FITS")
+
+    if min(data.shape) >= 2:
+        data = data[::2, ::2]
+
+    finite = data[np.isfinite(data)]
+    if finite.size == 0:
+        raise ValueError("preview image has no finite pixels")
+
+    lo, hi = np.percentile(finite, [1.0, 99.5])
+    if hi <= lo:
+        hi = lo + 1.0
+    scaled = np.clip((data - lo) / (hi - lo), 0.0, 1.0)
+    image = (scaled * 255.0).astype(np.uint8)
+    rgb = np.dstack([image, image, image])
+
+    out = io.BytesIO()
+    Image.fromarray(rgb, mode="RGB").save(out, format="JPEG", quality=82)
+    return out.getvalue()
+
+
 def load_plan():
     data = load_json_file(PLAN_FILE, [])
     return data if isinstance(data, list) else data.get("targets", [])
@@ -580,6 +661,25 @@ def build_postflight(ledger: dict, dusk_dt) -> dict:
         "overall": overall, "phot_led": phot_led, "aavso_led": aavso_led,
         "log": log_rows,
     }
+
+@app.route('/preview/<kind>.jpg')
+def preview_image(kind: str):
+    if kind in {'tele', 'wide'}:
+        jpeg = _rtsp_snapshot_jpeg(kind)
+        if jpeg:
+            return Response(jpeg, mimetype='image/jpeg')
+
+    fits_path = _latest_preview_file(kind)
+    if fits_path is None:
+        return Response(status=404)
+    try:
+        jpeg = _render_preview_jpeg(fits_path)
+        resp = Response(jpeg, mimetype='image/jpeg')
+        resp.headers['X-Preview-File'] = fits_path.name
+        return resp
+    except Exception as e:
+        log.warning('Preview render failed for %s: %s', fits_path.name, e)
+        return Response(status=500)
 
 @app.route('/')
 def index():

@@ -145,3 +145,6 @@ api_key = ""
 base_url = "https://nova.astrometry.net/api/"
 enabled = false
 
+
+[mission]
+max_targets = 0  # 0 = no cap; set to e.g. 5 for short test nights
