@@ -88,6 +88,7 @@ WEATHER_STALE_SEC = 1800
 TELEMETRY_STALE_SEC = 300
 
 DASHBOARD_EVENT_STATE = {
+    "gps": None,
     "orchestrator": None,
     "weather": None,
     "hardware": None,
@@ -111,20 +112,35 @@ def _set_event_flag(key: str, active: bool, message: str, *, level: int = loggin
         log.info("Recovered: %s", message)
 
 
-def _log_dashboard_deltas(orchestrator: dict, weather: dict, hardware: dict):
+def _log_dashboard_deltas(state: dict, orchestrator: dict, weather: dict, hardware: dict):
+    gps_now = (
+        state.get("gps_status"),
+        state.get("maidenhead"),
+        state.get("lat"),
+        state.get("lon"),
+    )
+    if DASHBOARD_EVENT_STATE["gps"] != gps_now:
+        log.info(
+            "GPS -> status=%s maidenhead=%s lat=%s lon=%s",
+            state.get("gps_status"),
+            state.get("maidenhead"),
+            state.get("lat"),
+            state.get("lon"),
+        )
+        DASHBOARD_EVENT_STATE["gps"] = gps_now
+
     orch_now = (
         orchestrator.get("state"),
         orchestrator.get("sub"),
         orchestrator.get("msg"),
     )
     if DASHBOARD_EVENT_STATE["orchestrator"] != orch_now:
-        if DASHBOARD_EVENT_STATE["orchestrator"] is not None:
-            log.info(
-                "Orchestrator -> state=%s sub=%s msg=%s",
-                orch_now[0],
-                orch_now[1],
-                orch_now[2],
-            )
+        log.info(
+            "Orchestrator -> state=%s sub=%s msg=%s",
+            orch_now[0],
+            orch_now[1],
+            orch_now[2],
+        )
         DASHBOARD_EVENT_STATE["orchestrator"] = orch_now
 
     weather_now = (
@@ -133,14 +149,14 @@ def _log_dashboard_deltas(orchestrator: dict, weather: dict, hardware: dict):
         weather.get("imaging_go"),
     )
     if DASHBOARD_EVENT_STATE["weather"] != weather_now:
-        if DASHBOARD_EVENT_STATE["weather"] is not None:
-            log.info(
-                "Weather -> status=%s stale=%s imaging_go=%s age_s=%s",
-                weather.get("status"),
-                weather.get("stale"),
-                weather.get("imaging_go"),
-                round(weather.get("age_s"), 1) if weather.get("age_s") is not None else "n/a",
-            )
+        log.info(
+            "Weather -> status=%s current=%s stale=%s imaging_go=%s age_s=%s",
+            weather.get("status"),
+            weather.get("current_status"),
+            weather.get("stale"),
+            weather.get("imaging_go"),
+            round(weather.get("age_s"), 1) if weather.get("age_s") is not None else "n/a",
+        )
         DASHBOARD_EVENT_STATE["weather"] = weather_now
 
     hardware_now = (
@@ -149,14 +165,13 @@ def _log_dashboard_deltas(orchestrator: dict, weather: dict, hardware: dict):
         hardware.get("battery"),
     )
     if DASHBOARD_EVENT_STATE["hardware"] != hardware_now:
-        if DASHBOARD_EVENT_STATE["hardware"] is not None:
-            log.info(
-                "Hardware -> link=%s op=%s battery=%s temp=%s",
-                hardware.get("link_status"),
-                hardware.get("operational_state"),
-                hardware.get("battery"),
-                hardware.get("temp_c"),
-            )
+        log.info(
+            "Hardware -> link=%s op=%s battery=%s temp=%s",
+            hardware.get("link_status"),
+            hardware.get("operational_state"),
+            hardware.get("battery"),
+            hardware.get("temp_c"),
+        )
         DASHBOARD_EVENT_STATE["hardware"] = hardware_now
 
 
@@ -626,7 +641,7 @@ def get_telemetry():
     orchestrator["next_reason"] = nightly_progress["next_reason"]
 
     refresh_hw_cache()
-    _log_dashboard_deltas(orchestrator, weather, HW_CACHE["data"])
+    _log_dashboard_deltas(state, orchestrator, weather, HW_CACHE["data"])
 
     return jsonify({
         "gps_status": state.get("gps_status"),
