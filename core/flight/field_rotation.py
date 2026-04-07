@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
     print("Field Rotation Table — Haarlem 52.38°N, S30-Pro (3.74\"/px)")
     print("=" * 70)
-    print(f"{'Az':>6} {'Alt':>6} {'Rate\"/s':>9} {'Rate px/s':>10} {'Max exp':>9}  Note")
+    print(f"{'Az':>6} {'Alt':>6} {'Rate arcsec/s':>13} {'Rate px/s':>10} {'Max exp':>9}  Note")
     print("-" * 70)
 
     test_cases = [
