@@ -164,7 +164,8 @@ def _check_dashboard_sources(env: dict, state_data: dict, weather_data: dict):
     _set_event_flag(
         "env_missing",
         not bool(env),
-        f"Environment status unavailable: {ENV_STATUS}",
+        f"Live GPS RAM status unavailable: {ENV_STATUS} (using configured site fallback)",
+        level=logging.INFO,
     )
     _set_event_flag(
         "state_missing",
