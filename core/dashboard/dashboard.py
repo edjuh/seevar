@@ -66,6 +66,8 @@ ALPACA_TIMEOUT = 2.0
 
 HW_CACHE = {
     "timestamp": 0,
+    "scope_failures": {},
+    "last_good": {},
     "data": {
         "link_status": "WAITING",
         "alpaca_version": "N/A",
@@ -253,7 +255,12 @@ def refresh_hw_cache():
             continue
 
         state = poll_scope_status(ip, port)
+        previous_good = HW_CACHE["last_good"].get(name)
+        failures = int(HW_CACHE["scope_failures"].get(name, 0))
+
         if state:
+            HW_CACHE["scope_failures"][name] = 0
+            HW_CACHE["last_good"][name] = dict(state)
             fleet.append({
                 "name": name,
                 "ip": ip,
@@ -270,7 +277,29 @@ def refresh_hw_cache():
             if primary is None:
                 primary = {**state, "ip": ip}
         else:
-            fleet.append({"name": name, "ip": ip, "link_status": "OFFLINE", "alpaca_version": "N/A"})
+            failures += 1
+            HW_CACHE["scope_failures"][name] = failures
+            if previous_good and failures == 1:
+                transient = dict(previous_good)
+                transient["link_status"] = "WAITING"
+                transient["operational_state"] = previous_good.get("operational_state", "IDLE")
+                fleet.append({
+                    "name": name,
+                    "ip": ip,
+                    "link_status": "WAITING",
+                    "alpaca_version": transient.get("alpaca_version", "?"),
+                    "device_count": transient.get("device_count", 0),
+                    "tracking": transient.get("tracking", False),
+                    "at_park": transient.get("at_park", False),
+                    "temp_c": transient.get("temp_c"),
+                    "slewing": transient.get("slewing", False),
+                    "camera_state_name": transient.get("camera_state_name", "UNKNOWN"),
+                    "operational_state": transient.get("operational_state", "IDLE"),
+                })
+                if primary is None:
+                    primary = {**transient, "ip": ip}
+            else:
+                fleet.append({"name": name, "ip": ip, "link_status": "OFFLINE", "alpaca_version": "N/A", "operational_state": "OFFLINE"})
 
     HW_CACHE["fleet"] = fleet
 

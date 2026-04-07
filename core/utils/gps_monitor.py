@@ -128,6 +128,7 @@ def update_status() -> bool:
                     # Atomic write
                     tmp_path = Path(str(ENV_STATUS) + ".tmp")
                     try:
+                        ENV_STATUS.parent.mkdir(parents=True, exist_ok=True)
                         with open(tmp_path, "w") as fh:
                             json.dump(status, fh)
                         os.replace(tmp_path, ENV_STATUS)
