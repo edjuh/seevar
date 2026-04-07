@@ -97,6 +97,7 @@ def read_weather() -> dict:
     return {
         "empty":        False,
         "status":       w.get("status", "UNKNOWN"),
+        "current_status": w.get("current_status", w.get("status", "UNKNOWN")),
         "imaging_go":   None if stale else w.get("imaging_go", None),
         "win_start":    w.get("imaging_window_start", None),
         "win_end":      w.get("imaging_window_end", None),
@@ -414,6 +415,7 @@ def draw_weather(win, data: dict):
         return
 
     status     = data["status"]
+    current_status = data.get("current_status", status)
     imaging_go = data["imaging_go"]
     go_str  = "GO  ✓" if imaging_go else "NO-GO ✗" if imaging_go is False else "?"
     go_attr = (curses.color_pair(C_GOOD)  | curses.A_BOLD) if imaging_go \
@@ -423,13 +425,15 @@ def draw_weather(win, data: dict):
     stale = data.get("stale", False)
     shown_status = f"STALE {status}" if stale else status
 
-    safe_addstr(win, 1, 2,  "Status : ", curses.color_pair(C_DIM))
+    safe_addstr(win, 1, 2,  "Tonight: ", curses.color_pair(C_DIM))
     safe_addstr(
         win, 1, 11, f"{shown_status:<16}",
         curses.color_pair(C_WARN) | curses.A_BOLD if stale else weather_colour(status, imaging_go)
     )
-    safe_addstr(win, 1, 22, "Imaging: ", curses.color_pair(C_DIM))
-    safe_addstr(win, 1, 31, go_str, go_attr)
+    safe_addstr(win, 1, 29, "Now: ", curses.color_pair(C_DIM))
+    safe_addstr(win, 1, 34, f"{current_status:<10}", curses.color_pair(C_DIM))
+    safe_addstr(win, 1, 46, "Imaging: ", curses.color_pair(C_DIM))
+    safe_addstr(win, 1, 55, go_str, go_attr)
     safe_addstr(win, 2, 2,  "Dark   : ", curses.color_pair(C_DIM))
     safe_addstr(win, 2, 11, f"{data['dark_start']} -> {data['dark_end']}",
                 curses.color_pair(C_DIM))

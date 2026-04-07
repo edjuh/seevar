@@ -577,6 +577,15 @@ class WeatherSentinel:
                 now_reason = reason
                 break
 
+        current_detail = next(
+            (d for d in hourly_detail if int(d["hour_utc"][:2]) == current_hour),
+            {},
+        )
+        current_om = next(
+            (om for om in om_hours if om["dt"].hour == current_hour),
+            {},
+        )
+
         # Fallback: if no hourly data for current hour, use KNMI direct
         if not now_abort and knmi:
             h_now = {
@@ -591,40 +600,34 @@ class WeatherSentinel:
         if now_abort:
             # Determine specific abort status from reason string
             if "RAIN" in now_reason:
-                status, icon = "RAIN",    "🌧️"
+                current_status, current_icon = "RAIN",    "🌧️"
             elif "FOG" in now_reason:
-                status, icon = "FOGGY",   "🌫️"
+                current_status, current_icon = "FOGGY",   "🌫️"
             elif "THUNDER" in now_reason:
-                status, icon = "THUNDER", "⛈️"
+                current_status, current_icon = "THUNDER", "⛈️"
             elif "WINDY" in now_reason:
-                status, icon = "WINDY",   "💨"
+                current_status, current_icon = "WINDY",   "💨"
             else:
-                status, icon = "RAIN",    "🌧️"
+                current_status, current_icon = "RAIN",    "🌧️"
         else:
             # Warning-only statuses — imaging continues
-            humidity_pct = knmi.get("rh") or (
-                max((h["om_clouds"] for h in [om_hours[0]] if om_hours), default=0)
-            )
-            # Use open-meteo humidity for warning display
-            om_humidity = max(
-                (om["om_humidity"] for om in om_hours), default=0
-            ) if om_hours else 0
+            om_humidity = current_om.get("om_humidity", 0)
             humidity_pct = knmi.get("rh") or om_humidity
 
-            # Cloud warning — check if any hour has high cloud cover (display)
-            max_low  = max((d["co_low"]  for d in hourly_detail), default=0)
-            max_mid  = max((d["co_mid"]  for d in hourly_detail), default=0)
-            max_high = max((d["co_high"] for d in hourly_detail), default=0)
+            # Cloud warning — CURRENT hour only
+            cur_low = current_detail.get("co_low", 0)
+            cur_mid = current_detail.get("co_mid", 0)
+            cur_high = current_detail.get("co_high", 0)
             knmi_oktas = knmi.get("oktas")
 
-            if max_low > 50 or max_mid > 50 or (knmi_oktas is not None and knmi_oktas >= 5):
-                status, icon = "CLOUDY", "☁️"
-            elif max_high > 70:
-                status, icon = "HAZY",   "🌤️"
+            if cur_low > 50 or cur_mid > 50 or (knmi_oktas is not None and knmi_oktas >= 5):
+                current_status, current_icon = "CLOUDY", "☁️"
+            elif cur_high > 70:
+                current_status, current_icon = "HAZY",   "🌤️"
             elif humidity_pct > t["humidity_limit"]:
-                status, icon = "HUMID",  "💧"
+                current_status, current_icon = "HUMID",  "💧"
             else:
-                status, icon = "CLEAR",  "✨"
+                current_status, current_icon = "CLEAR",  "✨"
 
         # Collect display values
         clouds_pct   = int(max((d["om_clouds"] for d in hourly_detail), default=0))
@@ -644,10 +647,21 @@ class WeatherSentinel:
         abort_hours = sum(1 for _, a, _ in hourly_evals if a)
         clear_hours = len(hourly_evals) - abort_hours
 
+        if imaging_window:
+            if abort_hours == 0:
+                status, icon = "CLEAR", "✨"
+            else:
+                status, icon = "MIXED", "🌤️"
+        else:
+            if abort_hours > 0:
+                status, icon = "BLOCKED", "☁️"
+            else:
+                status, icon = current_status, current_icon
+
         log.info(
-            "Consensus: %s %s | dark:%s→%s | imaging window:%s→%s "
+            "Consensus: tonight=%s %s | now=%s %s | dark:%s→%s | imaging window:%s→%s "
             "| clear:%dh abort:%dh | knmi:%.0f oktas ww:%.0f vv:%.0fm",
-            status, icon, dark_start_str, dark_end_str,
+            status, icon, current_status, current_icon, dark_start_str, dark_end_str,
             win_start_str or "none", win_end_str or "none",
             clear_hours, abort_hours,
             knmi_oktas or 0,
@@ -666,6 +680,8 @@ class WeatherSentinel:
             ),
             "status":                status,
             "icon":                  icon,
+            "current_status":        current_status,
+            "current_icon":          current_icon,
             "imaging_go":            not now_abort,
             "imaging_window_start":  win_start_str,
             "imaging_window_end":    win_end_str,

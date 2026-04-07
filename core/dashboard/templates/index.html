@@ -291,9 +291,11 @@
                         const wLed = document.getElementById('weather-icon-led');
                         const stale = !!data.weather.stale;
                         const status = data.weather.status || 'N/A';
+                        const currentStatus = data.weather.current_status || status;
 
                         if(wVal) {
-                            wVal.innerText = stale ? `STALE (${status})` : status;
+                            const label = stale ? `STALE (${status})` : `${status} tonight / ${currentStatus} now`;
+                            wVal.innerText = label;
                             wVal.style.color = stale ? '#ff9900' : '';
                             wVal.style.fontStyle = stale ? 'italic' : 'normal';
                         }
