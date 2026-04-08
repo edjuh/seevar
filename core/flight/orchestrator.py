@@ -95,6 +95,21 @@ class PipelineState:
 
 
 class MockDiamondSequence:
+    def prepare_target(self, target, telemetry=None, notify=None):
+        if notify:
+            notify("A9", f"Simulation prepare target - exp_ms={target.exp_ms} n_frames={target.n_frames}")
+        return target
+
+    def prepare_target(self, target, telemetry=None, notify=None):
+        if notify:
+            notify("A9", f"Simulation prepare target - exp_ms={target.exp_ms} n_frames={target.n_frames}")
+        return target
+
+    def prepare_target(self, target, telemetry=None, notify=None):
+        if notify:
+            notify("A9", f"Simulation prepare target - exp_ms={target.exp_ms} n_frames={target.n_frames}")
+        return target
+
     """Mock hardware sequence for the Full Mission Simulator."""
 
     def init_session(self, level_ok: bool = True) -> TelemetryBlock:
@@ -194,7 +209,7 @@ class MockDiamondSequence:
         with open(cache_path, "w") as f:
             json.dump(payload, f, indent=2)
 
-    def acquire(self, target: AcquisitionTarget, status_cb=None, telemetry: Optional[TelemetryBlock] = None) -> FrameResult:
+    def acquire(self, target: AcquisitionTarget, status_cb=None, telemetry: Optional[TelemetryBlock] = None, skip_pointing=False) -> FrameResult:
         def step(tag, msg):
             log.info("  [%s] SIM %s", tag, msg)
             if status_cb:
@@ -253,14 +268,14 @@ class MockDiamondSequence:
 
         final = np.clip(array, 0, 65535).astype(np.uint16)
         write_fits(final, header, out_path)
-        sovereign_stamp(out_path, observer_code=target.observer_code, target_name=target.name)
+        # Header already stamped above; no legacy side-effect stamp call in simulation.
         self._write_wcs_sidecar(out_path, header)
         self._write_sim_gaia_cache(target, comp_stars)
 
         step("A8", "Science frame written")
         time.sleep(0.2)
 
-        return FrameResult(ok=True, fits_path=str(out_path), error="")
+        return FrameResult(success=True, path=out_path, width=width, height=height, elapsed_s=0.2, error="")
 
 
 class Orchestrator:
