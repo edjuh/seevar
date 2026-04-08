@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/postflight/accountant.py
-Version: 2.4.0
-Objective: Sweep local_buffer, require real solved WCS, require dark-calibrated working frames,
+Version: 2.5.0
+Objective: Sweep local_buffer, build aligned stack-first science products from dark-calibrated frames, require real solved WCS,
 run Bayer differential photometry, and stamp TG scientific results into the ledger.
 """
 
@@ -17,6 +17,8 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 import numpy as np
+from scipy.ndimage import shift as ndi_shift
+from skimage.registration import phase_cross_correlation
 
 import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -305,10 +307,12 @@ def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: dateti
     arrays = []
     header = None
     exptimes = []
+    source_names = []
     for path in calibrated_paths:
         try:
             with fits.open(path) as hdul:
                 arrays.append(hdul[0].data.astype(np.float32))
+                source_names.append(path.name)
                 if header is None:
                     header = hdul[0].header.copy()
                 exptime = hdul[0].header.get("EXPTIME")
@@ -320,26 +324,60 @@ def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: dateti
     if len(arrays) < 2 or header is None:
         return None
 
-    shape = arrays[0].shape
-    arrays = [arr for arr in arrays if arr.shape == shape]
-    if len(arrays) < 2:
+    kept = [(arr, name) for arr, name in zip(arrays, source_names) if arr.shape == arrays[0].shape]
+    if len(kept) < 2:
         return None
 
-    stacked = np.median(np.stack(arrays, axis=0), axis=0)
+    reference = kept[0][0]
+    ref_work = reference - np.median(reference)
+
+    aligned = [reference]
+    aligned_names = [kept[0][1]]
+    shifts = [(0.0, 0.0)]
+
+    for arr, name in kept[1:]:
+        work = arr - np.median(arr)
+        try:
+            shift_yx, _, _ = phase_cross_correlation(ref_work, work, upsample_factor=10)
+            shift_y, shift_x = float(shift_yx[0]), float(shift_yx[1])
+        except Exception as e:
+            log.warning("  stack align failed for %s: %s", name, e)
+            continue
+
+        if abs(shift_y) > 250 or abs(shift_x) > 250:
+            log.warning("  stack align rejected for %s: excessive shift dy=%.1f dx=%.1f", name, shift_y, shift_x)
+            continue
+
+        aligned_arr = ndi_shift(arr, shift=(shift_y, shift_x), order=1, mode="constant", cval=float(np.median(arr)))
+        aligned.append(aligned_arr.astype(np.float32))
+        aligned_names.append(name)
+        shifts.append((shift_y, shift_x))
+
+    if len(aligned) < 2:
+        log.warning("  stack alignment kept fewer than 2 usable frames for %s", target_name)
+        return None
+
+    # A plain median suppresses drifting stars in sparse alt/az bursts; mean preserves the signal better.
+    stacked = np.mean(np.stack(aligned, axis=0), axis=0)
     stacked = np.clip(stacked, 0, 65535).astype(np.uint16)
 
     header["OBJECT"] = target_name
-    header["NCOMBINE"] = len(arrays)
+    header["NCOMBINE"] = len(aligned)
     header["STACKED"] = True
+    header["ALIGNMTH"] = "SHIFTMEAN"
+    header["ALIGNSUC"] = len(aligned)
+    header["ALIGNREF"] = aligned_names[0][:68]
     if exptimes:
-        header["TOTEXP"] = round(sum(exptimes), 3)
-        header["EXPTIME"] = round(sum(exptimes), 3)
+        usable_exptimes = exptimes[:len(aligned)]
+        header["TOTEXP"] = round(sum(usable_exptimes), 3)
+        header["EXPTIME"] = round(sum(usable_exptimes), 3)
 
-    out_path = _stack_output_path(target_name, obs_dt, len(arrays))
+    out_path = _stack_output_path(target_name, obs_dt, len(aligned))
     fits.PrimaryHDU(data=stacked, header=header).writeto(out_path, overwrite=True)
+
+    median_abs_shift = float(np.median([max(abs(dy), abs(dx)) for dy, dx in shifts])) if shifts else 0.0
+    log.info("  aligned stack for %s: %d/%d frame(s) kept, median |shift|=%.2f px -> %s", target_name, len(aligned), len(kept), median_abs_shift, out_path.name)
     return out_path
-
-
 def _archive_group(group_items: list[dict]):
     for item in group_items:
         _archive_frame(item["path"])
