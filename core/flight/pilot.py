@@ -550,6 +550,11 @@ def sovereign_stamp(
 
 
 def write_fits(array: np.ndarray, header_dict: dict, output_path: Path) -> bool:
+    # Backward compatibility: older simulation code passed
+    # write_fits(output_path, array, header_dict).
+    if isinstance(array, Path) and isinstance(header_dict, np.ndarray) and isinstance(output_path, fits.Header):
+        array, header_dict, output_path = header_dict, output_path, array
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     if array.dtype != np.uint16:
