@@ -330,8 +330,15 @@ def refresh_hw_cache():
             HW_CACHE["data"]["azimuth"] = primary["azimuth"]
         if primary.get("temp_c") is not None:
             HW_CACHE["data"]["temp_c"] = str(round(primary["temp_c"], 1))
-    if primary and primary.get("battery_pct") is not None:
-        HW_CACHE["data"]["battery"] = str(primary.get("battery_pct"))
+    battery_value = None
+    if primary:
+        if primary.get("battery") is not None:
+            battery_value = primary.get("battery")
+        elif primary.get("battery_pct") is not None:
+            battery_value = primary.get("battery_pct")
+
+    if battery_value is not None:
+        HW_CACHE["data"]["battery"] = str(battery_value)
     if primary and primary.get("charge_online") is not None:
         HW_CACHE["data"]["charge_online"] = bool(primary.get("charge_online"))
     if primary and primary.get("charger_status"):
