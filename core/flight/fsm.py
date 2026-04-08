@@ -83,7 +83,14 @@ class SovereignFSM:
         self.update("WORKING")
         self.last_prepared_target = None
 
-        def bridge(msg: str):
+        def bridge(*parts):
+            if len(parts) == 1:
+                msg = parts[0]
+            elif len(parts) == 2:
+                msg = f"[{parts[0]}] {parts[1]}"
+            else:
+                msg = " ".join(str(p) for p in parts)
+
             logger.info("Bridge: %s", msg)
             ui_state = self._bridge_ui_state(msg)
             self._write_state_bridge(ui_state, msg)
@@ -115,6 +122,7 @@ class SovereignFSM:
                     target=target,
                     status_cb=bridge,
                     telemetry=self.telemetry,
+                    skip_pointing=(i > 0),
                 )
 
                 if result.success:

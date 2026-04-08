@@ -428,7 +428,7 @@ def _render_preview_jpeg(fits_path: Path) -> bytes:
     rgb = np.dstack([image, image, image])
 
     out = io.BytesIO()
-    Image.fromarray(rgb, mode="RGB").save(out, format="JPEG", quality=82)
+    Image.fromarray(rgb).save(out, format="JPEG", quality=82)
     return out.getvalue()
 
 
