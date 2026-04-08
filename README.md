@@ -175,6 +175,14 @@ prepare system services
 bring the observatory into a runnable state
 For full instructions, see INSTALL.md.
 
+For upgrading an existing checkout, see `UPGRADE.MD` or run:
+
+```bash
+cd ~/seevar
+curl -fsSL https://raw.githubusercontent.com/edjuh/seevar/main/upgrade.sh | bash
+```
+
+
 Documentation
 Project doctrine and architecture live in the logic documents under dev/logic/.
 
