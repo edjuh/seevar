@@ -252,7 +252,7 @@ class MockDiamondSequence:
             self._draw_star(array, x, y, amplitude=9000)
 
         final = np.clip(array, 0, 65535).astype(np.uint16)
-        write_fits(out_path, final, header)
+        write_fits(final, header, out_path)
         sovereign_stamp(out_path, observer_code=target.observer_code, target_name=target.name)
         self._write_wcs_sidecar(out_path, header)
         self._write_sim_gaia_cache(target, comp_stars)
