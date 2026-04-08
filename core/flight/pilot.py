@@ -95,7 +95,7 @@ CLIENT_ID = 42
 VERIFY_EXPOSURE_SEC = 2.0
 VERIFY_EXPOSURE_RETRY_SEC = 2.0
 POINTING_TOLERANCE_ARCMIN = 12.0
-POINTING_MAX_RETRIES = 0
+POINTING_MAX_RETRIES = 1
 PLATESOLVE_RADIUS_DEG = 5.0
 PLATESOLVE_DOWNSAMPLE = 1
 PLATESOLVE_TIMEOUT = 90
@@ -675,7 +675,7 @@ class DiamondSequence:
         if rot.max_exp_s >= current_exp_sec - 0.05:
             return target
 
-        capped_exp_sec = max(1.0, float(rot.max_exp_s))
+        capped_exp_sec = max(7.5, float(rot.max_exp_s))
         capped_exp_ms = max(1000, int(round(capped_exp_sec * 1000.0)))
         planned_total_sec = float(target.integration_sec) if target.integration_sec is not None else current_exp_sec * max(1, int(target.n_frames))
         new_n_frames = max(int(target.n_frames), int(math.ceil(planned_total_sec / capped_exp_sec)))
@@ -805,11 +805,10 @@ class DiamondSequence:
         try:
             verify_fits = self._capture_temp_frame(target, VERIFY_EXPOSURE_SEC, "VERIFY", ccd_temp=ccd_temp)
         except Exception as e:
-            notify("A7", f"Verify capture failed — proceeding blind: {e}")
+            notify("A7", f"Verify capture failed: {e}")
             return {
-                "ok": True,
-                "blind_fallback": True,
-                "error_arcmin": 0.0,
+                "ok": False,
+                "error_arcmin": None,
                 "error": str(e),
             }
 
@@ -820,21 +819,19 @@ class DiamondSequence:
                 notify("A7", f"Solve success error={solve['error_arcmin']:.2f} arcmin")
                 return solve
 
-            notify("A7", f"Verify solve failed — proceeding blind: {solve.get('error', 'unknown error')}")
+            notify("A7", f"Verify solve failed: {solve.get('error', 'unknown error')}")
             return {
-                "ok": True,
-                "blind_fallback": True,
+                "ok": False,
                 "verify_fits": verify_fits,
-                "error_arcmin": 0.0,
+                "error_arcmin": None,
                 "error": solve.get("error", "unknown error"),
             }
         except Exception as e:
-            notify("A7", f"Verify solve exception — proceeding blind: {e}")
+            notify("A7", f"Verify solve exception: {e}")
             return {
-                "ok": True,
-                "blind_fallback": True,
+                "ok": False,
                 "verify_fits": verify_fits,
-                "error_arcmin": 0.0,
+                "error_arcmin": None,
                 "error": str(e),
             }
 
@@ -896,8 +893,8 @@ class DiamondSequence:
             t.level_ok = level_ok
             return t
 
-    def acquire(self, target: AcquisitionTarget, status_cb=None, telemetry: Optional[TelemetryBlock] = None) -> FrameResult:
-        """Execute A4-A11 for one target."""
+    def acquire(self, target: AcquisitionTarget, status_cb=None, telemetry: Optional[TelemetryBlock] = None, skip_pointing: bool = False) -> FrameResult:
+        """Execute A4-A11 for one target, or science-only when pointing is already established."""
 
         def notify(step, msg):
             if status_cb:
@@ -911,51 +908,53 @@ class DiamondSequence:
         exp_sec = target.exp_ms / 1000.0
 
         try:
-            for attempt in range(POINTING_MAX_RETRIES + 1):
-                notify("A4", f"Slew command RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° ({target.name})")
-                self._telescope.slew_to_coordinates_async(command_ra_hours, command_dec_deg)
+            if not skip_pointing:
+                for attempt in range(POINTING_MAX_RETRIES + 1):
+                    notify("A4", f"Slew command RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° ({target.name})")
+                    self._telescope.slew_to_coordinates_async(command_ra_hours, command_dec_deg)
 
-                notify("A5", f"Waiting for slew completion (timeout={SLEW_TIMEOUT}s)")
-                if not self._telescope.wait_for_slew(SLEW_TIMEOUT):
-                    return FrameResult(success=False, error=f"Slew timeout ({SLEW_TIMEOUT}s)")
+                    notify("A5", f"Waiting for slew completion (timeout={SLEW_TIMEOUT}s)")
+                    if not self._telescope.wait_for_slew(SLEW_TIMEOUT):
+                        return FrameResult(success=False, error=f"Slew timeout ({SLEW_TIMEOUT}s)")
 
-                notify("A6", f"Settling {SETTLE_SECONDS}s after slew")
-                time.sleep(SETTLE_SECONDS)
+                    notify("A6", f"Settling {SETTLE_SECONDS}s after slew")
+                    time.sleep(SETTLE_SECONDS)
 
-                verify_target = AcquisitionTarget(
-                    name=target.name,
-                    ra_hours=command_ra_hours,
-                    dec_deg=command_dec_deg,
-                    auid=target.auid,
-                    exp_ms=target.exp_ms,
-                    observer_code=target.observer_code,
-                    n_frames=1,
-                    integration_sec=target.integration_sec,
-                )
+                    verify_target = AcquisitionTarget(
+                        name=target.name,
+                        ra_hours=command_ra_hours,
+                        dec_deg=command_dec_deg,
+                        auid=target.auid,
+                        exp_ms=target.exp_ms,
+                        observer_code=target.observer_code,
+                        n_frames=1,
+                        integration_sec=target.integration_sec,
+                    )
 
-                solve = self._pointing_verify(verify_target, notify, ccd_temp=ccd_temp)
+                    solve = self._pointing_verify(verify_target, notify, ccd_temp=ccd_temp)
 
-                if not solve.get("ok"):
-                    notify("A7", f"Pointing verify failed: {solve.get('error', 'unknown error')}")
-                    if attempt >= POINTING_MAX_RETRIES:
-                        notify("A7", "Verify solve failed after retries — proceeding on blind slew fallback")
+                    if not solve.get("ok"):
+                        notify("A7", f"Pointing verify failed: {solve.get('error', 'unknown error')}")
+                        if attempt >= POINTING_MAX_RETRIES:
+                            return FrameResult(success=False, error=f"Verify solve failed after retries: {solve.get('error', 'unknown error')}")
+                        notify("A8", f"Retrying pointing loop ({attempt + 1}/{POINTING_MAX_RETRIES}) after unsolved verify frame")
+                        continue
+
+                    error_arcmin = float(solve["error_arcmin"])
+                    if error_arcmin <= POINTING_TOLERANCE_ARCMIN:
+                        notify("A7", f"Pointing accepted ({error_arcmin:.2f} arcmin <= {POINTING_TOLERANCE_ARCMIN:.2f})")
                         break
-                    notify("A8", f"Retrying pointing loop ({attempt + 1}/{POINTING_MAX_RETRIES}) after unsolved verify frame")
-                    continue
 
-                error_arcmin = float(solve["error_arcmin"])
-                if error_arcmin <= POINTING_TOLERANCE_ARCMIN:
-                    notify("A7", f"Pointing accepted ({error_arcmin:.2f} arcmin <= {POINTING_TOLERANCE_ARCMIN:.2f})")
-                    break
+                    notify("A7", f"Pointing outside tolerance ({error_arcmin:.2f} arcmin > {POINTING_TOLERANCE_ARCMIN:.2f})")
+                    if attempt >= POINTING_MAX_RETRIES:
+                        return FrameResult(success=False, error=f"Pointing error {error_arcmin:.2f} arcmin after retries")
 
-                notify("A7", f"Pointing outside tolerance ({error_arcmin:.2f} arcmin > {POINTING_TOLERANCE_ARCMIN:.2f})")
-                if attempt >= POINTING_MAX_RETRIES:
-                    return FrameResult(success=False, error=f"Pointing error {error_arcmin:.2f} arcmin after retries")
-
-                command_ra_hours, command_dec_deg = self._corrective_nudge(command_ra_hours, command_dec_deg, solve)
-                notify("A8", f"Corrective nudge -> RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° (retry {attempt + 1}/{POINTING_MAX_RETRIES})")
+                    command_ra_hours, command_dec_deg = self._corrective_nudge(command_ra_hours, command_dec_deg, solve)
+                    notify("A8", f"Corrective nudge -> RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° (retry {attempt + 1}/{POINTING_MAX_RETRIES})")
+                else:
+                    return FrameResult(success=False, error="Pointing loop exhausted unexpectedly")
             else:
-                return FrameResult(success=False, error="Pointing loop exhausted unexpectedly")
+                notify("A10", f"Reusing established pointing for {target.name}")
 
             notify("A10", f"Set gain={GAIN} and start science exposure {exp_sec:.1f}s")
             try:
