@@ -171,9 +171,9 @@ def _parse_vsx(star_name: str, raw: dict) -> dict:
     if not vsobj:
         return {}
 
-    max_mag_raw = vsobj.get("maxMag")
-    min_mag_raw = vsobj.get("minMag")
-    var_type = vsobj.get("Type")
+    max_mag_raw = vsobj.get("MaxMag") or vsobj.get("maxMag")
+    min_mag_raw = vsobj.get("MinMag") or vsobj.get("minMag")
+    var_type = vsobj.get("VariabilityType") or vsobj.get("Type")
     period = _clean_period(vsobj.get("Period"))
 
     max_band = _extract_band(max_mag_raw)
