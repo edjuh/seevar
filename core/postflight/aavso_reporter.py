@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/postflight/aavso_reporter.py
-Version: 1.2.1
-Objective: Generate AAVSO Extended Format reports in the dedicated data/reports/
-           directory. Full 15-field Extended Format per AAVSO specification.
-           Observer code sourced from VaultManager (observer_id key).
+Version: 1.4.0
+Objective: Generate and validate AAVSO Extended Format reports in data/reports/
+           using SeeVar TG photometry defaults for OSC Bayer data.
 """
 
+import logging
+import math
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -15,113 +16,220 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(PROJECT_ROOT))
 
-from core.flight.vault_manager import VaultManager
+try:
+    from core.flight.vault_manager import VaultManager
+except Exception:
+    VaultManager = None
+
+from core.utils.env_loader import load_config
+
+log = logging.getLogger("AAVSOReporter")
+
+DEFAULT_OBSTYPE = "DSLR"
+DEFAULT_FILTER = "TG"
+VALID_FLAGS = {"YES", "NO"}
+VALID_MTYPES = {"STD", "DIF"}
+VALID_FILTERS = {
+    "U", "B", "V", "R", "I",
+    "TG", "TB", "TR",
+    "CV", "CR",
+    "SG", "SR", "SI",
+    "Z", "Y", "J", "H", "K",
+    "C", "HA", "OIII", "SII",
+}
+
+
+def _default_software_name() -> str:
+    try:
+        from core.flight.pilot import SWCREATE
+        return str(SWCREATE)
+    except Exception:
+        return "SeeVar"
 
 
 class AAVSOReporter:
     """
     Generates AAVSO Extended Format submission files.
 
-    AAVSO Extended Format — 15 required fields (comma-delimited):
-      NAME    : Variable star name (AAVSO designation)
-      DATE    : Julian Date of observation (JD, 5 decimal places)
-      MAG     : Magnitude (3 decimal places, or >X.X for fainter-than)
-      MERR    : Magnitude error (3 decimal places)
-      FILT    : Filter (CV, B, V, R, I, etc.)
-      TRANS   : Transformed? YES / NO
-      MTYPE   : Magnitude type: STD (differential) or DIF
-      CNAME   : Comparison star name or label (e.g. 000-BBB-123)
-      CMAG    : Comparison star magnitude
-      KNAME   : Check star name or label (na if none)
-      KMAG    : Check star magnitude (na if none)
-      AMASS   : Airmass (na if unknown)
-      GROUP   : Group ID for simultaneous multi-band obs (na if single)
-      CHART   : AAVSO chart ID used for comp stars
-      NOTES   : Free text notes (na if none)
+    Defaults for current SeeVar output:
+      - FILTER : TG
+      - TRANS  : NO
+      - MTYPE  : STD
+      - OBSTYPE: DSLR
     """
 
-    def __init__(self):
-        self.vault = VaultManager()
+    def __init__(self, observer_code: str | None = None, software_name: str | None = None, obstype: str = DEFAULT_OBSTYPE):
         self.report_dir = PROJECT_ROOT / "data" / "reports"
         self.report_dir.mkdir(parents=True, exist_ok=True)
 
-        conf = self.vault.get_observer_config()
-        # VaultManager returns observer_id — map to obs_code
-        self.obs_code = conf.get("observer_id", "")
-        if not self.obs_code:
+        self.obs_code = (observer_code or self._load_observer_code()).strip().upper()
+        if not self.obs_code or self.obs_code == "MISSING_ID":
             raise ValueError(
-                "observer_code missing from config.toml — "
-                "AAVSO submissions require a valid observer code."
+                "observer_code missing from config.toml - AAVSO submissions require a valid observer code."
             )
 
-    def _fmt_num(self, val, places=3) -> str:
-        """Safely format numbers to a specific decimal place, allowing string fallbacks (e.g. '>14.5' or 'na')."""
-        if isinstance(val, (float, int)):
-            return f"{val:.{places}f}"
-        return str(val)
+        self.software_name = (software_name or _default_software_name()).strip()
+        self.obstype = obstype.strip().upper() if obstype else DEFAULT_OBSTYPE
 
-    def finalize_report(self, observations: list) -> Path:
-        """
-        Write AAVSO Extended Format report to data/reports/.
+    def _load_observer_code(self) -> str:
+        if VaultManager is not None:
+            try:
+                vault = VaultManager()
+                conf = vault.get_observer_config()
+                code = str(conf.get("observer_id", "")).strip()
+                if code and code != "MISSING_ID":
+                    return code
+            except Exception as e:
+                log.warning("VaultManager observer lookup failed: %s", e)
 
-        Each observation dict must contain:
-          target  : str  — AAVSO star name
-          jd      : float — Julian Date
-          mag     : float|str — instrumental differential magnitude
-          err     : float|str — magnitude uncertainty
-          filter  : str  — filter code (CV, V, B, R, I)
-          comp    : str  — comparison star label (AAVSO sequence ID)
-          cmag    : float|str — comparison star catalogue magnitude
-          kname   : str  — check star label (or 'na')
-          kmag    : float|str — check star magnitude (or 'na')
-          amass   : float|str — airmass (or 'na')
-          chart   : str  — AAVSO chart ID
-          notes   : str  — free notes (or 'na')
-        """
+        try:
+            cfg = load_config()
+            code = str(cfg.get("aavso", {}).get("observer_code", "")).strip()
+            if code:
+                return code
+        except Exception as e:
+            log.warning("Direct config observer lookup failed: %s", e)
+
+        return ""
+
+    def _normalize_flag(self, value, field: str, allowed: set[str]) -> str:
+        val = str(value).strip().upper()
+        if val not in allowed:
+            raise ValueError(f"{field} must be one of {sorted(allowed)}, got {value!r}")
+        return val
+
+    def _normalize_filter(self, value) -> str:
+        val = str(value or DEFAULT_FILTER).strip().upper()
+        if not val:
+            val = DEFAULT_FILTER
+        if val not in VALID_FILTERS:
+            raise ValueError(f"Unsupported AAVSO filter code: {value!r}")
+        return val
+
+    def _normalize_text(self, value, field: str, default: str | None = None) -> str:
+        if value in (None, ""):
+            if default is not None:
+                return default
+            raise ValueError(f"{field} is required")
+        text = str(value).strip()
+        if not text:
+            if default is not None:
+                return default
+            raise ValueError(f"{field} is required")
+        return text.replace(",", ";").replace("\n", " ").replace("\r", " ")
+
+    def _fmt_num(self, value, places=3, field="value", allow_na=False) -> str:
+        if value in (None, ""):
+            raise ValueError(f"{field} is missing")
+
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                raise ValueError(f"{field} is not finite: {value!r}")
+            return f"{numeric:.{places}f}"
+
+        text = str(value).strip()
+        if not text:
+            raise ValueError(f"{field} is missing")
+
+        if allow_na and text.lower() == "na":
+            return "na"
+
+        if text.startswith((">", "<")):
+            suffix = text[1:].strip()
+            try:
+                float(suffix)
+            except ValueError as exc:
+                raise ValueError(f"{field} has invalid limit format: {value!r}") from exc
+            return text
+
+        try:
+            numeric = float(text)
+        except ValueError as exc:
+            raise ValueError(f"{field} is not numeric: {value!r}") from exc
+
+        if not math.isfinite(numeric):
+            raise ValueError(f"{field} is not finite: {value!r}")
+        return f"{numeric:.{places}f}"
+
+    def _normalize_observation(self, obs: dict, idx: int) -> dict[str, str]:
+        target = self._normalize_text(obs.get("target"), f"observations[{idx}].target")
+        return {
+            "target": target,
+            "jd": self._fmt_num(obs.get("jd"), 5, f"{target}.jd"),
+            "mag": self._fmt_num(obs.get("mag"), 3, f"{target}.mag"),
+            "err": self._fmt_num(obs.get("err"), 3, f"{target}.err"),
+            "filter": self._normalize_filter(obs.get("filter", DEFAULT_FILTER)),
+            "trans": self._normalize_flag(obs.get("trans", "NO"), f"{target}.trans", VALID_FLAGS),
+            "mtype": self._normalize_flag(obs.get("mtype", "STD"), f"{target}.mtype", VALID_MTYPES),
+            "comp": self._normalize_text(obs.get("comp"), f"{target}.comp"),
+            "cmag": self._fmt_num(obs.get("cmag"), 3, f"{target}.cmag"),
+            "kname": self._normalize_text(obs.get("kname"), f"{target}.kname", default="na"),
+            "kmag": self._fmt_num(obs.get("kmag", "na"), 3, f"{target}.kmag", allow_na=True),
+            "amass": self._fmt_num(obs.get("amass", "na"), 3, f"{target}.amass", allow_na=True),
+            "group": self._normalize_text(obs.get("group", "na"), f"{target}.group", default="na"),
+            "chart": self._normalize_text(obs.get("chart", "na"), f"{target}.chart", default="na"),
+            "notes": self._normalize_text(obs.get("notes", "na"), f"{target}.notes", default="na"),
+        }
+
+    def validate_observation(self, obs: dict, idx: int = 1) -> dict[str, str]:
+        return self._normalize_observation(obs, idx)
+
+    def validate_report(self, observations: list[dict]) -> list[dict[str, str]]:
+        if not observations:
+            raise ValueError("No observations supplied for AAVSO report")
+        return [self._normalize_observation(obs, idx) for idx, obs in enumerate(observations, start=1)]
+
+    def _header_lines(self) -> list[str]:
+        return [
+            "#TYPE=EXTENDED",
+            f"#OBSCODE={self.obs_code}",
+            f"#SOFTWARE={self.software_name}",
+            "#DELIM=,",
+            "#DATE=JD",
+            f"#OBSTYPE={self.obstype}",
+            "#NAME,DATE,MAG,MERR,FILT,TRANS,MTYPE,CNAME,CMAG,KNAME,KMAG,AMASS,GROUP,CHART,NOTES",
+        ]
+
+    def render_report_text(self, observations: list[dict], validate: bool = True) -> str:
+        rows = self.validate_report(observations) if validate else observations
+
+        lines = list(self._header_lines())
+        for row in rows:
+            lines.append(",".join([
+                row["target"],
+                row["jd"],
+                row["mag"],
+                row["err"],
+                row["filter"],
+                row["trans"],
+                row["mtype"],
+                row["comp"],
+                row["cmag"],
+                row["kname"],
+                row["kmag"],
+                row["amass"],
+                row["group"],
+                row["chart"],
+                row["notes"],
+            ]))
+
+        return "\n".join(lines) + "\n"
+
+    def preview_report(self, observations: list[dict]) -> str:
+        return self.render_report_text(observations, validate=True)
+
+    def finalize_report(self, observations: list[dict], validate: bool = True) -> Path:
+        text = self.render_report_text(observations, validate=validate)
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M")
         filename = f"AAVSO_{self.obs_code}_{timestamp}.txt"
         save_path = self.report_dir / filename
 
-        header = [
-            "#TYPE=EXTENDED",
-            f"#OBSCODE={self.obs_code}",
-            "#SOFTWARE=SeeVar_v1.7",
-            "#DELIM=,",
-            "#DATE=JD",
-            "#OBSTYPE=CCD",
-            "#NAME,DATE,MAG,MERR,FILT,TRANS,MTYPE,CNAME,CMAG,KNAME,KMAG,AMASS,GROUP,CHART,NOTES",
-        ]
-
-        rows = []
-        for obs in observations:
-            amass = obs.get("amass", "na")
-            kname = obs.get("kname", "na")
-            kmag  = obs.get("kmag",  "na")
-            chart = obs.get("chart", "na")
-            notes = obs.get("notes", "na")
-
-            row = (
-                f"{obs['target']},"
-                f"{self._fmt_num(obs['jd'], 5)},"
-                f"{self._fmt_num(obs['mag'], 3)},"
-                f"{self._fmt_num(obs['err'], 3)},"
-                f"{obs['filter']},"
-                f"NO,"
-                f"STD,"
-                f"{obs['comp']},"
-                f"{self._fmt_num(obs['cmag'], 3)},"
-                f"{kname},"
-                f"{self._fmt_num(kmag, 3)},"
-                f"{self._fmt_num(amass, 3)},"
-                f"na,"
-                f"{chart},"
-                f"{notes}"
-            )
-            rows.append(row)
-
         with open(save_path, "w") as f:
-            f.write("\n".join(header + rows) + "\n")
+            f.write(text)
 
+        log.info("AAVSO report written: %s", save_path)
         return save_path
 
 
@@ -130,3 +238,5 @@ if __name__ == "__main__":
     print("[OK] AAVSO Reporter initialised.")
     print(f"     Observer code : {rep.obs_code}")
     print(f"     Report dir    : {rep.report_dir}")
+    print(f"     Software      : {rep.software_name}")
+    print(f"     OBSTYPE       : {rep.obstype}")
