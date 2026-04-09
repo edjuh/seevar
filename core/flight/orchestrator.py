@@ -539,6 +539,12 @@ class Orchestrator:
         start_dt = _parse_plan_dt(target.get("best_start_utc"))
         end_dt = _parse_plan_dt(target.get("best_end_utc"))
 
+        ra_str = target.get("ra")
+        dec_str = target.get("dec")
+        ra_deg_val = float(ra_str) if isinstance(ra_str, (int, float)) else float(SkyCoord(ra=ra_str, dec=dec_str, unit=(u.hourangle, u.deg)).ra.hour * 15)
+        dec_deg_val = float(dec_str) if isinstance(dec_str, (int, float)) else float(SkyCoord(ra=ra_str, dec=dec_str, unit=(u.hourangle, u.deg)).dec.deg)
+        ra_hours_val = ra_deg_val / 15.0
+
         if not self.simulation_mode:
             if end_dt and now_utc >= end_dt:
                 self._targets.pop(0)
@@ -570,13 +576,6 @@ class Orchestrator:
         name = target.get("name", "UNKNOWN")
         self._log_flight(f"[A1] Target lock — {name}")
         self._log_flight("[A2] Safety gate passed")
-
-        ra_str = target.get("ra")
-        dec_str = target.get("dec")
-
-        ra_deg_val = float(ra_str) if isinstance(ra_str, (int, float)) else float(SkyCoord(ra=ra_str, dec=dec_str, unit=(u.hourangle, u.deg)).ra.hour * 15)
-        dec_deg_val = float(dec_str) if isinstance(dec_str, (int, float)) else float(SkyCoord(ra=ra_str, dec=dec_str, unit=(u.hourangle, u.deg)).dec.deg)
-        ra_hours_val = ra_deg_val / 15.0
 
         planned_n_frames = target.get("n_frames")
 
