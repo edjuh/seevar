@@ -75,3 +75,7 @@ dev/media/
 catalogs/reference_stars/
 dev/media/
 *.mp4
+
+data
+
+catalogs

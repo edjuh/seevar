@@ -81,3 +81,15 @@ For the specific simulation crash:
 - changing `simulation_mode` in `config.toml` is **not** enough
 - the checkout needs the code update itself
 - after upgrading, no extra regeneration step should be needed
+
+## Symlinked Storage
+
+If you move `data` or `catalogs` onto SSD/RAID storage and replace them with symlinks, that is supported.
+
+The repository now ignores both:
+- `data/` and `data`
+- `catalogs/` and `catalogs`
+
+That distinction matters because Git treats a symlink like a file path, not like a directory.
+
+If you still have local tracked code edits, stash or commit those before upgrading.
