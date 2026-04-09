@@ -627,7 +627,7 @@ class Orchestrator:
         self._log_flight(f"Executing target via FSM: {name} RA={acq_target.ra_hours:.2f}h")
 
         ledger_manager.record_attempt(name)
-        success = self.fsm.execute_target(acq_target)
+        success = self.fsm.execute_target(acq_target, telemetry=self._last_telemetry)
 
         if self.fsm.telemetry:
             self._last_telemetry = self.fsm.telemetry

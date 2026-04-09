@@ -22,6 +22,7 @@ from core.utils.env_loader import DATA_DIR
 logger = logging.getLogger("seevar.fsm")
 
 STATE_FILE = DATA_DIR / "system_state.json"
+FRAME_RETRY_LIMIT = 1
 
 
 class SovereignFSM:
@@ -73,7 +74,7 @@ class SovereignFSM:
         except Exception as e:
             logger.debug("State bridge write skipped: %s", e)
 
-    def execute_target(self, target: AcquisitionTarget, status_cb: Optional[Callable[[str], None]] = None) -> bool:
+    def execute_target(self, target: AcquisitionTarget, status_cb: Optional[Callable[[str], None]] = None, telemetry: Optional[TelemetryBlock] = None) -> bool:
         """
         Run the per-target sovereign sequence.
 
@@ -98,12 +99,20 @@ class SovereignFSM:
                 status_cb(msg)
 
         try:
-            logger.info("[A3] Session init for %s", target.name)
-            self._write_state_bridge("PREFLIGHT", f"[A3] Session init for {target.name}")
-            self.telemetry = self.sequence.init_session()
+            if telemetry and telemetry.is_safe():
+                self.telemetry = telemetry
+                logger.info("[A3] Reusing validated session telemetry for %s", target.name)
+                self._write_state_bridge("PREFLIGHT", f"[A3] Reusing validated session telemetry for {target.name}")
+            elif self.telemetry and self.telemetry.is_safe():
+                logger.info("[A3] Reusing cached session telemetry for %s", target.name)
+                self._write_state_bridge("PREFLIGHT", f"[A3] Reusing cached session telemetry for {target.name}")
+            else:
+                logger.info("[A3] Session init for %s", target.name)
+                self._write_state_bridge("PREFLIGHT", f"[A3] Session init for {target.name}")
+                self.telemetry = self.sequence.init_session()
 
-            if not self.telemetry.is_safe():
-                reason = self.telemetry.veto_reason()
+            if not self.telemetry or not self.telemetry.is_safe():
+                reason = self.telemetry.veto_reason() if self.telemetry else "Telemetry unavailable"
                 logger.error("[A3] Hardware veto: %s", reason)
                 self._write_state_bridge("ABORTED", f"[A3] Hardware veto: {reason}")
                 self.update("ERROR")
@@ -114,26 +123,45 @@ class SovereignFSM:
             logger.info("[A10] Acquire %d frame(s) for %s", target.n_frames, target.name)
 
             successful_frames = 0
+            failed_frames = 0
             for i in range(target.n_frames):
                 logger.info("[A10] Executing frame %d/%d", i + 1, target.n_frames)
-                self._write_state_bridge("SLEWING", f"[A4] Executing frame {i + 1}/{target.n_frames} for {target.name}")
+                frame_ok = False
+                last_error = ""
 
-                result = self.sequence.acquire(
-                    target=target,
-                    status_cb=bridge,
-                    telemetry=self.telemetry,
-                    skip_pointing=(i > 0),
-                )
+                for attempt in range(FRAME_RETRY_LIMIT + 1):
+                    if attempt == 0:
+                        self._write_state_bridge("SLEWING", f"[A4] Executing frame {i + 1}/{target.n_frames} for {target.name}")
+                    else:
+                        logger.warning("[A10] Retrying frame %d/%d for %s (%d/%d)", i + 1, target.n_frames, target.name, attempt, FRAME_RETRY_LIMIT)
+                        self._write_state_bridge("SLEWING", f"[A10] Retrying frame {i + 1}/{target.n_frames} for {target.name} ({attempt}/{FRAME_RETRY_LIMIT})")
 
-                if result.success:
-                    logger.info("[A11] Frame %d accepted: %s", i + 1, result.path)
-                    self._write_state_bridge("TRACKING", f"[A11] Frame {i + 1} accepted: {result.path}")
-                    successful_frames += 1
-                else:
+                    result = self.sequence.acquire(
+                        target=target,
+                        status_cb=bridge,
+                        telemetry=self.telemetry,
+                        skip_pointing=(successful_frames > 0 or i > 0),
+                    )
+
+                    if result.success:
+                        logger.info("[A11] Frame %d accepted: %s", i + 1, result.path)
+                        self._write_state_bridge("TRACKING", f"[A11] Frame {i + 1} accepted: {result.path}")
+                        successful_frames += 1
+                        frame_ok = True
+                        break
+
+                    last_error = result.error
                     logger.error("[A11] Frame %d failed: %s", i + 1, result.error)
-                    self._write_state_bridge("ABORTED", f"[A11] Frame {i + 1} failed: {result.error}")
-                    self.update("ERROR")
-                    return False
+
+                if not frame_ok:
+                    failed_frames += 1
+                    if target.n_frames == 1:
+                        self._write_state_bridge("ABORTED", f"[A11] Frame {i + 1} failed after retries: {last_error}")
+                        self.update("ERROR")
+                        return False
+
+                    logger.warning("[A11] Continuing after frame %d failure for %s", i + 1, target.name)
+                    self._write_state_bridge(None, f"[A11] Frame {i + 1} failed after retries: {last_error}")
 
             if successful_frames == target.n_frames:
                 logger.info("[A11] Acquisition complete for %s", target.name)
@@ -141,7 +169,13 @@ class SovereignFSM:
                 self.update("SUCCESS")
                 return True
 
-            self._write_state_bridge("ABORTED", f"[A11] Acquisition incomplete for {target.name}")
+            if successful_frames > 0:
+                logger.warning("[A11] Acquisition partial for %s: %d/%d frame(s) accepted, %d failed", target.name, successful_frames, target.n_frames, failed_frames)
+                self._write_state_bridge("TRACKING", f"[A11] Acquisition partial for {target.name}: {successful_frames}/{target.n_frames} frame(s) accepted")
+                self.update("SUCCESS")
+                return True
+
+            self._write_state_bridge("ABORTED", f"[A11] Acquisition failed for {target.name}: 0/{target.n_frames} frame(s) accepted")
             self.update("ERROR")
             return False
 
