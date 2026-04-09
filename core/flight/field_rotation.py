@@ -23,8 +23,10 @@ Reference: Astronomical Algorithms, Meeus (1991), Chapter 14.
 import math
 from dataclasses import dataclass
 
+SIDEREAL_DEG_PER_SEC = 360.0 / 86164.0905
+
 # Tolerance: maximum acceptable PSF smear in pixels before quality degrades
-DEFAULT_TOLERANCE_PX = 0.5   # half a pixel — conservative
+DEFAULT_TOLERANCE_PX = 2.0   # practical blur budget for solvable alt-az science frames
 MAX_SAFE_EXP_S       = 120.0  # absolute cap regardless of rotation
 KEYHOLE_ALT_DEG      = 88.0   # within 2° of zenith — apply hard limit
 KEYHOLE_EXP_S        = 5.0    # hard limit near zenith
@@ -57,7 +59,7 @@ def field_rotation_rate(az_deg: float, alt_deg: float,
     if abs(cos_alt) < 1e-4:
         return 0.0  # keyhole — handled separately
 
-    return abs(math.cos(lat_r) * math.sin(az_r) / cos_alt)
+    return abs(math.cos(lat_r) * math.sin(az_r) / cos_alt) * SIDEREAL_DEG_PER_SEC
 
 
 def max_exposure_s(
@@ -110,7 +112,7 @@ def max_exposure_s(
 
     # Maximum safe exposure
     max_exp = min(tolerance_px / rot_px_s, MAX_SAFE_EXP_S)
-    max_exp = max(max_exp, 1.0)  # never less than 1 second
+    max_exp = max(max_exp, 5.0)  # practical floor for solvable alt-az frames
 
     severity = "LOW" if max_exp > 60 else ("MEDIUM" if max_exp > 20 else "HIGH")
     note = (
