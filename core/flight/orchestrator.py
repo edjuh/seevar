@@ -267,7 +267,7 @@ class MockDiamondSequence:
             self._draw_star(array, x, y, amplitude=9000)
 
         final = np.clip(array, 0, 65535).astype(np.uint16)
-        write_fits(final, header, out_path)
+        fits.PrimaryHDU(data=final, header=header).writeto(out_path, overwrite=True)
         # Header already stamped above; no legacy side-effect stamp call in simulation.
         self._write_wcs_sidecar(out_path, header)
         self._write_sim_gaia_cache(target, comp_stars)
