@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/vsx_catalog.py
-Version: 2.2.0
+Version: 2.3.0
 Objective: Fetch magnitude ranges from AAVSO VSX for all campaign targets,
            cache them safely, and serve target magnitudes efficiently at runtime.
 """
@@ -38,7 +38,7 @@ MASTER_FILE = CATALOG_DIR / "campaign_targets.json"
 VSX_CACHE = DATA_DIR / "vsx_catalog.json"
 VSX_LOCK = DATA_DIR / "vsx_catalog.lock"
 
-POLL_DELAY_S = 188.4
+POLL_DELAY_S = 88.4
 SAVE_EVERY_N = 10
 HTTP_RETRIES = 2
 HTTP_BACKOFF_S = 2.0
@@ -229,7 +229,9 @@ def update_vsx_catalog(force_refresh: bool = False):
                 continue
 
             if name in cache and not force_refresh:
-                continue
+                existing = cache.get(name, {})
+                if existing.get("mag_mid") is not None and existing.get("type"):
+                    continue
 
             log.info("[%d/%d] Fetching VSX for %s...", i, total, name)
             raw = _query_vsx_raw(name)
@@ -254,7 +256,7 @@ def update_vsx_catalog(force_refresh: bool = False):
             _refresh_mag_cache()
 
     if updated > 0 or force_refresh:
-        log.info("✅ VSX Catalog updated. %d new records.", updated)
+        log.info("✅ VSX Catalog updated. %d new/updated records.", updated)
     else:
         log.info("✅ VSX Catalog up to date. No API calls made.")
 

@@ -95,22 +95,12 @@ class PipelineState:
 
 
 class MockDiamondSequence:
-    def prepare_target(self, target, telemetry=None, notify=None):
-        if notify:
-            notify("A9", f"Simulation prepare target - exp_ms={target.exp_ms} n_frames={target.n_frames}")
-        return target
-
-    def prepare_target(self, target, telemetry=None, notify=None):
-        if notify:
-            notify("A9", f"Simulation prepare target - exp_ms={target.exp_ms} n_frames={target.n_frames}")
-        return target
-
-    def prepare_target(self, target, telemetry=None, notify=None):
-        if notify:
-            notify("A9", f"Simulation prepare target - exp_ms={target.exp_ms} n_frames={target.n_frames}")
-        return target
-
     """Mock hardware sequence for the Full Mission Simulator."""
+
+    def prepare_target(self, target, telemetry=None, notify=None):
+        if notify:
+            notify("A9", f"Simulation prepare target - exp_ms={target.exp_ms} n_frames={target.n_frames}")
+        return target
 
     def init_session(self, level_ok: bool = True) -> TelemetryBlock:
         t = TelemetryBlock(
