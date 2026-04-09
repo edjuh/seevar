@@ -21,7 +21,7 @@ import requests
 
 try:
     import fcntl
-except ImportError:  # pragma: no cover
+except ImportError:
     fcntl = None
 
 logging.basicConfig(
@@ -38,7 +38,7 @@ MASTER_FILE = CATALOG_DIR / "campaign_targets.json"
 VSX_CACHE = DATA_DIR / "vsx_catalog.json"
 VSX_LOCK = DATA_DIR / "vsx_catalog.lock"
 
-POLL_DELAY_S = 188.4  # Delay applies only after actual API calls.
+POLL_DELAY_S = 188.4
 SAVE_EVERY_N = 10
 HTTP_RETRIES = 2
 HTTP_BACKOFF_S = 2.0
@@ -76,11 +76,11 @@ def _load_cache_from_disk() -> dict:
     return {"stars": {}}
 
 
-def _save_cache(cache: dict):
+def _save_cache(stars: dict):
     VSX_CACHE.parent.mkdir(parents=True, exist_ok=True)
     out = {
         "#objective": "AAVSO VSX magnitude ranges for dynamic exposure planning.",
-        "stars": cache,
+        "stars": stars,
     }
     tmp = VSX_CACHE.with_suffix(".json.tmp")
     with _file_lock():
@@ -157,7 +157,10 @@ def _query_vsx_raw(star_name: str) -> dict:
             if attempt >= HTTP_RETRIES:
                 log.warning("VSX fetch failed for %s after %d attempt(s): %s", star_name, attempt, exc)
                 return {}
-            log.warning("VSX fetch failed for %s (attempt %d/%d): %s; retrying...", star_name, attempt, HTTP_RETRIES, exc)
+            log.warning(
+                "VSX fetch failed for %s (attempt %d/%d): %s; retrying...",
+                star_name, attempt, HTTP_RETRIES, exc
+            )
             time.sleep(HTTP_BACKOFF_S)
 
     return {}
