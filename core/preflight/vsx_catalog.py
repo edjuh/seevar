@@ -2,19 +2,27 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/vsx_catalog.py
-Version: 2.1.0
-Objective: Fetch magnitude ranges from AAVSO VSX for all campaign targets.
-           Populates data/vsx_catalog.json incrementally to survive reboots.
+Version: 2.2.0
+Objective: Fetch magnitude ranges from AAVSO VSX for all campaign targets,
+           cache them safely, and serve target magnitudes efficiently at runtime.
 """
+
+from __future__ import annotations
 
 import json
 import logging
 import re
 import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import requests
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover
+    fcntl = None
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,49 +32,158 @@ logging.basicConfig(
 log = logging.getLogger("VSXCatalog")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-CATALOG_DIR  = PROJECT_ROOT / "catalogs"
-DATA_DIR     = PROJECT_ROOT / "data"
-MASTER_FILE  = CATALOG_DIR / "campaign_targets.json"
-VSX_CACHE    = DATA_DIR / "vsx_catalog.json"
+CATALOG_DIR = PROJECT_ROOT / "catalogs"
+DATA_DIR = PROJECT_ROOT / "data"
+MASTER_FILE = CATALOG_DIR / "campaign_targets.json"
+VSX_CACHE = DATA_DIR / "vsx_catalog.json"
+VSX_LOCK = DATA_DIR / "vsx_catalog.lock"
 
-POLL_DELAY_S = 188.4  # SeeVar-vsx-throttle-188: Pi-Minute per CONTRIBUTING.md
+POLL_DELAY_S = 188.4  # Delay applies only after actual API calls.
+SAVE_EVERY_N = 10
+HTTP_RETRIES = 2
+HTTP_BACKOFF_S = 2.0
+
+_MAG_CACHE: dict[str, dict] = {}
+_MAG_CACHE_MTIME: float | None = None
+
+
+@contextmanager
+def _file_lock():
+    VSX_LOCK.parent.mkdir(parents=True, exist_ok=True)
+    with open(VSX_LOCK, "w") as lockf:
+        if fcntl is not None:
+            fcntl.flock(lockf.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(lockf.fileno(), fcntl.LOCK_UN)
+
+
+def _load_cache_from_disk() -> dict:
+    if not VSX_CACHE.exists():
+        return {"stars": {}}
+    try:
+        with open(VSX_CACHE, "r") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            data.setdefault("stars", {})
+            return data
+    except json.JSONDecodeError:
+        log.warning("VSX cache unreadable; starting with empty cache.")
+    except Exception as exc:
+        log.warning("VSX cache read failed: %s", exc)
+    return {"stars": {}}
+
+
+def _save_cache(cache: dict):
+    VSX_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    out = {
+        "#objective": "AAVSO VSX magnitude ranges for dynamic exposure planning.",
+        "stars": cache,
+    }
+    tmp = VSX_CACHE.with_suffix(".json.tmp")
+    with _file_lock():
+        with open(tmp, "w") as f:
+            json.dump(out, f, indent=4)
+        tmp.replace(VSX_CACHE)
+
+
+def _refresh_mag_cache():
+    global _MAG_CACHE, _MAG_CACHE_MTIME
+
+    if not VSX_CACHE.exists():
+        _MAG_CACHE = {}
+        _MAG_CACHE_MTIME = None
+        return
+
+    try:
+        mtime = VSX_CACHE.stat().st_mtime
+    except Exception:
+        return
+
+    if _MAG_CACHE_MTIME is not None and mtime == _MAG_CACHE_MTIME:
+        return
+
+    data = _load_cache_from_disk()
+    _MAG_CACHE = data.get("stars", {})
+    _MAG_CACHE_MTIME = mtime
+
+
+def _extract_band(value) -> str | None:
+    if not value:
+        return None
+    m = re.search(r"([A-Za-z]+)\s*$", str(value).strip())
+    return m.group(1) if m else None
+
+
+def _clean_mag(value) -> float | None:
+    if not value:
+        return None
+    m_str = str(value).replace("<", "").replace(">", "").strip()
+    m_str = re.sub(r"[A-Za-z:()]", "", m_str)
+    try:
+        return float(m_str)
+    except ValueError:
+        return None
+
+
+def _clean_period(value) -> float | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        cleaned = re.sub(r"[^0-9.]+", "", str(value))
+        return float(cleaned) if cleaned else None
+    except Exception:
+        return None
+
 
 def _query_vsx_raw(star_name: str) -> dict:
     url = "https://aavso.org/vsx/index.php"
     params = {
         "view": "api.object",
         "ident": star_name,
-        "format": "json"
+        "format": "json",
     }
-    try:
-        r = requests.get(url, params=params, timeout=15)
-        r.raise_for_status()
-        return r.json()
-    except Exception as e:
-        log.warning("VSX fetch failed for %s: %s", star_name, e)
-        return {}
+
+    for attempt in range(1, HTTP_RETRIES + 1):
+        try:
+            r = requests.get(url, params=params, timeout=15)
+            r.raise_for_status()
+            return r.json()
+        except Exception as exc:
+            if attempt >= HTTP_RETRIES:
+                log.warning("VSX fetch failed for %s after %d attempt(s): %s", star_name, attempt, exc)
+                return {}
+            log.warning("VSX fetch failed for %s (attempt %d/%d): %s; retrying...", star_name, attempt, HTTP_RETRIES, exc)
+            time.sleep(HTTP_BACKOFF_S)
+
+    return {}
+
 
 def _parse_vsx(star_name: str, raw: dict) -> dict:
     vsobj = raw.get("VSXObject", {})
     if not vsobj:
         return {}
 
-    max_mag = vsobj.get("maxMag")
-    min_mag = vsobj.get("minMag")
+    max_mag_raw = vsobj.get("maxMag")
+    min_mag_raw = vsobj.get("minMag")
     var_type = vsobj.get("Type")
-    period = vsobj.get("Period")
+    period = _clean_period(vsobj.get("Period"))
 
-    def _clean_mag(m) -> float | None:
-        if not m: return None
-        m_str = str(m).replace("<", "").replace(">", "").strip()
-        m_str = re.sub(r"[A-Za-z:()]", "", m_str)
-        try:
-            return float(m_str)
-        except ValueError:
-            return None
+    max_band = _extract_band(max_mag_raw)
+    min_band = _extract_band(min_mag_raw)
 
-    c_max = _clean_mag(max_mag)
-    c_min = _clean_mag(min_mag)
+    c_max = _clean_mag(max_mag_raw)
+    c_min = _clean_mag(min_mag_raw)
+
+    if max_band and min_band and max_band != min_band:
+        log.warning(
+            "VSX band mismatch for %s: max=%s (%s) min=%s (%s)",
+            star_name, max_mag_raw, max_band, min_mag_raw, min_band
+        )
 
     mag_mid = None
     if c_max is not None and c_min is not None:
@@ -80,7 +197,10 @@ def _parse_vsx(star_name: str, raw: dict) -> dict:
         "mag_mid": mag_mid,
         "type": var_type,
         "period": period,
+        "max_band": max_band,
+        "min_band": min_band,
     }
+
 
 def update_vsx_catalog(force_refresh: bool = False):
     if not MASTER_FILE.exists():
@@ -92,61 +212,55 @@ def update_vsx_catalog(force_refresh: bool = False):
 
     targets = master.get("targets", []) if isinstance(master, dict) else master
 
-    cache = {}
-    if VSX_CACHE.exists() and not force_refresh:
-        try:
-            with open(VSX_CACHE, "r") as f:
-                c = json.load(f)
-                cache = c.get("stars", {})
-        except json.JSONDecodeError:
-            pass
+    cache_data = _load_cache_from_disk() if VSX_CACHE.exists() and not force_refresh else {"stars": {}}
+    cache = cache_data.get("stars", {})
 
     updated = 0
+    since_save = 0
     total = len(targets)
 
-    for i, t in enumerate(targets, 1):
-        name = t.get("name")
-        if not name: continue
+    try:
+        for i, t in enumerate(targets, 1):
+            name = t.get("name")
+            if not name:
+                continue
 
-        if name in cache and not force_refresh:
-            continue
+            if name in cache and not force_refresh:
+                continue
 
-        log.info("[%d/%d] Fetching VSX for %s...", i, total, name)
-        raw = _query_vsx_raw(name)
-        parsed = _parse_vsx(name, raw)
+            log.info("[%d/%d] Fetching VSX for %s...", i, total, name)
+            raw = _query_vsx_raw(name)
+            parsed = _parse_vsx(name, raw)
 
-        if parsed:
-            cache[name] = parsed
-            updated += 1
-            log.debug("  -> %s", parsed)
-            
-            # Incremental save: Persist to disk immediately after successful parse
-            out = {
-                "#objective": "AAVSO VSX magnitude ranges for dynamic exposure planning.",
-                "stars": cache,
-            }
-            with open(VSX_CACHE, "w") as f:
-                json.dump(out, f, indent=4)
-                
-        else:
-            log.warning("  -> No VSX match.")
+            if parsed:
+                cache[name] = parsed
+                updated += 1
+                since_save += 1
+                log.debug("  -> %s", parsed)
 
-        time.sleep(POLL_DELAY_S)
+                if since_save >= SAVE_EVERY_N:
+                    _save_cache(cache)
+                    since_save = 0
+            else:
+                log.warning("  -> No VSX match.")
+
+            time.sleep(POLL_DELAY_S)
+    finally:
+        if updated > 0 or force_refresh:
+            _save_cache(cache)
+            _refresh_mag_cache()
 
     if updated > 0 or force_refresh:
         log.info("✅ VSX Catalog updated. %d new records.", updated)
     else:
         log.info("✅ VSX Catalog up to date. No API calls made.")
 
+
 def get_target_mag(target_name: str) -> float | None:
-    if not VSX_CACHE.exists(): return None
-    try:
-        with open(VSX_CACHE, "r") as f:
-            data = json.load(f)
-        star = data.get("stars", {}).get(target_name, {})
-        return star.get("mag_mid")
-    except Exception:
-        return None
+    _refresh_mag_cache()
+    star = _MAG_CACHE.get(target_name, {})
+    return star.get("mag_mid")
+
 
 if __name__ == "__main__":
     args = sys.argv[1:]
@@ -176,14 +290,12 @@ if __name__ == "__main__":
         print(f"\nVSX Cached Stars: {len(stars)}")
         print(f"{'Name':<26} {'Type':<8} {'Max':>5} {'Min':>6} {'Mid':>6} {'Period':>9}")
         for name, s in sorted(stars.items()):
-            vtype  = str(s.get("type",""))[:8]
-            maxm   = f"{s['max_mag']:.1f}"  if s.get("max_mag")  is not None else "   — "
-            minm   = f"{s['min_mag']:.1f}"  if s.get("min_mag")  is not None else "   —  "
-            midm   = f"{s['mag_mid']:.1f}"  if s.get("mag_mid")  is not None else "   —  "
-            try:
-                period = f"{float(re.sub(r'[^0-9.]', '', str(s['period']))):.1f}d" if s.get("period") else "       —"
-            except (ValueError, TypeError):
-                period = str(s.get("period","—"))[:9]
+            vtype = str(s.get("type", ""))[:8]
+            maxm = f"{s['max_mag']:.1f}" if s.get("max_mag") is not None else "   — "
+            minm = f"{s['min_mag']:.1f}" if s.get("min_mag") is not None else "   —  "
+            midm = f"{s['mag_mid']:.1f}" if s.get("mag_mid") is not None else "   —  "
+            period_val = s.get("period")
+            period = f"{period_val:.1f}d" if isinstance(period_val, (int, float)) else "       —"
             print(f"{name:<26} {vtype:<8} {maxm:>5} {minm:>6} {midm:>6} {period:>9}")
     elif len(args) > 0:
         star = " ".join(args)
@@ -191,14 +303,11 @@ if __name__ == "__main__":
         r = _query_vsx_raw(star)
         p = _parse_vsx(star, r)
         if p:
-            if VSX_CACHE.exists():
-                with open(VSX_CACHE, "r") as f:
-                    data = json.load(f)
-            else:
-                data = {"stars": {}}
+            data = _load_cache_from_disk()
+            data.setdefault("stars", {})
             data["stars"][star] = p
-            with open(VSX_CACHE, "w") as f:
-                json.dump(data, f, indent=4)
+            _save_cache(data["stars"])
+            _refresh_mag_cache()
             log.info("Updated %s: %s", star, p)
         else:
             log.error("Failed to parse %s", star)
