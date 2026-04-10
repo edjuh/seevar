@@ -133,7 +133,20 @@ def read_catalog_stats() -> dict:
 
     v = _read_json(VSX_FILE)
     vsx_stars    = v.get("stars", {}) if isinstance(v, dict) else {}
-    vsx_enriched = len(vsx_stars)
+    vsx_enriched = sum(
+        1
+        for s in vsx_stars.values()
+        if isinstance(s, dict)
+        and s.get("status") != "no_match"
+        and (
+            s.get("status") == "ok"
+            or s.get("mag_mid") is not None
+            or s.get("type")
+            or s.get("period") is not None
+            or s.get("max_mag") is not None
+            or s.get("min_mag") is not None
+        )
+    )
 
     charts = len(list(CHARTS_DIR.glob("*.json"))) if CHARTS_DIR.exists() else 0
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/vsx_catalog.py
-Version: 2.3.0
+Version: 2.4.0
 Objective: Fetch magnitude ranges from AAVSO VSX for all campaign targets,
            cache them safely, and serve target magnitudes efficiently at runtime.
 """
@@ -15,6 +15,7 @@ import re
 import sys
 import time
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -43,6 +44,9 @@ SAVE_EVERY_N = 10
 HTTP_RETRIES = 2
 HTTP_BACKOFF_S = 2.0
 
+STATUS_OK = "ok"
+STATUS_NO_MATCH = "no_match"
+
 _MAG_CACHE: dict[str, dict] = {}
 _MAG_CACHE_MTIME: float | None = None
 
@@ -60,6 +64,10 @@ def _file_lock():
                 fcntl.flock(lockf.fileno(), fcntl.LOCK_UN)
 
 
+def _now_utc() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
 def _load_cache_from_disk() -> dict:
     if not VSX_CACHE.exists():
         return {"stars": {}}
@@ -68,6 +76,27 @@ def _load_cache_from_disk() -> dict:
             data = json.load(f)
         if isinstance(data, dict):
             data.setdefault("stars", {})
+            stars = data.get("stars", {})
+            migrated = False
+            if isinstance(stars, dict):
+                for name, entry in list(stars.items()):
+                    if not isinstance(entry, dict):
+                        entry = {}
+                    if "status" not in entry:
+                        enriched = (
+                            entry.get("mag_mid") is not None
+                            or bool(entry.get("type"))
+                            or entry.get("period") is not None
+                            or entry.get("max_mag") is not None
+                            or entry.get("min_mag") is not None
+                        )
+                        entry["status"] = STATUS_OK if enriched else STATUS_NO_MATCH
+                        entry.setdefault("checked_utc", _now_utc())
+                        stars[name] = entry
+                        migrated = True
+            if migrated:
+                data["stars"] = stars
+                _save_cache(stars)
             return data
     except json.JSONDecodeError:
         log.warning("VSX cache unreadable; starting with empty cache.")
@@ -138,6 +167,46 @@ def _clean_period(value) -> float | None:
         return float(cleaned) if cleaned else None
     except Exception:
         return None
+
+
+def _stamp_entry(entry: dict, status: str) -> dict:
+    stamped = dict(entry)
+    stamped["status"] = status
+    stamped["checked_utc"] = _now_utc()
+    return stamped
+
+
+def _negative_cache_entry() -> dict:
+    return _stamp_entry(
+        {
+            "max_mag": None,
+            "min_mag": None,
+            "mag_mid": None,
+            "type": None,
+            "period": None,
+            "max_band": None,
+            "min_band": None,
+        },
+        STATUS_NO_MATCH,
+    )
+
+
+def _is_cached_success(entry: dict) -> bool:
+    if not isinstance(entry, dict):
+        return False
+    if entry.get("status") == STATUS_OK:
+        return True
+    return (
+        entry.get("mag_mid") is not None
+        or bool(entry.get("type"))
+        or entry.get("period") is not None
+        or entry.get("max_mag") is not None
+        or entry.get("min_mag") is not None
+    )
+
+
+def _is_cached_no_match(entry: dict) -> bool:
+    return isinstance(entry, dict) and entry.get("status") == STATUS_NO_MATCH
 
 
 def _query_vsx_raw(star_name: str) -> dict:
@@ -219,6 +288,7 @@ def update_vsx_catalog(force_refresh: bool = False):
     cache = cache_data.get("stars", {})
 
     updated = 0
+    no_match_cached = 0
     since_save = 0
     total = len(targets)
 
@@ -230,7 +300,7 @@ def update_vsx_catalog(force_refresh: bool = False):
 
             if name in cache and not force_refresh:
                 existing = cache.get(name, {})
-                if existing.get("mag_mid") is not None and existing.get("type"):
+                if _is_cached_success(existing) or _is_cached_no_match(existing):
                     continue
 
             log.info("[%d/%d] Fetching VSX for %s...", i, total, name)
@@ -238,25 +308,32 @@ def update_vsx_catalog(force_refresh: bool = False):
             parsed = _parse_vsx(name, raw)
 
             if parsed:
-                cache[name] = parsed
+                cache[name] = _stamp_entry(parsed, STATUS_OK)
                 updated += 1
                 since_save += 1
                 log.debug("  -> %s", parsed)
-
-                if since_save >= SAVE_EVERY_N:
-                    _save_cache(cache)
-                    since_save = 0
             else:
-                log.warning("  -> No VSX match.")
+                cache[name] = _negative_cache_entry()
+                no_match_cached += 1
+                since_save += 1
+                log.warning("  -> No VSX match; cached as no_match.")
+
+            if since_save >= SAVE_EVERY_N:
+                _save_cache(cache)
+                since_save = 0
 
             time.sleep(POLL_DELAY_S)
     finally:
-        if updated > 0 or force_refresh:
+        if updated > 0 or no_match_cached > 0 or force_refresh:
             _save_cache(cache)
             _refresh_mag_cache()
 
-    if updated > 0 or force_refresh:
-        log.info("✅ VSX Catalog updated. %d new/updated records.", updated)
+    if updated > 0 or no_match_cached > 0 or force_refresh:
+        log.info(
+            "✅ VSX Catalog updated. %d enriched, %d cached as no_match.",
+            updated,
+            no_match_cached,
+        )
     else:
         log.info("✅ VSX Catalog up to date. No API calls made.")
 
@@ -292,9 +369,12 @@ if __name__ == "__main__":
         with open(VSX_CACHE, "r") as f:
             c = json.load(f)
         stars = c.get("stars", {})
-        print(f"\nVSX Cached Stars: {len(stars)}")
+        positive = {name: s for name, s in stars.items() if not _is_cached_no_match(s)}
+        misses = sum(1 for s in stars.values() if _is_cached_no_match(s))
+
+        print(f"\nVSX Cached Stars: {len(stars)} ({len(positive)} enriched, {misses} no_match)")
         print(f"{'Name':<26} {'Type':<8} {'Max':>5} {'Min':>6} {'Mid':>6} {'Period':>9}")
-        for name, s in sorted(stars.items()):
+        for name, s in sorted(positive.items()):
             vtype = str(s.get("type", ""))[:8]
             maxm = f"{s['max_mag']:.1f}" if s.get("max_mag") is not None else "   — "
             minm = f"{s['min_mag']:.1f}" if s.get("min_mag") is not None else "   —  "
@@ -307,14 +387,17 @@ if __name__ == "__main__":
         log.info("Fetching single target: %s", star)
         r = _query_vsx_raw(star)
         p = _parse_vsx(star, r)
+        data = _load_cache_from_disk()
+        data.setdefault("stars", {})
         if p:
-            data = _load_cache_from_disk()
-            data.setdefault("stars", {})
-            data["stars"][star] = p
+            data["stars"][star] = _stamp_entry(p, STATUS_OK)
             _save_cache(data["stars"])
             _refresh_mag_cache()
             log.info("Updated %s: %s", star, p)
         else:
-            log.error("Failed to parse %s", star)
+            data["stars"][star] = _negative_cache_entry()
+            _save_cache(data["stars"])
+            _refresh_mag_cache()
+            log.warning("Cached %s as no_match", star)
     else:
         update_vsx_catalog()
