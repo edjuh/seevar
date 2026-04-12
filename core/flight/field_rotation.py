@@ -181,8 +181,10 @@ if __name__ == "__main__":
 
     print("Field Rotation Analysis with Numerical Integration (v1.2.0)")
     print("=" * 95)
-    print(f"{'Az':>5} {'Alt':>5} {'Rate \"/s':>9} {'px/s':>8} "
-          f"{'Inst Max':>8} {'Integ Max':>9} {'@6s px':>8} {'@7.5s px':>9}  Note")
+    print(
+        f"{'Az':>5} {'Alt':>5} {'Rate arcsec/s':>13} {'px/s':>8} "
+        f"{'Inst Max':>8} {'Integ Max':>9} {'@6s px':>8} {'@7.5s px':>9}  Note"
+    )
     print("-" * 95)
 
     test_cases = [
