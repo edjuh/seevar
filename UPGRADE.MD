@@ -52,9 +52,9 @@ cd ~/seevar
 git fetch origin
 git checkout main
 git pull --ff-only origin main
-~/.venv/bin/python -m pip install --upgrade pip
-~/.venv/bin/python -m pip install -r requirements.txt
-~/.venv/bin/python -m py_compile $(git ls-files '*.py')
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m py_compile $(git ls-files '*.py')
 ```
 
 ## After upgrading
