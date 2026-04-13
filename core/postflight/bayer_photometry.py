@@ -18,6 +18,8 @@ from astropy.io import fits
 from astropy.stats import sigma_clip
 from astropy.wcs import WCS
 
+from core.postflight.aperture_photometry import PhotometryStats, classify_quality, refine_centroid
+
 logger = logging.getLogger("seevar.bayer_photometry")
 
 EXPECTED_BAYER_PATTERN = "GRBG"
@@ -84,18 +86,18 @@ def _channel_mask(abs_y: np.ndarray, abs_x: np.ndarray, pattern: str, channel: s
 
 def aperture_flux(
     image: np.ndarray,
-    cx: int,
-    cy: int,
+    cx: float,
+    cy: float,
     r_ap: int = R_AP_DEFAULT,
     r_sky_in: int = R_SKY_IN_DEFAULT,
     r_sky_out: int = R_SKY_OUT_DEFAULT,
     bayer_channel: str = "ALL",
     bayer_pattern: str = EXPECTED_BAYER_PATTERN,
-) -> Tuple[float, float, float]:
+) -> Tuple[float, float, float, float]:
     """
     Circular aperture photometry with Bayer-aware channel slicing.
 
-    Returns (net_flux, sky_median, snr).
+    Returns (net_flux, sky_median, sky_std, snr).
     SNR model includes:
     - target photon noise (Poisson approximation)
     - sky/background noise across the aperture
@@ -123,7 +125,7 @@ def aperture_flux(
     total_noise = math.sqrt(photon_noise_sq + sky_noise_sq) if n_ap > 0 else 0.0
     snr = net_flux / total_noise if total_noise > 0 else 0.0
 
-    return net_flux, sky_median, snr
+    return net_flux, sky_median, sky_std, snr
 
 
 class BayerFITS:
@@ -269,7 +271,9 @@ class BayerFITS:
         y0, y1 = max(0, cy - SEARCH_RADIUS), min(h, cy + SEARCH_RADIUS)
         patch = arr[y0:y1, x0:x1]
         pk = np.unravel_index(patch.argmax(), patch.shape)
-        cx, cy = x0 + pk[1], y0 + pk[0]
+        cx_seed, cy_seed = x0 + pk[1], y0 + pk[0]
+        cx_refined, cy_refined = refine_centroid(arr, cx_seed, cy_seed, radius_px=max(4.0, float(r_ap or R_AP_DEFAULT)))
+        cx, cy = int(round(cx_refined)), int(round(cy_refined))
 
         saturated, peak = self.is_saturated(cx, cy)
         if saturated:
@@ -284,6 +288,8 @@ class BayerFITS:
         result = {
             "cx": cx,
             "cy": cy,
+            "cx_refined": round(float(cx_refined), 3),
+            "cy_refined": round(float(cy_refined), 3),
             "peak": peak,
             "saturated": saturated,
             "r_ap": r_ap,
@@ -291,10 +297,10 @@ class BayerFITS:
         }
 
         for ch in ("G", "R", "B", "ALL"):
-            flux, sky, snr = aperture_flux(
+            flux, sky, sky_std, snr = aperture_flux(
                 arr,
-                cx,
-                cy,
+                cx_refined,
+                cy_refined,
                 r_ap,
                 r_sky_in_used,
                 r_sky_out_used,
@@ -303,7 +309,24 @@ class BayerFITS:
             )
             result[f"flux_{ch}"] = round(flux, 2)
             result[f"sky_{ch}"] = round(sky, 2)
+            result[f"sky_std_{ch}"] = round(sky_std, 2)
             result[f"snr_{ch}"] = round(snr, 2)
+
+        qa = PhotometryStats(
+            x=float(cx_refined),
+            y=float(cy_refined),
+            radius=float(r_ap),
+            raw_flux=float(result["flux_G"]),
+            net_flux=float(result["flux_G"]),
+            sky_median=float(result["sky_G"]),
+            sky_std=float(result["sky_std_G"]),
+            peak=float(peak),
+            snr=float(result["snr_G"]),
+            aperture_area=float(np.pi * (r_ap ** 2)),
+        )
+        qa = classify_quality(qa, saturation_limit=SATURATION_CEILING)
+        result["quality_flags"] = qa.flags
+        result["quality_ok"] = len(qa.flags) == 0
 
         return result
 
