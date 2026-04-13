@@ -93,3 +93,26 @@ The repository now ignores both:
 That distinction matters because Git treats a symlink like a file path, not like a directory.
 
 If you still have local tracked code edits, stash or commit those before upgrading.
+
+## Mission Test Cap
+
+Nightly target count is controlled by two separate layers:
+
+- `data/tonights_plan.json` is the planner output for what is scientifically eligible tonight
+- `[mission].max_targets` in `config.toml` is an optional runtime cap applied by the orchestrator
+
+Examples:
+
+```toml
+[mission]
+max_targets = 0
+```
+
+`0` means no orchestrator cap.
+
+```toml
+[mission]
+max_targets = 1
+```
+
+This is useful for test nights where you only want the first planned target executed.

@@ -117,12 +117,37 @@ def read_weather() -> dict:
 def read_plan() -> dict:
     p = _read_json(PLAN_FILE)
     targets = p if isinstance(p, list) else p.get("targets", [])
+    metadata = {} if isinstance(p, list) else p.get("metadata", {})
+
+    try:
+        with open(CONFIG_FILE, "rb") as f:
+            cfg = tomllib.load(f)
+        mission_cfg = cfg.get("mission", {}) if isinstance(cfg, dict) else {}
+        mission_cap = mission_cfg.get("max_targets", 0)
+        mission_cap = int(mission_cap) if mission_cap not in (None, "", 0) else 0
+    except Exception:
+        mission_cap = 0
+
+    planner_total = len(targets)
+    effective_total = min(planner_total, mission_cap) if mission_cap > 0 else planner_total
+
     if not targets:
-        return {"empty": True, "total": 0, "next": "—"}
+        return {
+            "empty": True,
+            "planner_total": 0,
+            "mission_cap": mission_cap,
+            "effective_total": 0,
+            "next": "—",
+            "generated": metadata.get("generated"),
+        }
+
     return {
         "empty": False,
-        "total": len(targets),
-        "next":  targets[0].get("name", "—"),
+        "planner_total": planner_total,
+        "mission_cap": mission_cap,
+        "effective_total": effective_total,
+        "next": targets[0].get("name", "—"),
+        "generated": metadata.get("generated"),
     }
 
 
@@ -589,14 +614,32 @@ def draw_catalog(win, data: dict):
 
 def draw_plan(win, data: dict):
     draw_border(win, "Tonight's Plan")
-    if data.get("empty") or data["total"] == 0:
+    if data.get("empty") or data["planner_total"] == 0:
         waiting(win)
         return
-    safe_addstr(win, 1, 2,  "Targets: ", curses.color_pair(C_DIM))
-    safe_addstr(win, 1, 11, str(data["total"]),
+
+    planner_total = data["planner_total"]
+    mission_cap = data.get("mission_cap", 0)
+    effective_total = data.get("effective_total", planner_total)
+
+    safe_addstr(win, 1, 2, "Planner : ", curses.color_pair(C_DIM))
+    safe_addstr(win, 1, 12, str(planner_total),
                 curses.color_pair(C_GOOD) | curses.A_BOLD)
-    safe_addstr(win, 2, 2,  "Next   : ", curses.color_pair(C_DIM))
-    safe_addstr(win, 2, 11, data["next"],
+
+    safe_addstr(win, 2, 2, "Cap     : ", curses.color_pair(C_DIM))
+    if mission_cap > 0:
+        safe_addstr(win, 2, 12, str(mission_cap),
+                    curses.color_pair(C_WARN) | curses.A_BOLD)
+    else:
+        safe_addstr(win, 2, 12, "unlimited",
+                    curses.color_pair(C_DIM))
+
+    safe_addstr(win, 3, 2, "Effective: ", curses.color_pair(C_DIM))
+    eff_attr = curses.color_pair(C_WARN) | curses.A_BOLD if mission_cap > 0 and effective_total < planner_total else curses.color_pair(C_GOOD) | curses.A_BOLD
+    safe_addstr(win, 3, 12, str(effective_total), eff_attr)
+
+    safe_addstr(win, 4, 2, "Next    : ", curses.color_pair(C_DIM))
+    safe_addstr(win, 4, 12, data["next"],
                 curses.color_pair(C_WARN) | curses.A_BOLD)
 
 
@@ -623,7 +666,7 @@ ORCH_H   = 4
 WX_H     = 7
 FLEET_H  = 10   # 2 rows per scope (name+telemetry, mount+event) + spacing
 CAT_H    = 8
-PLAN_H   = 4
+PLAN_H   = 6
 TOP_H    = max(ORCH_H + WX_H, FLEET_H, CAT_H + PLAN_H)
 LOG_TOP  = 1 + TOP_H
 
