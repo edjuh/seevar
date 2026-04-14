@@ -419,8 +419,14 @@ class Orchestrator:
         self._log_flight("[A3] Session init baseline")
         self._last_telemetry = self.fsm.sequence.init_session(level_ok=True)
 
+        if self._last_telemetry:
+            try:
+                self._log_flight(f"[A3] Telemetry — {self._last_telemetry.summary()}")
+            except Exception:
+                pass
+
         if not self._last_telemetry.is_safe():
-            reason = self._last_telemetry.veto_reason()
+            reason = self._last_telemetry.parse_error or self._last_telemetry.veto_reason()
             self._log_flight(f"[A3] 🛑 VETO at preflight: {reason}")
             self._transition(PipelineState.ABORTED, msg=f"Preflight veto: {reason}")
             return
