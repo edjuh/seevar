@@ -620,13 +620,58 @@ class DiamondSequence:
         self._telescope = AlpacaTelescope(host, port)
         self._camera = AlpacaCamera(host, port)
         self._filter = AlpacaFilterWheel(host, port)
+        self._session_ready = False
+        self._session_connects = 0
+        self._last_session_error = ""
 
-    def _is_reachable(self) -> bool:
+    def _management_status(self) -> tuple[bool, str]:
         try:
             r = requests.get(f"http://{self.host}:{self.port}/management/apiversions", timeout=5)
-            return r.status_code == 200
-        except Exception:
-            return False
+            if r.status_code != 200:
+                return False, f"Alpaca management returned HTTP {r.status_code}"
+            return True, ""
+        except Exception as e:
+            return False, f"Alpaca management unreachable: {e}"
+
+    def _is_reachable(self) -> bool:
+        ok, _ = self._management_status()
+        return ok
+
+    def _require_connected(self, client: AlpacaClient, label: str):
+        try:
+            connected = bool(client.connected)
+        except Exception as e:
+            raise RuntimeError(f"{label} connection probe failed: {e}")
+        if not connected:
+            raise RuntimeError(f"{label} reports connected=false after connect()")
+
+    def _session_health(self) -> tuple[bool, str]:
+        ok, err = self._management_status()
+        if not ok:
+            return False, err
+
+        try:
+            if not self._telescope.connected:
+                return False, "Telescope disconnected"
+            if not self._camera.connected:
+                return False, "Camera disconnected"
+            if not self._filter.connected:
+                return False, "Filter wheel disconnected"
+
+            self._telescope._get("tracking")
+            self._telescope._get("atpark")
+            self._telescope._get("rightascension")
+            self._telescope._get("declination")
+            return True, ""
+        except Exception as e:
+            return False, f"Alpaca backend reachable but telescope not operational: {e}"
+
+    def _read_operational_telemetry(self, level_ok: bool) -> TelemetryBlock:
+        telemetry = TelemetryBlock.from_alpaca(self._telescope, self._camera)
+        telemetry.level_ok = level_ok
+        if telemetry.parse_error:
+            telemetry.parse_error = f"Alpaca backend reachable but telemetry unavailable: {telemetry.parse_error}"
+        return telemetry
 
     def _site_latitude_deg(self) -> float | None:
         gps = _read_gps_ram()
@@ -855,15 +900,35 @@ class DiamondSequence:
         return corrected_ra_hours, corrected_dec_deg
 
     def init_session(self, level_ok: bool = True) -> TelemetryBlock:
-        if not self._is_reachable():
-            t = TelemetryBlock(parse_error="Alpaca server not reachable")
+        mgmt_ok, mgmt_error = self._management_status()
+        if not mgmt_ok:
+            self._session_ready = False
+            self._last_session_error = mgmt_error
+            t = TelemetryBlock(parse_error=mgmt_error)
             t.level_ok = level_ok
             return t
 
+        if self._session_ready:
+            healthy, reason = self._session_health()
+            if healthy:
+                telemetry = self._read_operational_telemetry(level_ok)
+                self._last_session_error = telemetry.parse_error or ""
+                logger.info("init_session: reusing healthy Alpaca session (%d prior connects)", self._session_connects)
+                logger.info("init_session: %s", telemetry.summary())
+                return telemetry
+
+            logger.warning("init_session: cached Alpaca session unhealthy, reconnecting: %s", reason)
+            self._session_ready = False
+
         try:
             self._telescope.connect()
+            self._require_connected(self._telescope, "Telescope")
+
             self._camera.connect()
+            self._require_connected(self._camera, "Camera")
+
             self._filter.connect()
+            self._require_connected(self._filter, "Filter wheel")
 
             try:
                 if self._telescope.at_park:
@@ -875,6 +940,12 @@ class DiamondSequence:
 
             try:
                 self._telescope.set_tracking(True)
+                try:
+                    tracking_now = self._telescope._get("tracking")
+                    if not tracking_now:
+                        logger.warning("Tracking enable requested but tracking still reports OFF")
+                except Exception as e:
+                    logger.warning("Tracking state probe after enable: %s", e)
             except Exception as e:
                 logger.warning("Tracking enable: %s", e)
 
@@ -883,17 +954,17 @@ class DiamondSequence:
             except Exception as e:
                 logger.warning("Gain set: %s", e)
 
-            telemetry = TelemetryBlock.from_alpaca(self._telescope, self._camera)
-            telemetry.level_ok = level_ok
-
+            telemetry = self._read_operational_telemetry(level_ok)
+            self._session_ready = telemetry.parse_error is None
+            self._session_connects += 1
+            self._last_session_error = telemetry.parse_error or ""
             logger.info("init_session: %s", telemetry.summary())
-
-            if telemetry.veto_reason():
-                return telemetry
 
             return telemetry
 
         except Exception as e:
+            self._session_ready = False
+            self._last_session_error = str(e)
             t = TelemetryBlock(parse_error=f"init_session exception: {e}")
             t.level_ok = level_ok
             return t
