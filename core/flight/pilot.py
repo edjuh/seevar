@@ -45,20 +45,29 @@ from core.flight.field_rotation import max_exposure_s as rotation_limited_exposu
 # Dynamic IP Resolution
 # ---------------------------------------------------------------------------
 
-def _get_seestar_ip() -> str:
+def _resolve_seestar_host() -> tuple[str, str]:
     cfg = load_config()
-    seestars = cfg.get("seestars", [{}])
-    ip = seestars[0].get("ip", "TBD")
-    if ip == "TBD" or not ip:
-        return "10.0.0.1"
-    return ip
+
+    alpaca_cfg = cfg.get("alpaca", {}) if isinstance(cfg, dict) else {}
+    alpaca_host = str(alpaca_cfg.get("host", "")).strip()
+    if alpaca_host and alpaca_host != "TBD":
+        return alpaca_host, "config.alpaca.host"
+
+    seestars = cfg.get("seestars", [{}]) if isinstance(cfg, dict) else [{}]
+    if seestars and isinstance(seestars[0], dict):
+        for key in ("host", "ip"):
+            value = str(seestars[0].get(key, "")).strip()
+            if value and value != "TBD":
+                return value, f"config.seestars[0].{key}"
+
+    return "10.0.0.1", "fallback.default"
 
 
 # ---------------------------------------------------------------------------
 # Constants — single source of truth (S30-Pro / Alpaca v1.2.0-3)
 # ---------------------------------------------------------------------------
 
-SEESTAR_HOST = _get_seestar_ip()
+SEESTAR_HOST, SEESTAR_HOST_SOURCE = _resolve_seestar_host()
 ALPACA_PORT = 32323
 TELESCOPE_NUM = 0
 CAMERA_NUM = 0
@@ -617,6 +626,8 @@ class DiamondSequence:
     def __init__(self, host: str = SEESTAR_HOST, port: int = ALPACA_PORT):
         self.host = host
         self.port = port
+        self.host_source = "explicit argument" if host != SEESTAR_HOST else SEESTAR_HOST_SOURCE
+        logger.info("DiamondSequence endpoint: %s:%d (%s)", self.host, self.port, self.host_source)
         self._telescope = AlpacaTelescope(host, port)
         self._camera = AlpacaCamera(host, port)
         self._filter = AlpacaFilterWheel(host, port)
