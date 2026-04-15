@@ -733,10 +733,10 @@ class DiamondSequence:
             return target
 
         current_exp_sec = max(1.0, float(target.exp_ms) / 1000.0)
-        if rot.max_exp_s >= current_exp_sec - 0.05:
+        if rot.max_exp_integ_s >= current_exp_sec - 0.05:
             return target
 
-        capped_exp_sec = max(7.5, float(rot.max_exp_s))
+        capped_exp_sec = max(7.5, float(rot.max_exp_integ_s))
         capped_exp_ms = max(1000, int(round(capped_exp_sec * 1000.0)))
         planned_total_sec = float(target.integration_sec) if target.integration_sec is not None else current_exp_sec * max(1, int(target.n_frames))
         new_n_frames = max(int(target.n_frames), int(math.ceil(planned_total_sec / capped_exp_sec)))
