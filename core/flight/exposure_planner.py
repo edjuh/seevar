@@ -171,9 +171,9 @@ def plan_exposure(
         try:
             from core.flight.field_rotation import max_exposure_s as _rot_max
             rot = _rot_max(az_deg, alt_deg, lat_deg, pixscale_arcsec)
-            if rot.max_exp_s < t_frame:
-                t_frame = max(MIN_EXP_SEC, rot.max_exp_s)
-                rotation_note = f" | ROT {rot.max_exp_s:.0f}s"
+            if rot.max_exp_integ_s < t_frame:
+                t_frame = max(MIN_EXP_SEC, rot.max_exp_integ_s)
+                rotation_note = f" | ROT {rot.max_exp_integ_s:.0f}s"
         except ImportError:
             pass
 
