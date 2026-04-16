@@ -21,6 +21,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(PROJECT_ROOT))
 
 from core.utils.env_loader import configured_scopes, effective_fleet_mode, load_config
+from core.ledger_manager import calculate_cadence, load_ledger
 from core.flight.exposure_planner import plan_exposure, DEFAULT_BORTLE
 
 try:
@@ -46,6 +47,56 @@ CLEARANCE_MARGIN_DEG = 5.0
 DEFAULT_START_AZ = 220.0
 DEFAULT_BLOCK_OVERHEAD_MIN = 5
 ZENITH_SOFT_LIMIT_DEG = 75.0
+
+
+def _parse_utc_dt(value):
+    if not value:
+        return None
+    try:
+        text = str(value).replace("Z", "+00:00")
+        dt = datetime.fromisoformat(text)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def _ledger_entry_for_target(entries: dict, target_name: str) -> dict:
+    if not isinstance(entries, dict):
+        return {}
+
+    if target_name in entries and isinstance(entries[target_name], dict):
+        return entries[target_name]
+
+    safe_name = str(target_name).replace(" ", "_").upper()
+    if safe_name in entries and isinstance(entries[safe_name], dict):
+        return entries[safe_name]
+
+    return {}
+
+
+def _target_due_from_ledger(target: dict, ledger_entries: dict, now_utc: datetime, planning_start_utc: datetime) -> tuple[bool, str]:
+    name = str(target.get("name", "")).strip()
+    if not name:
+        return True, "missing_name"
+
+    entry = _ledger_entry_for_target(ledger_entries, name)
+    if not entry:
+        return True, "new_target"
+
+    last_success = _parse_utc_dt(entry.get("last_success"))
+    if last_success is not None:
+        cadence_days = float(calculate_cadence(target))
+        if now_utc - last_success < timedelta(days=cadence_days):
+            return False, "cadence_not_due"
+
+    last_capture = _parse_utc_dt(entry.get("last_capture_utc"))
+    status = str(entry.get("status", "")).strip().upper()
+    if last_capture is not None and last_capture >= planning_start_utc and status in {"CAPTURED_RAW", "OBSERVED"}:
+        return False, "already_captured_this_night"
+
+    return True, "due"
 
 
 def az_distance(a, b):
@@ -496,6 +547,24 @@ def run_funnel():
             analyzed.append(analyzed_target)
 
     ordered = greedy_order(analyzed, planning_start_utc, start_az=DEFAULT_START_AZ)
+    ledger_entries = load_ledger()
+    ledger_skip_reasons = {
+        "cadence_not_due": 0,
+        "already_captured_this_night": 0,
+    }
+    due_ordered = []
+
+    for target in ordered:
+        due, reason = _target_due_from_ledger(target, ledger_entries, now_utc, planning_start_utc)
+        if due:
+            due_ordered.append(target)
+            continue
+
+        gate_counts["cadence_skipped"] += 1
+        if reason in ledger_skip_reasons:
+            ledger_skip_reasons[reason] += 1
+
+    ordered = due_ordered
     ordered, scope_plan_summary = assign_targets_to_scopes(
         ordered,
         active_scopes,
@@ -510,6 +579,13 @@ def run_funnel():
     print(f"[+] Survive +{CLEARANCE_MARGIN_DEG:.0f}° margin      : {gate_counts['survive_margin']}")
     print(f"[+] Survive required block       : {gate_counts['survive_block']}")
     print(f"[=] Final tonight-plan count    : {len(ordered)}")
+    if gate_counts["cadence_skipped"]:
+        print(
+            "[=] Ledger deferred              : "
+            f"{gate_counts['cadence_skipped']} "
+            f"(cadence={ledger_skip_reasons['cadence_not_due']} "
+            f"night-hold={ledger_skip_reasons['already_captured_this_night']})"
+        )
     print(f"[=] Sector survivors            : N={sector_counts['N']} E={sector_counts['E']} S={sector_counts['S']} W={sector_counts['W']}")
 
     plan_out = {
@@ -531,6 +607,7 @@ def run_funnel():
             "visible_target_count": len(ordered),
             "planned_target_count": len(ordered),
             "gate_counts": gate_counts,
+            "ledger_skip_reasons": ledger_skip_reasons,
             "sector_counts": sector_counts,
             "scope_plan_summary": scope_plan_summary,
         },
