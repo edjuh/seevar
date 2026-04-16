@@ -9,7 +9,9 @@ Objective: The High-Authority Mission Brain. Manages target cadence and observat
 import json
 import logging
 from datetime import datetime, timezone, timedelta
+from contextlib import contextmanager
 from pathlib import Path
+import fcntl
 
 logging.basicConfig(
     level=logging.INFO,
@@ -19,6 +21,7 @@ logger = logging.getLogger("Ledger")
 
 PROJECT_ROOT  = Path(__file__).resolve().parents[1]
 LEDGER_FILE   = PROJECT_ROOT / "data" / "ledger.json"
+LEDGER_LOCK   = PROJECT_ROOT / "data" / "ledger.lock"
 PLAN_FILE     = PROJECT_ROOT / "data" / "tonights_plan.json"
 CATALOG_FILE  = PROJECT_ROOT / "catalogs" / "federation_catalog.json"
 
@@ -99,8 +102,21 @@ def save_ledger(entries: dict):
         "entries": entries,
     }
     LEDGER_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(LEDGER_FILE, "w") as f:
+    tmp_path = LEDGER_FILE.with_suffix(".json.tmp")
+    with open(tmp_path, "w") as f:
         json.dump(output, f, indent=4)
+    tmp_path.replace(LEDGER_FILE)
+
+
+@contextmanager
+def _locked_ledger_entries():
+    LEDGER_LOCK.parent.mkdir(parents=True, exist_ok=True)
+    with open(LEDGER_LOCK, "w") as lock_handle:
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield load_ledger()
+        finally:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
 
 
 def _blank_entry() -> dict:
@@ -133,43 +149,42 @@ def filter_by_cadence(targets: list) -> list:
 
     Returns filtered list. Updates ledger with any new target entries.
     """
-    ledger  = load_ledger()
-    now     = datetime.now(timezone.utc)
-    due     = []
+    now = datetime.now(timezone.utc)
+    due = []
     skipped = 0
 
-    for t in targets:
-        name = t.get("name", "")
-        if not name:
-            continue
+    with _locked_ledger_entries() as ledger:
+        for t in targets:
+            name = t.get("name", "")
+            if not name:
+                continue
 
-        # Initialise ledger entry if new target
-        if name not in ledger:
-            ledger[name] = _blank_entry()
+            if name not in ledger:
+                ledger[name] = _blank_entry()
 
-        cadence_days = calculate_cadence(t)
-        last_success = ledger[name].get("last_success")
+            cadence_days = calculate_cadence(t)
+            last_success = ledger[name].get("last_success")
 
-        if not last_success:
-            # Never observed — always due
-            due.append(t)
-        else:
-            try:
-                last_dt = datetime.fromisoformat(last_success)
-                if last_dt.tzinfo is None:
-                    last_dt = last_dt.replace(tzinfo=timezone.utc)
-                if now - last_dt >= timedelta(days=cadence_days):
+            if not last_success:
+                due.append(t)
+            else:
+                try:
+                    last_dt = datetime.fromisoformat(last_success)
+                    if last_dt.tzinfo is None:
+                        last_dt = last_dt.replace(tzinfo=timezone.utc)
+                    if now - last_dt >= timedelta(days=cadence_days):
+                        due.append(t)
+                    else:
+                        skipped += 1
+                        logger.debug(
+                            "Cadence skip: %s (last=%s cadence=%dd)",
+                            name, last_success[:10], cadence_days
+                        )
+                except (ValueError, TypeError):
                     due.append(t)
-                else:
-                    skipped += 1
-                    logger.debug(
-                        "Cadence skip: %s (last=%s cadence=%dd)",
-                        name, last_success[:10], cadence_days
-                    )
-            except (ValueError, TypeError):
-                due.append(t)  # bad timestamp — include to be safe
 
-    save_ledger(ledger)
+        save_ledger(ledger)
+
     logger.info(
         "Cadence filter: %d due tonight, %d deferred.", len(due), skipped
     )
@@ -178,41 +193,41 @@ def filter_by_cadence(targets: list) -> list:
 
 def record_attempt(name: str):
     """Increment acquisition-attempt counter for a target before runtime capture."""
-    ledger = load_ledger()
-    if name not in ledger:
-        ledger[name] = _blank_entry()
-    ledger[name]["attempts"] += 1
-    save_ledger(ledger)
+    with _locked_ledger_entries() as ledger:
+        if name not in ledger:
+            ledger[name] = _blank_entry()
+        ledger[name]["attempts"] += 1
+        save_ledger(ledger)
 
 
 def record_capture(name: str, fits_path: str = ""):
     """Record a raw science capture without claiming scientific success."""
-    ledger = load_ledger()
-    if name not in ledger:
-        ledger[name] = _blank_entry()
+    with _locked_ledger_entries() as ledger:
+        if name not in ledger:
+            ledger[name] = _blank_entry()
 
-    entry = ledger[name]
-    entry["status"] = "CAPTURED_RAW"
-    entry["last_capture_utc"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    if fits_path:
-        entry["last_capture_path"] = str(fits_path)
+        entry = ledger[name]
+        entry["status"] = "CAPTURED_RAW"
+        entry["last_capture_utc"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        if fits_path:
+            entry["last_capture_path"] = str(fits_path)
 
-    save_ledger(ledger)
+        save_ledger(ledger)
     logger.info("Ledger: %s → CAPTURED_RAW", name)
 
 
 def record_success(name: str, fits_path: str = ""):
     """Stamp scientific success after postflight closure, not mere runtime capture."""
-    ledger = load_ledger()
-    if name not in ledger:
-        ledger[name] = _blank_entry()
+    with _locked_ledger_entries() as ledger:
+        if name not in ledger:
+            ledger[name] = _blank_entry()
 
-    entry = ledger[name]
-    entry["status"] = "OBSERVED"
-    entry["last_success"] = datetime.now(timezone.utc).isoformat()
-    if fits_path:
-        entry["last_capture_path"] = str(fits_path)
-    save_ledger(ledger)
+        entry = ledger[name]
+        entry["status"] = "OBSERVED"
+        entry["last_success"] = datetime.now(timezone.utc).isoformat()
+        if fits_path:
+            entry["last_capture_path"] = str(fits_path)
+        save_ledger(ledger)
     logger.info("Ledger: %s → OBSERVED", name)
 
 
