@@ -41,6 +41,9 @@
         .fleet-item { display: flex; align-items: baseline; gap: 8px; }
         .fleet-icon { width: 1ch; flex: 0 0 1ch; text-align: center; }
         .fleet-text { flex: 1; }
+        .batt-good { color: var(--led-green); }
+        .batt-warn-inline { color: var(--led-orange); }
+        .batt-crit-inline { color: var(--alert-red); }
         
         .led { width: 20px; height: 20px; border-radius: 4px; margin-left: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color: #000; }
         .green { background-color: var(--led-green); box-shadow: 0 0 8px var(--led-green); }
@@ -136,7 +139,7 @@
             <div class="row"><span class="label">WEATHER (PRED)</span> <span id="weather-val" class="val">CLEAR</span> <div id="weather-icon-led" class="led weather-icon">⭐</div></div>
             <div class="row"><span class="label">FOG (VIS)</span> <span class="val">DISCONNECTED</span> <div class="led blue-grey"></div></div>
             
-            <div class="row"><span class="label">BATTERY</span> <span id="bb-batt" class="val stat-val">--%</span></div>
+            <div class="row fleet-row"><span class="label">BATTERIES</span> <span id="bb-batt" class="val stat-val val-wrap">--</span></div>
             <div class="row"><span class="label">MOUNT POS</span> <span id="bb-mount" class="val stat-val">--</span></div>
             <div class="row fleet-row"><span class="label">FLEET</span> <span id="bb-fleet" class="val stat-val val-wrap">--</span></div>
             
@@ -406,15 +409,35 @@
                             linkLed.className = "led red";
                         }
 
-                        const batt = data.hardware.battery;
-                        if (batt !== "N/A" && batt !== undefined && batt !== null && batt !== "") {
-                            battTxt.innerText = batt + "%";
-                            if (parseInt(batt) > 30) battTxt.className = "val stat-val";
-                            else if (parseInt(batt) > 15) battTxt.className = "val stat-val batt-warn";
-                            else battTxt.className = "val stat-val batt-crit";
+                        if (data.fleet && data.fleet.length > 0) {
+                            const battSummary = data.fleet.map(f => {
+                                const raw = f.battery;
+                                const value = raw !== undefined && raw !== null && raw !== "" && raw !== "N/A"
+                                    ? parseInt(raw, 10)
+                                    : null;
+                                const suffix = f.charge_online ? " ⚡" : "";
+                                let cls = "batt-good";
+                                let text = "UNKNOWN";
+                                if (value !== null && !Number.isNaN(value)) {
+                                    text = `${value}%${suffix}`;
+                                    if (value <= 15) cls = "batt-crit-inline";
+                                    else if (value <= 30) cls = "batt-warn-inline";
+                                }
+                                return `<span class="fleet-item"><span class="fleet-icon">·</span><span class="fleet-text">${f.name} <span class="${cls}">${text}</span></span></span>`;
+                            }).join("");
+                            battTxt.className = "val stat-val val-wrap";
+                            battTxt.innerHTML = `<span class="fleet-list">${battSummary}</span>`;
                         } else {
-                            battTxt.innerText = "UNKNOWN";
-                            battTxt.className = "val";
+                            const batt = data.hardware.battery;
+                            if (batt !== "N/A" && batt !== undefined && batt !== null && batt !== "") {
+                                battTxt.innerText = batt + "%";
+                                if (parseInt(batt) > 30) battTxt.className = "val stat-val";
+                                else if (parseInt(batt) > 15) battTxt.className = "val stat-val batt-warn";
+                                else battTxt.className = "val stat-val batt-crit";
+                            } else {
+                                battTxt.innerText = "UNKNOWN";
+                                battTxt.className = "val";
+                            }
                         }
                         // New Live Mount Coordinate handling
                         if (data.hardware.ra !== undefined && data.hardware.dec !== undefined && data.hardware.ra !== "N/A") {
