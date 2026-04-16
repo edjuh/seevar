@@ -92,6 +92,65 @@ def upsert_calibration_asset(kind: str, key: str, entry: dict) -> None:
     save_calibration_index(payload)
 
 
+def _existing_asset(entry: dict) -> bool:
+    if not isinstance(entry, dict):
+        return False
+    path = entry.get("master_path")
+    return bool(path and Path(path).exists())
+
+
+def best_bias_asset(gain: int | None) -> dict | None:
+    if gain in (None, ""):
+        return None
+
+    payload = load_calibration_index()
+    candidates = []
+    for entry in payload.get("assets", {}).get("bias", {}).values():
+        if not _existing_asset(entry):
+            continue
+        try:
+            delta = abs(int(entry.get("gain")) - int(gain))
+        except Exception:
+            continue
+        candidates.append((delta, entry))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda item: item[0])
+    return dict(candidates[0][1])
+
+
+def best_flat_asset(scope_id: str | None, filter_name: str | None, *, ready_only: bool = True) -> dict | None:
+    filter_token = str(filter_name or "").strip().upper()
+    scope_token = str(scope_id or "").strip().lower()
+    payload = load_calibration_index()
+    candidates = []
+
+    for entry in payload.get("assets", {}).get("flat", {}).values():
+        if not _existing_asset(entry):
+            continue
+        if ready_only and not bool(entry.get("flat_ready", False)):
+            continue
+
+        entry_filter = str(entry.get("filter", "")).strip().upper()
+        entry_scope = str(entry.get("scope_id", "")).strip().lower()
+        if filter_token and entry_filter != filter_token:
+            continue
+        score = 0
+        if scope_token and entry_scope == scope_token:
+            score += 10
+        elif scope_token:
+            score -= 10
+        candidates.append((score, entry))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return dict(candidates[0][1])
+
+
 def _dedupe_requirement(bucket_map: dict, key: str, seed: dict) -> dict:
     bucket = bucket_map.get(key)
     if bucket is None:

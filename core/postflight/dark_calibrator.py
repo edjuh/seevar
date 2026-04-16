@@ -19,6 +19,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.flight.dark_library import DarkLibrary
 from core.utils.env_loader import DATA_DIR
+from core.postflight.calibration_assets import best_flat_asset
 
 logger = logging.getLogger("seevar.dark_calibrator")
 
@@ -116,6 +117,7 @@ class DarkCalibrator:
             }
 
         calibrated = sci_data.astype(np.float32) - dark_data.astype(np.float32)
+        flat_key = None
 
         neg_frac = float(np.mean(calibrated < 0.0))
         if neg_frac > 0.001:
@@ -125,13 +127,38 @@ class DarkCalibrator:
                 science_fits.name,
             )
 
+        scope_id = str(sci_header.get("SCOPEID", "")).strip() or None
+        filter_name = str(sci_header.get("FILTER", "TG")).strip() or "TG"
+        flat_entry = best_flat_asset(scope_id, filter_name, ready_only=True)
+        if flat_entry:
+            flat_path = Path(flat_entry["master_path"])
+            try:
+                with fits.open(flat_path) as hdul:
+                    flat_data = hdul[0].data.astype(np.float32)
+                if flat_data.shape != calibrated.shape:
+                    logger.warning(
+                        "Skipping flat %s for %s due to shape mismatch: science=%s flat=%s",
+                        flat_path.name,
+                        science_fits.name,
+                        calibrated.shape,
+                        flat_data.shape,
+                    )
+                else:
+                    flat_safe = np.where(flat_data > 0.05, flat_data, 1.0)
+                    calibrated = calibrated / flat_safe
+                    flat_key = Path(flat_path).stem
+            except Exception as e:
+                logger.warning("Skipping flat for %s due to load error: %s", science_fits.name, e)
+
         calibrated = np.clip(calibrated, 0, 65535).astype(np.uint16)
         out_path = _calibrated_output_path(science_fits)
 
-        sci_header["CALSTAT"] = "DARKSUB"
+        sci_header["CALSTAT"] = "DARKSUB+FLAT" if flat_key else "DARKSUB"
         sci_header["DARKKEY"] = Path(dark_path).stem[:68]
         sci_header["DARKEXP"] = int(exp_ms)
         sci_header["DARKGAIN"] = int(gain)
+        if flat_key:
+            sci_header["FLATKEY"] = flat_key[:68]
 
         fits.PrimaryHDU(data=calibrated, header=sci_header).writeto(out_path, overwrite=True)
 
@@ -150,6 +177,7 @@ class DarkCalibrator:
             "calibrated_path": str(out_path),
             "dark_path": str(dark_path),
             "dark_key": Path(dark_path).stem,
+            "flat_key": flat_key,
             "negative_pixel_fraction": round(neg_frac, 6),
         }
 

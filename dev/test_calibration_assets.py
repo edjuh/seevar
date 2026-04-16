@@ -13,7 +13,15 @@ import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.postflight.calibration_assets import MISSING_CALIBRATIONS_FILE, save_missing_calibrations
+from core.postflight.calibration_assets import (
+    BIAS_LIBRARY_DIR,
+    FLAT_LIBRARY_DIR,
+    MISSING_CALIBRATIONS_FILE,
+    best_bias_asset,
+    best_flat_asset,
+    save_missing_calibrations,
+    upsert_calibration_asset,
+)
 
 
 def main():
@@ -51,6 +59,33 @@ def main():
         raise SystemExit("expected 1 bias requirement")
     if len(reqs.get("flats", [])) != 2:
         raise SystemExit("expected 2 flat requirements")
+
+    BIAS_LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
+    FLAT_LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
+    bias_path = BIAS_LIBRARY_DIR / "bias_g80_master.fits"
+    flat_path = FLAT_LIBRARY_DIR / "flat_scope01_TG_master.fits"
+    bias_path.write_bytes(b"bias")
+    flat_path.write_bytes(b"flat")
+
+    upsert_calibration_asset("bias", "bias_g80", {
+        "gain": 80,
+        "master_path": str(bias_path),
+    })
+    upsert_calibration_asset("flat", "flat_scope01_TG", {
+        "scope_id": "scope01",
+        "scope_name": "Wilhelmina",
+        "filter": "TG",
+        "master_path": str(flat_path),
+        "flat_ready": True,
+    })
+
+    bias_entry = best_bias_asset(80)
+    if not bias_entry or bias_entry.get("master_path") != str(bias_path):
+        raise SystemExit("expected best_bias_asset to return the registered bias")
+
+    flat_entry = best_flat_asset("scope01", "TG")
+    if not flat_entry or flat_entry.get("master_path") != str(flat_path):
+        raise SystemExit("expected best_flat_asset to return the registered flat")
 
     print("PASS: calibration asset requirement summary emitted correctly.")
 
