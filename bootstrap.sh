@@ -217,6 +217,9 @@ function create_directory_structure {
 
   mkdir -p "$SEEVAR_DIR/data/local_buffer"
   mkdir -p "$SEEVAR_DIR/data/archive"
+  mkdir -p "$SEEVAR_DIR/data/dark_library"
+  mkdir -p "$SEEVAR_DIR/data/bias_library"
+  mkdir -p "$SEEVAR_DIR/data/flat_library"
   mkdir -p "$SEEVAR_DIR/data/sequences"
   mkdir -p "$SEEVAR_DIR/data/comp_stars"
   mkdir -p "$SEEVAR_DIR/data/reports"

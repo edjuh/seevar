@@ -22,15 +22,18 @@ import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.utils.env_loader import DATA_DIR
+from core.utils.env_loader import DATA_DIR, load_config, selected_scope
 from core.flight.pilot import (
     AlpacaCamera, AlpacaFilterWheel, TelemetryBlock,
     SEESTAR_HOST, ALPACA_PORT, EXPOSE_TIMEOUT,
 )
+from core.postflight.calibration_assets import (
+    DARK_LIBRARY_DIR,
+    ensure_calibration_dirs,
+    upsert_calibration_asset,
+)
 
 logger = logging.getLogger("seevar.dark_library")
-
-DARK_LIBRARY_DIR = DATA_DIR / "dark_library"
 
 # Tighter temperature matching for more defensible dark current behavior.
 TEMP_BIN_SIZE = 2
@@ -77,6 +80,8 @@ class DarkLibrary:
         self.host = host
         self.port = port
         self._index = _load_index()
+        self._scope = selected_scope(load_config())
+        ensure_calibration_dirs()
         DARK_LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
 
     def _refresh_index(self):
@@ -120,8 +125,12 @@ class DarkLibrary:
                         "temp_c_actual": round(temp_c, 1),
                         "source": "alpaca_dark_filter",
                         "master_path": status["master_path"],
+                        "scope_id": self._scope.get("scope_id"),
+                        "scope_name": self._scope.get("scope_name"),
+                        "scope_ip": self._scope.get("ip"),
                     }
                     _save_index(self._index)
+                    upsert_calibration_asset("dark", key, self._index[key])
 
         except Exception as e:
             logger.error("acquire_darks: %s", e)
@@ -171,6 +180,13 @@ class DarkLibrary:
         hdr["TEMPCACT"] = round(float(temp_c), 1)
         hdr["NFRAMES"] = len(frames)
         hdr["SOURCE"] = "SeeVar dark_library"
+        hdr["FILTER"] = "DARK"
+        if self._scope.get("scope_id"):
+            hdr["SCOPEID"] = str(self._scope["scope_id"])[:68]
+        if self._scope.get("scope_name"):
+            hdr["SCOPENAM"] = str(self._scope["scope_name"])[:68]
+        if self._scope.get("ip"):
+            hdr["SCOPEIP"] = str(self._scope["ip"])[:68]
         hdr["DATE"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
         fits.PrimaryHDU(data=master, header=hdr).writeto(out_path, overwrite=True)

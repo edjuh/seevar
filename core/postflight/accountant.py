@@ -29,6 +29,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.postflight.calibration_engine import CalibrationEngine
 from core.postflight.master_analyst import MasterAnalyst
 from core.postflight.dark_calibrator import dark_calibrator
+from core.postflight.calibration_assets import ensure_calibration_dirs, save_missing_calibrations
 
 logging.basicConfig(
     level=logging.INFO,
@@ -189,6 +190,12 @@ def _blank_entry() -> dict:
         "required_dark_exp_ms": None,
         "required_dark_gain": None,
         "required_dark_temp_c": None,
+        "required_bias_gain": None,
+        "required_flat_filter": None,
+        "required_flat_scope_id": None,
+        "required_flat_scope_name": None,
+        "last_scope_id": None,
+        "last_scope_name": None,
         "last_calibration_state": None,
     }
 
@@ -459,6 +466,7 @@ def process_buffer():
             return
 
         ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        ensure_calibration_dirs()
         CALIBRATED_BUFFER.mkdir(parents=True, exist_ok=True)
         PROCESS_DIR.mkdir(parents=True, exist_ok=True)
         ledger = load_ledger()
@@ -542,12 +550,21 @@ def process_buffer():
             req_temp_c = ref_header.get("CCD-TEMP")
             if req_temp_c not in (None, "", "UNKNOWN"):
                 req_temp_c = float(req_temp_c)
+            req_filter = str(ref_header.get("FILTER", "TG")).strip() or "TG"
+            req_scope_id = str(ref_header.get("SCOPEID", "")).strip() or None
+            req_scope_name = str(ref_header.get("SCOPENAM", "")).strip() or req_scope_id
 
             if date_obs and not str(date_obs).endswith("Z"):
                 date_obs = str(date_obs) + "Z"
 
             ledger[key]["last_capture_utc"] = date_obs
             ledger[key]["last_capture_path"] = items[-1]["path"].name
+            ledger[key]["required_bias_gain"] = req_gain
+            ledger[key]["required_flat_filter"] = req_filter
+            ledger[key]["required_flat_scope_id"] = req_scope_id
+            ledger[key]["required_flat_scope_name"] = req_scope_name
+            ledger[key]["last_scope_id"] = req_scope_id
+            ledger[key]["last_scope_name"] = req_scope_name
 
             if ra_deg is None or dec_deg is None:
                 log.error("  %s group has no usable coordinate hints, cannot solve.", key)
@@ -556,6 +573,7 @@ def process_buffer():
                 _clear_unclosed_success(ledger[key])
                 _archive_group(items)
                 save_ledger(ledger)
+                save_missing_calibrations(ledger)
                 processed += raw_count
                 continue
 
@@ -582,6 +600,7 @@ def process_buffer():
                 _clear_unclosed_success(ledger[key])
                 _archive_group(items)
                 save_ledger(ledger)
+                save_missing_calibrations(ledger)
                 processed += raw_count
                 continue
 
@@ -610,6 +629,7 @@ def process_buffer():
                 _cleanup_intermediates(calibrated_paths, stack_path)
                 _archive_group(items)
                 save_ledger(ledger)
+                save_missing_calibrations(ledger)
                 processed += raw_count
                 continue
 
@@ -716,9 +736,11 @@ def process_buffer():
             _cleanup_completed_group(items, calibrated_paths, stack_path)
             save_ledger(ledger)
             save_missing_darks(ledger)
+            save_missing_calibrations(ledger)
             processed += raw_count
 
         save_missing_darks(ledger)
+        save_missing_calibrations(ledger)
 
         log.info(
             "Audit complete. %d raw frames processed, %d successful observations stamped.",
