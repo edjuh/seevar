@@ -48,6 +48,9 @@ from core.hardware.live_battery import poll_battery_snapshot
 
 LOG_DIR = PROJECT_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+_LOG_SCOPE = selected_scope(load_config(), selected_scope_id())
+_LOG_SCOPE_ID = _LOG_SCOPE.get("scope_id")
+_LOG_FILE = LOG_DIR / (f"orchestrator.{_LOG_SCOPE_ID}.log" if _LOG_SCOPE_ID else "orchestrator.log")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,7 +58,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(LOG_DIR / "orchestrator.log", mode="a"),
+        logging.FileHandler(_LOG_FILE, mode="a"),
     ],
 )
 log = logging.getLogger("seevar.orchestrator")

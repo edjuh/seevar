@@ -9,6 +9,7 @@ Objective: Single source of truth for SeeVar environment paths and TOML configur
 import os
 import tomllib
 import logging
+import re
 from pathlib import Path
 
 log = logging.getLogger("EnvLoader")
@@ -60,6 +61,10 @@ def configured_scopes(cfg: dict | None = None, *, active_only: bool = False) -> 
     return scopes
 
 
+def _norm_scope_token(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(value).strip().lower())
+
+
 def selected_scope_id() -> str | None:
     value = str(os.environ.get("SEEVAR_SCOPE_ID", "")).strip().lower()
     return value or None
@@ -68,11 +73,14 @@ def selected_scope_id() -> str | None:
 def selected_scope(cfg: dict | None = None, scope_id: str | None = None) -> dict:
     cfg = cfg if isinstance(cfg, dict) else load_config()
     scope_id = (scope_id or selected_scope_id() or "").strip().lower()
+    scope_token = _norm_scope_token(scope_id)
     scopes = configured_scopes(cfg, active_only=False)
 
     if scope_id:
         for scope in scopes:
             if str(scope.get("scope_id", "")).lower() == scope_id:
+                return scope
+            if _norm_scope_token(scope.get("scope_name", "")) == scope_token:
                 return scope
 
     for scope in scopes:
