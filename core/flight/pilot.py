@@ -38,7 +38,7 @@ from astropy.time import Time
 from astropy.wcs import WCS
 import astropy.units as u
 
-from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config
+from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config, selected_scope
 from core.flight.field_rotation import max_exposure_s as rotation_limited_exposure
 
 # ---------------------------------------------------------------------------
@@ -53,12 +53,12 @@ def _resolve_seestar_host() -> tuple[str, str]:
     if alpaca_host and alpaca_host != "TBD":
         return alpaca_host, "config.alpaca.host"
 
-    seestars = cfg.get("seestars", [{}]) if isinstance(cfg, dict) else [{}]
-    if seestars and isinstance(seestars[0], dict):
+    scope = selected_scope(cfg)
+    if scope:
         for key in ("host", "ip"):
-            value = str(seestars[0].get(key, "")).strip()
+            value = str(scope.get(key, "")).strip()
             if value and value != "TBD":
-                return value, f"config.seestars[0].{key}"
+                return value, f"config.{scope.get('scope_id', 'scope')}.{key}"
 
     return "10.0.0.1", "fallback.default"
 
@@ -697,10 +697,9 @@ class DiamondSequence:
 
     def _mount_mode(self) -> str:
         try:
-            cfg = load_config()
-            seestars = cfg.get("seestars", [])
-            if seestars:
-                return str(seestars[0].get("mount", "altaz")).strip().lower()
+            scope = selected_scope(load_config())
+            if scope:
+                return str(scope.get("mount", "altaz")).strip().lower()
         except Exception:
             pass
         return "altaz"

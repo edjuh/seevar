@@ -27,7 +27,7 @@ from astropy.time import Time
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.utils.env_loader import DATA_DIR, load_config
+from core.utils.env_loader import DATA_DIR, load_config, selected_scope, selected_scope_id
 from core.flight.pilot import (
     AcquisitionTarget,
     SEESTAR_HOST,
@@ -64,6 +64,7 @@ PLAN_FILE = DATA_DIR / "tonights_plan.json"
 STATE_FILE = DATA_DIR / "system_state.json"
 WEATHER_FILE = DATA_DIR / "weather_state.json"
 MISSION_FILE = DATA_DIR / "tonights_plan.json"
+FLEET_PLAN_DIR = DATA_DIR / "fleet_plans"
 
 
 def _safe_load_json(path: Path, default):
@@ -277,6 +278,20 @@ class Orchestrator:
         loc = cfg.get("location", {})
         aavso = cfg.get("aavso", {})
         self._cfg = cfg
+        self._fleet_mode = str(cfg.get("planner", {}).get("fleet_mode", "single")).strip().lower()
+        self._scope_id = selected_scope_id()
+        self._scope = selected_scope(cfg, self._scope_id)
+        self._scope_name = self._scope.get("scope_name") or self._scope.get("name") or self._scope_id or "primary"
+        self._mission_file = MISSION_FILE
+        self._state_file = STATE_FILE
+        self._plan_file = PLAN_FILE
+
+        if self._fleet_mode == "split" and self._scope_id:
+            scoped_mission = FLEET_PLAN_DIR / f"tonights_plan.{self._scope_id}.json"
+            if scoped_mission.exists():
+                self._mission_file = scoped_mission
+            self._state_file = DATA_DIR / f"system_state.{self._scope_id}.json"
+            self._plan_file = FLEET_PLAN_DIR / f"flight_plan.{self._scope_id}.json"
 
         self._obs = {
             "observer_id": aavso.get("observer_code", "MISSING_ID"),
@@ -317,7 +332,11 @@ class Orchestrator:
             log.info("🚀 SIMULATION MODE ENGAGED - Hardware checks disabled.")
 
     def run(self):
-        log.info("🔭 Orchestrator starting — SeeVar Federation v2.0.0 (FSM-Governed)")
+        log.info(
+            "🔭 Orchestrator starting — SeeVar Federation v2.0.0 (FSM-Governed) | scope=%s | mission=%s",
+            self._scope_name,
+            self._mission_file.name,
+        )
         self._write_state(sub="Daemon starting", msg="Federation online.")
         while True:
             try:
@@ -486,7 +505,7 @@ class Orchestrator:
 
         self._log_flight("📋 Loading mission targets...")
         now_utc = datetime.now(timezone.utc)
-        payload = _safe_load_json(MISSION_FILE, {})
+        payload = _safe_load_json(self._mission_file, {})
         refreshed = False
 
         if not payload or _plan_is_stale(payload, now_utc):
@@ -494,7 +513,7 @@ class Orchestrator:
             self._log_flight(f"♻️ Nightly plan {why} — attempting refresh")
             refreshed = self._refresh_mission_plan()
             if refreshed:
-                payload = _safe_load_json(MISSION_FILE, {})
+                payload = _safe_load_json(self._mission_file, {})
 
         mission = _extract_targets(payload)
         if not mission:
@@ -516,7 +535,7 @@ class Orchestrator:
         if not final and not refreshed:
             self._log_flight("♻️ All current target windows expired — refreshing nightly plan once")
             if self._refresh_mission_plan():
-                payload = _safe_load_json(MISSION_FILE, {})
+                payload = _safe_load_json(self._mission_file, {})
                 mission = _extract_targets(payload)
                 now_utc = datetime.now(timezone.utc)
                 final, expired = _order_and_filter(mission, now_utc)
@@ -529,7 +548,7 @@ class Orchestrator:
         self._targets = final
         self._planned_target_count = len(final)
         self._write_plan(final)
-        self._log_flight(f"✅ Flight plan locked from tonights_plan.json: {len(final)} target(s)")
+        self._log_flight(f"✅ Flight plan locked from {self._mission_file.name}: {len(final)} target(s)")
         if expired:
             self._log_flight(f"⏭️ Skipped {expired} expired target window(s)")
         self._transition(PipelineState.FLIGHT, sub=final[0].get("name", "UNKNOWN"), msg="Flight plan locked.")
@@ -765,7 +784,7 @@ class Orchestrator:
             return 0.0
 
     def _load_mission_targets(self) -> list:
-        data = _safe_load_json(MISSION_FILE, [])
+        data = _safe_load_json(self._mission_file, [])
         return data if isinstance(data, list) else data.get("targets", [])
 
     def _refresh_mission_plan(self) -> bool:
@@ -776,12 +795,21 @@ class Orchestrator:
             self._log_flight("♻️ Regenerating tonights_plan.json")
             subprocess.run([sys.executable, str(planner)], cwd=str(PROJECT_ROOT), check=True)
             subprocess.run([sys.executable, str(compiler)], cwd=str(PROJECT_ROOT), check=True)
+            if self._fleet_mode == "split" and self._scope_id:
+                scoped_mission = FLEET_PLAN_DIR / f"tonights_plan.{self._scope_id}.json"
+                if scoped_mission.exists():
+                    self._mission_file = scoped_mission
             return True
         except Exception as e:
             self._log_flight(f"⚠️ Nightly plan refresh failed: {e}")
             return False
 
     def _current_battery_snapshot(self) -> dict:
+        if self._scope:
+            snapshot = poll_battery_snapshot(self._scope.get("ip"))
+            if snapshot:
+                return snapshot
+
         for scope in self._cfg.get("seestars", []):
             snapshot = poll_battery_snapshot(scope.get("ip"))
             if snapshot:
@@ -858,17 +886,21 @@ class Orchestrator:
             "metadata": {
                 "generated": datetime.now(timezone.utc).isoformat(),
                 "count": len(targets),
+                "scope_name": self._scope_name,
+                "scope_id": self._scope_id,
             },
             "targets": targets,
         }
-        PLAN_FILE.write_text(json.dumps(payload, indent=2))
+        self._plan_file.write_text(json.dumps(payload, indent=2))
 
     def _write_state(self, state=None, sub="", msg=""):
         now_utc = datetime.now(timezone.utc).isoformat()
         done, remaining, planned = self._progress_counts()
-        payload = _safe_load_json(STATE_FILE, {})
+        payload = _safe_load_json(self._state_file, {})
         payload.update({
             "state": state or self._state,
+            "scope_name": self._scope_name,
+            "scope_id": self._scope_id,
             "sub": sub,
             "substate": sub,
             "msg": msg,
@@ -882,7 +914,7 @@ class Orchestrator:
             "remaining_count": remaining,
             "planned_count": planned,
         })
-        STATE_FILE.write_text(json.dumps(payload, indent=2))
+        self._state_file.write_text(json.dumps(payload, indent=2))
 
     def _transition(self, new_state, sub="", msg=""):
         self._state = new_state
