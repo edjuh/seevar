@@ -31,10 +31,16 @@
         .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.85em; font-weight: bold; }
         .label { color: var(--text-muted); width: 45%; }
         .val { color: var(--text-bright); text-align: left; flex: 1; }
+        .val-wrap { white-space: normal; }
         
         .target-card { border-top: 1px dashed #333; padding-top: 15px; margin-top: 15px; } 
         .target-card .row { margin-bottom: 8px; }
         .target-card .label { width: 30%; color: #aaa; }
+        .fleet-row { align-items: flex-start; }
+        .fleet-list { display: flex; flex-direction: column; gap: 3px; line-height: 1.15; }
+        .fleet-item { display: flex; align-items: baseline; gap: 8px; }
+        .fleet-icon { width: 1ch; flex: 0 0 1ch; text-align: center; }
+        .fleet-text { flex: 1; }
         
         .led { width: 20px; height: 20px; border-radius: 4px; margin-left: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color: #000; }
         .green { background-color: var(--led-green); box-shadow: 0 0 8px var(--led-green); }
@@ -54,11 +60,6 @@
         .status-main { color: var(--text-bright); font-size: 2em; letter-spacing: 5px; font-weight: 900; margin-bottom: 10px; transition: color 0.5s ease;}
         .status-sub { color: var(--text-bright); font-size: 0.9em; font-weight: bold; margin-bottom: 30px; letter-spacing: 1px; }
         .status-msg { color: var(--text-muted); font-size: 0.8em; font-style: italic; }
-        .preview-strip { display:flex; gap:10px; width:100%; margin-top:18px; }
-        .preview-card { flex:1; border:1px solid #333; background:#121212; padding:8px; }
-        .preview-title { color:#777; font-size:0.65em; letter-spacing:1.5px; margin-bottom:6px; text-transform:uppercase; }
-        .preview-frame { width:100%; aspect-ratio:16/9; object-fit:cover; display:block; background:#050505; border:1px solid #222; }
-
         @keyframes pulse-green { 0% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } 50% { box-shadow: 0 0 30px rgba(57,255,20,0.8); } 100% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } }
         @keyframes pulse-blue { 0% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } 50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(93,173,226,0.8); } 100% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } }
         @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -137,19 +138,19 @@
             
             <div class="row"><span class="label">BATTERY</span> <span id="bb-batt" class="val stat-val">--%</span></div>
             <div class="row"><span class="label">MOUNT POS</span> <span id="bb-mount" class="val stat-val">--</span></div>
-            <div class="row"><span class="label">FLEET</span> <span id="bb-fleet" class="val stat-val">--</span></div>
+            <div class="row fleet-row"><span class="label">FLEET</span> <span id="bb-fleet" class="val stat-val val-wrap">--</span></div>
             
             <div class="target-card">
                 <div class="row" style="padding-bottom: 5px;">
-                    <span class="label" style="width: auto;">TARGET TELEMETRY</span>
+                    <span class="label" style="width: auto;">PLAN TICKER</span>
                     <div id="target-count-led" class="led orange">00</div>
                 </div>
                 <div class="row"><span class="label">NAME</span> <span id="t-name" class="val">FETCHING...</span></div>
                 <div class="row"><span class="label">TYPE</span> <span id="t-type" class="val">-</span></div>
-                <div class="row"><span class="label">LOC</span> <span id="t-loc" class="val" style="font-size: 0.9em;">-</span></div>
+                <div class="row"><span class="label">SKY POS</span> <span id="t-loc" class="val" style="font-size: 0.9em;">-</span></div>
                 <div class="row"><span class="label">MAG</span> <span id="t-mag" class="val">-</span></div>
-                <div class="row"><span class="label">CAT / VIS</span> <span id="t-funnel-1" class="val">- / -</span></div>
-                <div class="row"><span class="label">DUE / CMP</span> <span id="t-funnel-2" class="val">- / -</span></div>
+                <div class="row"><span class="label">CAT / VISIBLE</span> <span id="t-funnel-1" class="val">- / -</span></div>
+                <div class="row"><span class="label">DUE / COMPILED</span> <span id="t-funnel-2" class="val">- / -</span></div>
             </div>
         </div>
 
@@ -160,16 +161,6 @@
                 <div id="orch-sub" class="status-sub">OFF-DUTY</div>
                 <div id="orch-progress" class="status-sub" style="font-size:0.8em;color:#888;">0 done · 0 left</div>
                 <div id="orch-msg" class="status-msg">Waiting for orchestrator...</div>
-                <div class="preview-strip">
-                    <div class="preview-card">
-                        <div class="preview-title">Latest Science</div>
-                        <img id="preview-science" class="preview-frame" src="/preview/science.jpg" alt="Latest science preview">
-                    </div>
-                    <div class="preview-card">
-                        <div class="preview-title">Latest Verify</div>
-                        <img id="preview-verify" class="preview-frame" src="/preview/verify.jpg" alt="Latest verify preview">
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -441,9 +432,9 @@
                                 const summary = data.fleet.map(f => {
                                     const st = f.operational_state || f.link_status || "OFFLINE";
                                     const icon = ["IMAGING", "TRACKING"].includes(st) ? "●" : (["SLEWING", "IDLE", "ONLINE"].includes(st) ? "◐" : "○");
-                                    return icon + " " + f.name + "(" + st + ")";
-                                }).join("  ");
-                                fleetTxt.innerText = summary;
+                                    return `<span class="fleet-item"><span class="fleet-icon">${icon}</span><span class="fleet-text">${f.name} (${st})</span></span>`;
+                                }).join("");
+                                fleetTxt.innerHTML = `<span class="fleet-list">${summary}</span>`;
                             }
                         }
                     }
@@ -521,14 +512,6 @@
                 .catch(err => console.error("Telemetry error:", err));
         }
 
-        function refreshPreviews() {
-            const ts = Date.now();
-            const science = document.getElementById('preview-science');
-            const verify = document.getElementById('preview-verify');
-            if (science) science.src = '/preview/science.jpg?ts=' + ts;
-            if (verify) verify.src = '/preview/verify.jpg?ts=' + ts;
-        }
-
         function updateJDate() {
             const now = new Date();
             const jd = (now.getTime() / 86400000) + 2440587.5;
@@ -537,9 +520,8 @@
 
         setInterval(updateTicker, 4000);
         setInterval(fetchTelemetry, 2000);
-        setInterval(refreshPreviews, 4000);
         setInterval(updateJDate, 1000);
-        updateTicker(); fetchTelemetry(); refreshPreviews(); updateJDate();
+        updateTicker(); fetchTelemetry(); updateJDate();
     </script>
 </body>
 </html>
