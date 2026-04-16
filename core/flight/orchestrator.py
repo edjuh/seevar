@@ -362,7 +362,12 @@ class Orchestrator:
         if self._handle_operator_command():
             return
 
-        if not self.simulation_mode and self._state not in (PipelineState.PARKED, PipelineState.ABORTED):
+        battery_guard_active = (
+            not self.simulation_mode
+            and self._state not in (PipelineState.PARKED, PipelineState.ABORTED)
+            and (self._state != PipelineState.IDLE or self._sun_altitude() < self.SUN_LIMIT_DEG)
+        )
+        if battery_guard_active:
             if self._enforce_battery_guard():
                 return
 
@@ -767,6 +772,29 @@ class Orchestrator:
 
     def _run_parked(self):
         self._current_target = None
+        sun_alt = self._sun_altitude()
+        if not self.simulation_mode and sun_alt >= self.SUN_LIMIT_DEG:
+            self._targets = []
+            self._planned_target_count = 0
+            self._tonights_sequences.clear()
+            self._session_stats = {
+                "targets_attempted": 0,
+                "targets_completed": 0,
+                "exposures_total": 0,
+            }
+            self._flight_log = []
+            self._transition(
+                PipelineState.IDLE,
+                sub="Standing by",
+                msg=f"Daylight reset after parked mission (Sun at {sun_alt:.1f}°).",
+            )
+            return
+
+        self._write_state(
+            state=PipelineState.PARKED,
+            sub="Parked",
+            msg="Mission complete. Parked until daylight reset.",
+        )
         time.sleep(max(1, self.LOOP_SLEEP_SEC))
 
     def _run_aborted(self):
