@@ -10,8 +10,10 @@ run Bayer differential photometry, and stamp TG scientific results into the ledg
 import json
 import logging
 import shutil
+import fcntl
 from datetime import datetime, timezone
 from pathlib import Path
+from contextlib import contextmanager
 
 import astropy.units as u
 from astropy.coordinates import SkyCoord
@@ -39,16 +41,36 @@ DATA_DIR = PROJECT_ROOT / "data"
 LOCAL_BUFFER = DATA_DIR / "local_buffer"
 ARCHIVE_DIR = DATA_DIR / "archive"
 PROCESS_DIR = DATA_DIR / "process"
+CALIBRATED_BUFFER = DATA_DIR / "calibrated_buffer"
 LEDGER_FILE = DATA_DIR / "ledger.json"
 MISSING_DARKS_FILE = DATA_DIR / "missing_darks.json"
 PLAN_FILE = DATA_DIR / "tonights_plan.json"
 VSX_CATALOG_FILE = DATA_DIR / "vsx_catalog.json"
+ACCOUNTANT_LOCK = DATA_DIR / "accountant.lock"
 
 MIN_SNR = 5.0
 STACK_GROUP_GAP_SEC = 900
 
 _engine = CalibrationEngine()
 _analyst = MasterAnalyst()
+
+
+@contextmanager
+def _process_lock():
+    ACCOUNTANT_LOCK.parent.mkdir(parents=True, exist_ok=True)
+    with open(ACCOUNTANT_LOCK, "w") as lock_handle:
+        try:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+
+        try:
+            lock_handle.write(str(datetime.now(timezone.utc).isoformat()))
+            lock_handle.flush()
+            yield True
+        finally:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
 
 
 def load_ledger() -> dict:
@@ -217,6 +239,9 @@ def _parse_header(fpath: Path, header: dict) -> tuple:
 def _archive_frame(fpath: Path):
     try:
         shutil.move(str(fpath), str(ARCHIVE_DIR / fpath.name))
+        sidecar = fpath.with_suffix(".wcs")
+        if sidecar.exists():
+            shutil.move(str(sidecar), str(ARCHIVE_DIR / sidecar.name))
     except Exception as e:
         log.error("  Archive failed for %s: %s", fpath.name, e)
 
@@ -383,282 +408,323 @@ def _archive_group(group_items: list[dict]):
         _archive_frame(item["path"])
 
 
+def _purge_paths(paths: list[Path]):
+    seen = set()
+    for path in paths:
+        if not path:
+            continue
+        path = Path(path)
+        for candidate in (path, path.with_suffix(".wcs")):
+            key = str(candidate)
+            if key in seen:
+                continue
+            seen.add(key)
+            try:
+                if candidate.exists():
+                    candidate.unlink()
+            except Exception as e:
+                log.warning("  Cleanup failed for %s: %s", candidate.name, e)
+
+
+def _cleanup_completed_group(group_items: list[dict], calibrated_paths: list[Path], stack_path: Path | None):
+    raw_paths = [item["path"] for item in group_items]
+    transient_paths = raw_paths + list(calibrated_paths)
+    if stack_path:
+        transient_paths.append(stack_path)
+    _purge_paths(transient_paths)
+
+
+def _cleanup_intermediates(calibrated_paths: list[Path], stack_path: Path | None):
+    transient_paths = list(calibrated_paths)
+    if stack_path:
+        transient_paths.append(stack_path)
+    _purge_paths(transient_paths)
+
+
 def _clear_unclosed_success(entry: dict):
     if not entry.get("last_obs_utc"):
         entry["last_success"] = None
 
 
 def process_buffer():
-    log.info("Accountant: auditing local buffer...")
+    with _process_lock() as lock_acquired:
+        if not lock_acquired:
+            log.info("Accountant already running; skipping duplicate postflight sweep.")
+            return
 
-    if not LOCAL_BUFFER.exists():
-        log.info("Local buffer empty or missing, nothing to do.")
-        return
+        log.info("Accountant: auditing local buffer...")
 
-    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
-    ledger = load_ledger()
-    fits_files = sorted(LOCAL_BUFFER.glob("*.fit")) + sorted(LOCAL_BUFFER.glob("*.fits"))
+        if not LOCAL_BUFFER.exists():
+            log.info("Local buffer empty or missing, nothing to do.")
+            return
 
-    if not fits_files:
-        log.info("No FITS files in buffer.")
-        return
+        ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        CALIBRATED_BUFFER.mkdir(parents=True, exist_ok=True)
+        PROCESS_DIR.mkdir(parents=True, exist_ok=True)
+        ledger = load_ledger()
+        fits_files = sorted(LOCAL_BUFFER.glob("*.fit")) + sorted(LOCAL_BUFFER.glob("*.fits"))
 
-    processed = successes = 0
-    mag_lookup = {}
+        if not fits_files:
+            log.info("No FITS files in buffer.")
+            return
 
-    if VSX_CATALOG_FILE.exists():
-        try:
-            vsx_data = json.load(open(VSX_CATALOG_FILE))
-            vsx_stars = vsx_data.get("stars", {})
-            for name, star in vsx_stars.items():
-                mid = star.get("mag_mid")
-                if mid is not None:
-                    try:
-                        mag_lookup[name] = float(mid)
-                    except (TypeError, ValueError):
-                        pass
-            log.info("VSX mag_mid loaded: %d targets", len(mag_lookup))
-        except Exception as e:
-            log.warning("VSX mag lookup failed: %s", e)
+        processed = successes = 0
+        mag_lookup = {}
 
-    if PLAN_FILE.exists():
-        try:
-            plan_data = json.load(open(PLAN_FILE))
-            added = 0
-            for t in plan_data.get("targets", []):
-                name = t.get("name", "")
-                if name and name not in mag_lookup:
-                    mag = t.get("mag_max")
-                    if mag is not None:
+        if VSX_CATALOG_FILE.exists():
+            try:
+                vsx_data = json.load(open(VSX_CATALOG_FILE))
+                vsx_stars = vsx_data.get("stars", {})
+                for name, star in vsx_stars.items():
+                    mid = star.get("mag_mid")
+                    if mid is not None:
                         try:
-                            mag_lookup[name] = float(mag)
-                            added += 1
+                            mag_lookup[name] = float(mid)
                         except (TypeError, ValueError):
                             pass
-            log.info("Plan mag_max added: %d additional targets", added)
-        except Exception as e:
-            log.warning("Plan mag lookup failed: %s", e)
+                log.info("VSX mag_mid loaded: %d targets", len(mag_lookup))
+            except Exception as e:
+                log.warning("VSX mag lookup failed: %s", e)
 
-    for name, entry in ledger.items():
-        if name not in mag_lookup:
-            last = entry.get("last_mag")
-            if last is not None:
-                try:
-                    mag_lookup[name] = float(last)
-                except (TypeError, ValueError):
-                    pass
+        if PLAN_FILE.exists():
+            try:
+                plan_data = json.load(open(PLAN_FILE))
+                added = 0
+                for t in plan_data.get("targets", []):
+                    name = t.get("name", "")
+                    if name and name not in mag_lookup:
+                        mag = t.get("mag_max")
+                        if mag is not None:
+                            try:
+                                mag_lookup[name] = float(mag)
+                                added += 1
+                            except (TypeError, ValueError):
+                                pass
+                log.info("Plan mag_max added: %d additional targets", added)
+            except Exception as e:
+                log.warning("Plan mag lookup failed: %s", e)
 
-    groups = _build_target_groups(fits_files)
+        for name, entry in ledger.items():
+            if name not in mag_lookup:
+                last = entry.get("last_mag")
+                if last is not None:
+                    try:
+                        mag_lookup[name] = float(last)
+                    except (TypeError, ValueError):
+                        pass
 
-    for group in groups:
-        key = group["target_name"]
-        items = group["items"]
-        raw_count = len(items)
-        log.info("Processing group: %s (%d raw frame(s))", key, raw_count)
+        groups = _build_target_groups(fits_files)
 
-        if key not in ledger:
-            ledger[key] = _blank_entry()
+        for group in groups:
+            key = group["target_name"]
+            items = group["items"]
+            raw_count = len(items)
+            log.info("Processing group: %s (%d raw frame(s))", key, raw_count)
 
-        ref = next((item for item in items if item["ra_deg"] is not None and item["dec_deg"] is not None), items[0])
-        date_obs = ref["date_obs"]
-        ra_deg = ref["ra_deg"]
-        dec_deg = ref["dec_deg"]
-        ref_header = fits.getheader(ref["path"], 0)
-        req_exp_ms = ref_header.get("EXPMS")
-        if req_exp_ms in (None, "", "UNKNOWN"):
-            exptime = ref_header.get("EXPTIME")
-            if exptime not in (None, "", "UNKNOWN"):
-                req_exp_ms = int(round(float(exptime) * 1000.0))
-        else:
-            req_exp_ms = int(round(float(req_exp_ms)))
-        req_gain = ref_header.get("GAIN")
-        if req_gain not in (None, "", "UNKNOWN"):
-            req_gain = int(round(float(req_gain)))
-        req_temp_c = ref_header.get("CCD-TEMP")
-        if req_temp_c not in (None, "", "UNKNOWN"):
-            req_temp_c = float(req_temp_c)
+            if key not in ledger:
+                ledger[key] = _blank_entry()
 
-        if date_obs and not str(date_obs).endswith("Z"):
-            date_obs = str(date_obs) + "Z"
-
-        ledger[key]["last_capture_utc"] = date_obs
-        ledger[key]["last_capture_path"] = items[-1]["path"].name
-
-        if ra_deg is None or dec_deg is None:
-            log.error("  %s group has no usable coordinate hints, cannot solve.", key)
-            if ledger[key].get("status") != "OBSERVED":
-                ledger[key]["status"] = "FAILED_NO_WCS"
-            _clear_unclosed_success(ledger[key])
-            _archive_group(items)
-            save_ledger(ledger)
-            processed += raw_count
-            continue
-
-        calibrated_paths = []
-        dark_keys = []
-        for item in items:
-            dark = dark_calibrator.calibrate(item["path"])
-            if dark.get("status") == "ok":
-                calibrated_paths.append(Path(dark["calibrated_path"]))
-                dark_key = dark.get("dark_key")
-                if dark_key:
-                    dark_keys.append(dark_key)
+            ref = next((item for item in items if item["ra_deg"] is not None and item["dec_deg"] is not None), items[0])
+            date_obs = ref["date_obs"]
+            ra_deg = ref["ra_deg"]
+            dec_deg = ref["dec_deg"]
+            ref_header = fits.getheader(ref["path"], 0)
+            req_exp_ms = ref_header.get("EXPMS")
+            if req_exp_ms in (None, "", "UNKNOWN"):
+                exptime = ref_header.get("EXPTIME")
+                if exptime not in (None, "", "UNKNOWN"):
+                    req_exp_ms = int(round(float(exptime) * 1000.0))
             else:
-                log.warning("  %s dark calibration failed for %s: %s", key, item["path"].name, dark.get("error"))
+                req_exp_ms = int(round(float(req_exp_ms)))
+            req_gain = ref_header.get("GAIN")
+            if req_gain not in (None, "", "UNKNOWN"):
+                req_gain = int(round(float(req_gain)))
+            req_temp_c = ref_header.get("CCD-TEMP")
+            if req_temp_c not in (None, "", "UNKNOWN"):
+                req_temp_c = float(req_temp_c)
 
-        if not calibrated_paths:
-            log.warning("  %s has no dark-calibrated science frames in this group", key)
-            if ledger[key].get("status") != "OBSERVED":
-                ledger[key]["status"] = "FAILED_NO_DARK"
-            ledger[key]["required_dark_exp_ms"] = req_exp_ms
-            ledger[key]["required_dark_gain"] = req_gain
-            ledger[key]["required_dark_temp_c"] = req_temp_c
-            ledger[key]["last_calibration_state"] = "NO_USABLE_DARK"
-            _clear_unclosed_success(ledger[key])
-            _archive_group(items)
-            save_ledger(ledger)
-            processed += raw_count
-            continue
+            if date_obs and not str(date_obs).endswith("Z"):
+                date_obs = str(date_obs) + "Z"
 
-        candidate_paths = []
-        stack_path = _median_stack(calibrated_paths, key, ref["obs_dt"])
-        if stack_path:
-            candidate_paths.append((stack_path, f"DARKSUB_STACK_{len(calibrated_paths)}"))
-        candidate_paths.extend((path, "DARKSUB_SINGLE") for path in reversed(calibrated_paths))
+            ledger[key]["last_capture_utc"] = date_obs
+            ledger[key]["last_capture_path"] = items[-1]["path"].name
 
-        solve = None
-        solve_path = None
-        cal_state = "DARKSUB_SINGLE"
-        for candidate_path, candidate_state in candidate_paths:
-            solve = _analyst.solve_frame(str(candidate_path))
-            if solve.get("ok"):
-                solve_path = candidate_path
-                cal_state = candidate_state
-                break
-
-        if not solve or not solve.get("ok"):
-            log.error("  %s solve failed for stacked/single candidates", key)
-            if ledger[key].get("status") != "OBSERVED":
-                ledger[key]["status"] = "FAILED_NO_WCS"
-            ledger[key]["last_calibration_state"] = "STACK_FAILED_NO_WCS"
-            _clear_unclosed_success(ledger[key])
-            _archive_group(items)
-            save_ledger(ledger)
-            processed += raw_count
-            continue
-
-        target_mag = mag_lookup.get(key)
-        result = _engine.calibrate(
-            Path(solve_path),
-            ra_deg,
-            dec_deg,
-            key,
-            target_mag=target_mag,
-            wcs_path=Path(solve["wcs_path"]),
-            solve_result=solve,
-        )
-
-        status = result.get("status", "error")
-        error = result.get("error", "")
-
-        if status == "ok":
-            snr = result.get("target_snr", 0.0)
-
-            if snr >= MIN_SNR:
-                log.info(
-                    "  OK %s  TG=%.3f +/- %.3f  SNR=%.1f  comps=%d/%d  rej=%d  mode=%s",
-                    key,
-                    result.get("mag", 0),
-                    result.get("err", 0),
-                    snr,
-                    result.get("n_comps", 0),
-                    result.get("n_comps_raw", result.get("n_comps", 0)),
-                    result.get("n_comps_rejected", 0),
-                    cal_state,
-                )
-
-                dark_key_value = dark_keys[0] if len(set(dark_keys)) == 1 else f"{len(set(dark_keys))}_dark_keys"
-                ledger[key].update({
-                    "status": "OBSERVED",
-                    "last_success": date_obs,
-                    "last_capture_utc": date_obs,
-                    "last_capture_path": items[-1]["path"].name,
-                    "last_mag": result.get("mag"),
-                    "last_err": result.get("err"),
-                    "last_snr": round(snr, 1),
-                    "last_filter": result.get("filter"),
-                    "last_photometric_system": result.get("photometric_system", "TG"),
-                    "last_measurement_kind": result.get("measurement_kind", "raw_bayer_green_untransformed"),
-                    "last_comps": result.get("n_comps"),
-                    "last_comps_raw": result.get("n_comps_raw", result.get("n_comps")),
-                    "last_comps_rejected": result.get("n_comps_rejected", 0),
-                    "last_zp": result.get("zero_point"),
-                    "last_zp_std": result.get("zp_std"),
-                    "last_obs_utc": date_obs,
-                    "last_peak_adu": result.get("peak_adu"),
-                    "last_solved_ra": result.get("solved_ra_deg"),
-                    "last_solved_dec": result.get("solved_dec_deg"),
-                    "last_dark_key": dark_key_value,
-                    "last_calibration_state": cal_state,
-                })
-                successes += 1
-            else:
-                log.warning("  %s poor SNR=%.1f (min %.1f)", key, snr, MIN_SNR)
+            if ra_deg is None or dec_deg is None:
+                log.error("  %s group has no usable coordinate hints, cannot solve.", key)
                 if ledger[key].get("status") != "OBSERVED":
-                    ledger[key]["status"] = "FAILED_QC_LOW_SNR"
+                    ledger[key]["status"] = "FAILED_NO_WCS"
+                _clear_unclosed_success(ledger[key])
+                _archive_group(items)
+                save_ledger(ledger)
+                processed += raw_count
+                continue
+
+            calibrated_paths = []
+            dark_keys = []
+            for item in items:
+                dark = dark_calibrator.calibrate(item["path"])
+                if dark.get("status") == "ok":
+                    calibrated_paths.append(Path(dark["calibrated_path"]))
+                    dark_key = dark.get("dark_key")
+                    if dark_key:
+                        dark_keys.append(dark_key)
+                else:
+                    log.warning("  %s dark calibration failed for %s: %s", key, item["path"].name, dark.get("error"))
+
+            if not calibrated_paths:
+                log.warning("  %s has no dark-calibrated science frames in this group", key)
+                if ledger[key].get("status") != "OBSERVED":
+                    ledger[key]["status"] = "FAILED_NO_DARK"
+                ledger[key]["required_dark_exp_ms"] = req_exp_ms
+                ledger[key]["required_dark_gain"] = req_gain
+                ledger[key]["required_dark_temp_c"] = req_temp_c
+                ledger[key]["last_calibration_state"] = "NO_USABLE_DARK"
+                _clear_unclosed_success(ledger[key])
+                _archive_group(items)
+                save_ledger(ledger)
+                processed += raw_count
+                continue
+
+            candidate_paths = []
+            stack_path = _median_stack(calibrated_paths, key, ref["obs_dt"])
+            if stack_path:
+                candidate_paths.append((stack_path, f"DARKSUB_STACK_{len(calibrated_paths)}"))
+            candidate_paths.extend((path, "DARKSUB_SINGLE") for path in reversed(calibrated_paths))
+
+            solve = None
+            solve_path = None
+            cal_state = "DARKSUB_SINGLE"
+            for candidate_path, candidate_state in candidate_paths:
+                solve = _analyst.solve_frame(str(candidate_path))
+                if solve.get("ok"):
+                    solve_path = candidate_path
+                    cal_state = candidate_state
+                    break
+
+            if not solve or not solve.get("ok"):
+                log.error("  %s solve failed for stacked/single candidates", key)
+                if ledger[key].get("status") != "OBSERVED":
+                    ledger[key]["status"] = "FAILED_NO_WCS"
+                ledger[key]["last_calibration_state"] = "STACK_FAILED_NO_WCS"
+                _clear_unclosed_success(ledger[key])
+                _cleanup_intermediates(calibrated_paths, stack_path)
+                _archive_group(items)
+                save_ledger(ledger)
+                processed += raw_count
+                continue
+
+            target_mag = mag_lookup.get(key)
+            result = _engine.calibrate(
+                Path(solve_path),
+                ra_deg,
+                dec_deg,
+                key,
+                target_mag=target_mag,
+                wcs_path=Path(solve["wcs_path"]),
+                solve_result=solve,
+            )
+
+            status = result.get("status", "error")
+            error = result.get("error", "")
+
+            if status == "ok":
+                snr = result.get("target_snr", 0.0)
+
+                if snr >= MIN_SNR:
+                    log.info(
+                        "  OK %s  TG=%.3f +/- %.3f  SNR=%.1f  comps=%d/%d  rej=%d  mode=%s",
+                        key,
+                        result.get("mag", 0),
+                        result.get("err", 0),
+                        snr,
+                        result.get("n_comps", 0),
+                        result.get("n_comps_raw", result.get("n_comps", 0)),
+                        result.get("n_comps_rejected", 0),
+                        cal_state,
+                    )
+
+                    dark_key_value = dark_keys[0] if len(set(dark_keys)) == 1 else f"{len(set(dark_keys))}_dark_keys"
+                    ledger[key].update({
+                        "status": "OBSERVED",
+                        "last_success": date_obs,
+                        "last_capture_utc": date_obs,
+                        "last_capture_path": items[-1]["path"].name,
+                        "last_mag": result.get("mag"),
+                        "last_err": result.get("err"),
+                        "last_snr": round(snr, 1),
+                        "last_filter": result.get("filter"),
+                        "last_photometric_system": result.get("photometric_system", "TG"),
+                        "last_measurement_kind": result.get("measurement_kind", "raw_bayer_green_untransformed"),
+                        "last_comps": result.get("n_comps"),
+                        "last_comps_raw": result.get("n_comps_raw", result.get("n_comps")),
+                        "last_comps_rejected": result.get("n_comps_rejected", 0),
+                        "last_zp": result.get("zero_point"),
+                        "last_zp_std": result.get("zp_std"),
+                        "last_obs_utc": date_obs,
+                        "last_peak_adu": result.get("peak_adu"),
+                        "last_solved_ra": result.get("solved_ra_deg"),
+                        "last_solved_dec": result.get("solved_dec_deg"),
+                        "last_dark_key": dark_key_value,
+                        "last_calibration_state": cal_state,
+                    })
+                    successes += 1
+                else:
+                    log.warning("  %s poor SNR=%.1f (min %.1f)", key, snr, MIN_SNR)
+                    if ledger[key].get("status") != "OBSERVED":
+                        ledger[key]["status"] = "FAILED_QC_LOW_SNR"
+                    ledger[key]["last_calibration_state"] = cal_state
+                    _clear_unclosed_success(ledger[key])
+
+            elif status == "fail":
+                err_l = error.lower()
+
+                if "snr_too_low" in err_l:
+                    log.warning("  %s rejected for low SNR", key)
+                    if ledger[key].get("status") != "OBSERVED":
+                        ledger[key]["status"] = "FAILED_QC_LOW_SNR"
+                elif "saturated" in err_l:
+                    log.warning("  %s saturated (peak_adu=%s)", key, result.get("peak_adu"))
+                    if ledger[key].get("status") != "OBSERVED":
+                        ledger[key]["status"] = "FAILED_SATURATED"
+                elif "no_wcs" in err_l or "wcs" in err_l:
+                    log.error("  %s has no solved WCS", key)
+                    if ledger[key].get("status") != "OBSERVED":
+                        ledger[key]["status"] = "FAILED_NO_WCS"
+                elif "flux" in err_l or "out_of_frame" in err_l or "insufficient_" in err_l:
+                    log.warning("  %s failed QC: %s", key, error)
+                    if ledger[key].get("status") != "OBSERVED":
+                        ledger[key]["status"] = "FAILED_QC"
+                else:
+                    log.warning("  %s failed: %s", key, error)
+                    if ledger[key].get("status") != "OBSERVED":
+                        ledger[key]["status"] = "FAILED_QC"
+
+                ledger[key]["last_comps_raw"] = result.get("n_comps_raw")
+                ledger[key]["last_comps_rejected"] = result.get("n_comps_rejected")
+                ledger[key]["last_photometric_system"] = result.get("photometric_system", "TG")
+                ledger[key]["last_measurement_kind"] = result.get("measurement_kind", "raw_bayer_green_untransformed")
                 ledger[key]["last_calibration_state"] = cal_state
                 _clear_unclosed_success(ledger[key])
 
-        elif status == "fail":
-            err_l = error.lower()
-
-            if "snr_too_low" in err_l:
-                log.warning("  %s rejected for low SNR", key)
-                if ledger[key].get("status") != "OBSERVED":
-                    ledger[key]["status"] = "FAILED_QC_LOW_SNR"
-            elif "saturated" in err_l:
-                log.warning("  %s saturated (peak_adu=%s)", key, result.get("peak_adu"))
-                if ledger[key].get("status") != "OBSERVED":
-                    ledger[key]["status"] = "FAILED_SATURATED"
-            elif "no_wcs" in err_l or "wcs" in err_l:
-                log.error("  %s has no solved WCS", key)
-                if ledger[key].get("status") != "OBSERVED":
-                    ledger[key]["status"] = "FAILED_NO_WCS"
-            elif "flux" in err_l or "out_of_frame" in err_l or "insufficient_" in err_l:
-                log.warning("  %s failed QC: %s", key, error)
-                if ledger[key].get("status") != "OBSERVED":
-                    ledger[key]["status"] = "FAILED_QC"
             else:
-                log.warning("  %s failed: %s", key, error)
+                log.error("  %s calibration error: %s", key, error)
                 if ledger[key].get("status") != "OBSERVED":
-                    ledger[key]["status"] = "FAILED_QC"
+                    ledger[key]["status"] = "ERROR"
+                ledger[key]["last_calibration_state"] = cal_state
+                _clear_unclosed_success(ledger[key])
 
-            ledger[key]["last_comps_raw"] = result.get("n_comps_raw")
-            ledger[key]["last_comps_rejected"] = result.get("n_comps_rejected")
-            ledger[key]["last_photometric_system"] = result.get("photometric_system", "TG")
-            ledger[key]["last_measurement_kind"] = result.get("measurement_kind", "raw_bayer_green_untransformed")
-            ledger[key]["last_calibration_state"] = cal_state
-            _clear_unclosed_success(ledger[key])
+            _cleanup_completed_group(items, calibrated_paths, stack_path)
+            save_ledger(ledger)
+            save_missing_darks(ledger)
+            processed += raw_count
 
-        else:
-            log.error("  %s calibration error: %s", key, error)
-            if ledger[key].get("status") != "OBSERVED":
-                ledger[key]["status"] = "ERROR"
-            ledger[key]["last_calibration_state"] = cal_state
-            _clear_unclosed_success(ledger[key])
-
-        _archive_group(items)
-        save_ledger(ledger)
         save_missing_darks(ledger)
-        processed += raw_count
 
-    save_missing_darks(ledger)
-
-    log.info(
-        "Audit complete. %d raw frames processed, %d successful observations stamped.",
-        processed,
-        successes,
-    )
+        log.info(
+            "Audit complete. %d raw frames processed, %d successful observations stamped.",
+            processed,
+            successes,
+        )
 
 
 if __name__ == "__main__":

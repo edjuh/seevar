@@ -89,3 +89,18 @@ def selected_scope(cfg: dict | None = None, scope_id: str | None = None) -> dict
             return scope
 
     return scopes[0] if scopes else {}
+
+
+def scope_file_tag(scope: dict | None = None, *, fallback: str = "scope") -> str:
+    scope = scope if isinstance(scope, dict) else {}
+
+    for candidate in (
+        scope.get("scope_id"),
+        scope.get("scope_name"),
+        scope.get("name"),
+    ):
+        token = _norm_scope_token(candidate or "")
+        if token:
+            return token
+
+    return _norm_scope_token(fallback) or "scope"

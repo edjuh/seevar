@@ -27,7 +27,7 @@ from astropy.time import Time
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.utils.env_loader import DATA_DIR, load_config, selected_scope, selected_scope_id
+from core.utils.env_loader import DATA_DIR, load_config, selected_scope, selected_scope_id, scope_file_tag
 from core.flight.pilot import (
     AcquisitionTarget,
     SEESTAR_HOST,
@@ -50,6 +50,7 @@ LOG_DIR = PROJECT_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 _LOG_SCOPE = selected_scope(load_config(), selected_scope_id())
 _LOG_SCOPE_ID = _LOG_SCOPE.get("scope_id")
+_LOG_SCOPE_TAG = scope_file_tag(_LOG_SCOPE)
 _LOG_FILE = LOG_DIR / (f"orchestrator.{_LOG_SCOPE_ID}.log" if _LOG_SCOPE_ID else "orchestrator.log")
 
 logging.basicConfig(
@@ -218,7 +219,7 @@ class MockDiamondSequence:
 
         safe_name = target.name.replace(" ", "_").replace("/", "-")
         timestamp = utc_obs.strftime("%Y%m%dT%H%M%S")
-        out_path = local_buffer / f"SIM_{safe_name}_{timestamp}_Raw.fits"
+        out_path = local_buffer / f"SIM_{safe_name}_{_LOG_SCOPE_TAG}_{timestamp}_Raw.fits"
 
         step("A4", f"Slew command to {target.name}")
         time.sleep(0.2)

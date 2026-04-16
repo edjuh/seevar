@@ -38,7 +38,7 @@ from astropy.time import Time
 from astropy.wcs import WCS
 import astropy.units as u
 
-from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config, selected_scope
+from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config, selected_scope, scope_file_tag
 from core.flight.field_rotation import max_exposure_s as rotation_limited_exposure
 
 # ---------------------------------------------------------------------------
@@ -111,6 +111,8 @@ PLATESOLVE_TIMEOUT = 90
 
 LOCAL_BUFFER = DATA_DIR / "local_buffer"
 VERIFY_BUFFER = DATA_DIR / "verify_buffer"
+ACTIVE_SCOPE = selected_scope(load_config())
+ACTIVE_SCOPE_TAG = scope_file_tag(ACTIVE_SCOPE)
 logger = logging.getLogger("seevar.pilot")
 
 
@@ -545,6 +547,10 @@ def sovereign_stamp(
     }
 
     h["CCD-TEMP"] = ccd_temp if ccd_temp is not None else "UNKNOWN"
+    h["SCOPEID"] = str(ACTIVE_SCOPE.get("scope_id", ACTIVE_SCOPE_TAG))[:68]
+    h["SCOPENAM"] = str(ACTIVE_SCOPE.get("scope_name", ACTIVE_SCOPE_TAG))[:68]
+    if ACTIVE_SCOPE.get("ip"):
+        h["SCOPEIP"] = str(ACTIVE_SCOPE.get("ip"))[:68]
     if airmass is not None:
         h["AIRMASS"] = airmass
     if moon_phase is not None:
@@ -769,7 +775,7 @@ class DiamondSequence:
         VERIFY_BUFFER.mkdir(parents=True, exist_ok=True)
         utc_obs = datetime.now(timezone.utc)
         safe_name = target.name.replace(" ", "_").replace("/", "-")
-        out_path = VERIFY_BUFFER / f"{safe_name}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_{suffix}.fits"
+        out_path = VERIFY_BUFFER / f"{safe_name}_{ACTIVE_SCOPE_TAG}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_{suffix}.fits"
 
         header = sovereign_stamp(target, utc_obs, width, height, ccd_temp=ccd_temp)
         ok = write_fits(img, header, out_path)
@@ -1073,7 +1079,7 @@ class DiamondSequence:
             notify("A10", f"Writing science FITS — AUID={target.auid} CCD-TEMP={ccd_temp}")
             LOCAL_BUFFER.mkdir(parents=True, exist_ok=True)
             safe_name = target.name.replace(" ", "_").replace("/", "-")
-            out_path = LOCAL_BUFFER / f"{safe_name}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_Raw.fits"
+            out_path = LOCAL_BUFFER / f"{safe_name}_{ACTIVE_SCOPE_TAG}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_Raw.fits"
 
             science_target = AcquisitionTarget(
                 name=target.name,

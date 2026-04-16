@@ -32,6 +32,7 @@ LOCAL_BUFFER = DATA_DIR / "local_buffer"
 ARCHIVE_DIR = DATA_DIR / "archive"
 DARK_DIR = DATA_DIR / "dark_library"
 CAL_DIR = DATA_DIR / "calibrated_buffer"
+PROCESS_DIR = DATA_DIR / "process"
 LEDGER_FILE = DATA_DIR / "ledger.json"
 
 WIDTH = 2160
@@ -47,10 +48,10 @@ TCRB_DEC = 25.92016667
 
 
 def reset_test_artifacts():
-    for path in (LOCAL_BUFFER, ARCHIVE_DIR, DARK_DIR, CAL_DIR):
+    for path in (LOCAL_BUFFER, ARCHIVE_DIR, DARK_DIR, CAL_DIR, PROCESS_DIR):
         path.mkdir(parents=True, exist_ok=True)
 
-    for directory in (LOCAL_BUFFER, ARCHIVE_DIR, DARK_DIR, CAL_DIR):
+    for directory in (LOCAL_BUFFER, ARCHIVE_DIR, DARK_DIR, CAL_DIR, PROCESS_DIR):
         for p in directory.iterdir():
             if p.is_file():
                 p.unlink()
@@ -230,6 +231,8 @@ def make_science_frame(tag, target_name, scene, exp_ms=EXP_MS, gain=GAIN, ccd_te
 def inspect_results(expected_targets):
     cal_files = sorted(CAL_DIR.glob("*_cal.fit")) + sorted(CAL_DIR.glob("*_cal.fits"))
     archived = sorted(ARCHIVE_DIR.glob("*.fit")) + sorted(ARCHIVE_DIR.glob("*.fits"))
+    stacks = sorted(PROCESS_DIR.glob("*.fit")) + sorted(PROCESS_DIR.glob("*.fits"))
+    remaining_raw = sorted(LOCAL_BUFFER.glob("*.fit")) + sorted(LOCAL_BUFFER.glob("*.fits"))
 
     ledger_entries = {}
     if LEDGER_FILE.exists():
@@ -244,14 +247,11 @@ def inspect_results(expected_targets):
 
     print(f"  Calibrated FITS : {len(cal_files)}")
     print(f"  Archived raw    : {len(archived)}")
-
-    if cal_files:
-        print(f"  First cal file  : {cal_files[0]}")
-    if archived:
-        print(f"  First archived  : {archived[0]}")
+    print(f"  Stack FITS      : {len(stacks)}")
+    print(f"  Raw remaining   : {len(remaining_raw)}")
 
     all_ok = all(ledger_entries.get(name, {}).get("status") == "OBSERVED" for name in expected_targets)
-    if not all_ok or len(cal_files) < len(expected_targets) or len(archived) < len(expected_targets):
+    if not all_ok or cal_files or archived or stacks or remaining_raw:
         raise SystemExit(1)
 
     print("")
