@@ -20,7 +20,7 @@ import astropy.units as u
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(PROJECT_ROOT))
 
-from core.utils.env_loader import configured_scopes, effective_fleet_mode, load_config
+from core.utils.env_loader import effective_fleet_mode, live_available_scopes, load_config
 from core.ledger_manager import calculate_cadence, load_ledger
 from core.flight.exposure_planner import plan_exposure, DEFAULT_BORTLE
 
@@ -379,7 +379,7 @@ def greedy_order(candidates, planning_start_utc, start_az=DEFAULT_START_AZ):
 
 def _active_scopes(cfg: dict) -> list[dict]:
     scopes = []
-    for idx, scope in enumerate(configured_scopes(cfg, active_only=True)):
+    for idx, scope in enumerate(live_available_scopes(cfg)):
         scopes.append({
             "index": idx,
             "name": scope["scope_name"],

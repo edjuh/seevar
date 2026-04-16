@@ -10,6 +10,7 @@ import os
 import tomllib
 import logging
 import re
+import time
 from pathlib import Path
 
 log = logging.getLogger("EnvLoader")
@@ -23,6 +24,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH  = PROJECT_ROOT / "config.toml"
 DATA_DIR     = PROJECT_ROOT / "data"
 ENV_STATUS   = Path("/dev/shm/env_status.json")
+_LIVE_SCOPE_CACHE = {
+    "timestamp": 0.0,
+    "signature": (),
+    "scopes": [],
+}
 
 # ---------------------------------------------------------------------------
 # Centralized Configuration Loader
@@ -61,10 +67,42 @@ def configured_scopes(cfg: dict | None = None, *, active_only: bool = False) -> 
     return scopes
 
 
+def live_available_scopes(cfg: dict | None = None, *, cache_ttl: float = 5.0) -> list[dict]:
+    cfg = cfg if isinstance(cfg, dict) else load_config()
+    scopes = configured_scopes(cfg, active_only=True)
+    signature = tuple((scope.get("scope_id"), scope.get("ip")) for scope in scopes)
+    now = time.time()
+
+    if (
+        _LIVE_SCOPE_CACHE["signature"] == signature
+        and now - float(_LIVE_SCOPE_CACHE["timestamp"]) <= float(cache_ttl)
+    ):
+        return [dict(scope) for scope in _LIVE_SCOPE_CACHE["scopes"]]
+
+    available = []
+    try:
+        from core.hardware.live_scope_status import poll_scope_status
+    except Exception as e:
+        log.warning("Could not import live scope polling: %s", e)
+        return scopes
+
+    for scope in scopes:
+        status = poll_scope_status(scope.get("ip", ""))
+        if status.get("link_status") == "ONLINE":
+            enriched = dict(scope)
+            enriched["live_status"] = status
+            available.append(enriched)
+
+    _LIVE_SCOPE_CACHE["timestamp"] = now
+    _LIVE_SCOPE_CACHE["signature"] = signature
+    _LIVE_SCOPE_CACHE["scopes"] = [dict(scope) for scope in available]
+    return [dict(scope) for scope in available]
+
+
 def effective_fleet_mode(cfg: dict | None = None) -> str:
     cfg = cfg if isinstance(cfg, dict) else load_config()
     requested = str(cfg.get("planner", {}).get("fleet_mode", "single")).strip().lower()
-    active_count = len(configured_scopes(cfg, active_only=True))
+    active_count = len(live_available_scopes(cfg))
 
     if requested == "auto":
         return "split" if active_count >= 2 else "single"
@@ -94,6 +132,11 @@ def selected_scope(cfg: dict | None = None, scope_id: str | None = None) -> dict
                 return scope
             if _norm_scope_token(scope.get("scope_name", "")) == scope_token:
                 return scope
+
+    for scope in live_available_scopes(cfg):
+        ip = str(scope.get("ip", "")).strip()
+        if ip and ip != "TBD":
+            return scope
 
     for scope in scopes:
         ip = str(scope.get("ip", "")).strip()
