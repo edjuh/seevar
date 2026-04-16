@@ -564,7 +564,7 @@ ExecStart=${PYBIN} core/flight/orchestrator.py
 Restart=always
 RestartSec=15
 StandardOutput=append:${SEEVAR_DIR}/logs/orchestrator.log
-StandardError=append:${SEEVAR_DIR}/logs/orchestrator.err
+StandardError=append:${SEEVAR_DIR}/logs/orchestrator.log
 
 NoNewPrivileges=yes
 ProtectSystem=strict

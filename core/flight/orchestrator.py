@@ -27,7 +27,7 @@ from astropy.time import Time
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.utils.env_loader import DATA_DIR, load_config, selected_scope, selected_scope_id, scope_file_tag
+from core.utils.env_loader import DATA_DIR, effective_fleet_mode, load_config, selected_scope, selected_scope_id, scope_file_tag
 from core.flight.pilot import (
     AcquisitionTarget,
     SEESTAR_HOST,
@@ -69,6 +69,7 @@ STATE_FILE = DATA_DIR / "system_state.json"
 WEATHER_FILE = DATA_DIR / "weather_state.json"
 MISSION_FILE = DATA_DIR / "tonights_plan.json"
 FLEET_PLAN_DIR = DATA_DIR / "fleet_plans"
+COMMAND_FILE = DATA_DIR / "operator_command.json"
 
 
 def _safe_load_json(path: Path, default):
@@ -282,7 +283,7 @@ class Orchestrator:
         loc = cfg.get("location", {})
         aavso = cfg.get("aavso", {})
         self._cfg = cfg
-        self._fleet_mode = str(cfg.get("planner", {}).get("fleet_mode", "single")).strip().lower()
+        self._fleet_mode = effective_fleet_mode(cfg)
         self._scope_id = selected_scope_id()
         self._scope = selected_scope(cfg, self._scope_id)
         self._scope_name = self._scope.get("scope_name") or self._scope.get("name") or self._scope_id or "primary"
@@ -324,6 +325,7 @@ class Orchestrator:
         self._tonights_sequences = set()
         self._last_telemetry = None
         self._planned_target_count = 0
+        self._last_command_utc = ""
         self._battery_park_pct = int(self._cfg.get("power", {}).get("battery_park_pct", VETO_BATTERY))
 
         self.simulation_mode = "--simulate" in sys.argv
@@ -357,6 +359,9 @@ class Orchestrator:
                 time.sleep(max(1, self.LOOP_SLEEP_SEC * 4))
 
     def _tick(self):
+        if self._handle_operator_command():
+            return
+
         if not self.simulation_mode and self._state not in (PipelineState.PARKED, PipelineState.ABORTED):
             if self._enforce_battery_guard():
                 return
@@ -431,6 +436,13 @@ class Orchestrator:
     def _run_preflight(self):
         self._log_flight("🛫 PREFLIGHT sequence initiated.")
 
+        now_utc = datetime.now(timezone.utc)
+        payload = _safe_load_json(self._mission_file, {})
+        if not payload or self._plan_is_stale(payload, now_utc):
+            why = "missing" if not payload else "stale"
+            self._log_flight(f"♻️ Nightly plan {why} before hardware init — refreshing")
+            self._refresh_mission_plan()
+
         if not self.simulation_mode:
             self._log_flight("[A2] Safety gate — securing zero-state")
             zero = enforce_zero_state()
@@ -457,24 +469,6 @@ class Orchestrator:
         self._transition(PipelineState.PLANNING, msg="Preflight complete.")
 
     def _run_planning(self):
-        def _extract_targets(payload):
-            return payload if isinstance(payload, list) else payload.get("targets", [])
-
-        def _plan_is_stale(payload, now_utc):
-            if not isinstance(payload, dict):
-                return False
-            meta = payload.get("metadata", {})
-            planning_end = _parse_plan_dt(meta.get("planning_end_utc"))
-            generated = _parse_plan_dt(meta.get("generated"))
-
-            if planning_end and planning_end <= now_utc:
-                return True
-
-            if generated and generated.date() != now_utc.date():
-                return True
-
-            return False
-
         def _order_and_filter(mission, now_utc):
             if any("recommended_order" in t for t in mission):
                 ordered = sorted(
@@ -512,14 +506,14 @@ class Orchestrator:
         payload = _safe_load_json(self._mission_file, {})
         refreshed = False
 
-        if not payload or _plan_is_stale(payload, now_utc):
+        if not payload or self._plan_is_stale(payload, now_utc):
             why = "missing" if not payload else "stale"
             self._log_flight(f"♻️ Nightly plan {why} — attempting refresh")
             refreshed = self._refresh_mission_plan()
             if refreshed:
                 payload = _safe_load_json(self._mission_file, {})
 
-        mission = _extract_targets(payload)
+        mission = self._extract_targets(payload)
         if not mission:
             self._transition(PipelineState.PARKED, msg="No mission targets available for current night.")
             return
@@ -540,7 +534,7 @@ class Orchestrator:
             self._log_flight("♻️ All current target windows expired — refreshing nightly plan once")
             if self._refresh_mission_plan():
                 payload = _safe_load_json(self._mission_file, {})
-                mission = _extract_targets(payload)
+                mission = self._extract_targets(payload)
                 now_utc = datetime.now(timezone.utc)
                 final, expired = _order_and_filter(mission, now_utc)
 
@@ -778,6 +772,74 @@ class Orchestrator:
     def _run_aborted(self):
         self._current_target = None
         time.sleep(max(1, self.LOOP_SLEEP_SEC))
+
+    def _extract_targets(self, payload):
+        return payload if isinstance(payload, list) else payload.get("targets", [])
+
+    def _plan_is_stale(self, payload, now_utc):
+        if not isinstance(payload, dict):
+            return False
+        meta = payload.get("metadata", {})
+        planning_end = _parse_plan_dt(meta.get("planning_end_utc"))
+        generated = _parse_plan_dt(meta.get("generated"))
+
+        if planning_end and planning_end <= now_utc:
+            return True
+
+        if generated and generated.date() != now_utc.date():
+            return True
+
+        return False
+
+    def _read_operator_command(self) -> dict:
+        if not COMMAND_FILE.exists():
+            return {}
+        try:
+            payload = json.loads(COMMAND_FILE.read_text())
+        except Exception:
+            payload = {}
+        return payload if isinstance(payload, dict) else {}
+
+    def _handle_operator_command(self) -> bool:
+        payload = self._read_operator_command()
+        command = str(payload.get("command", "")).strip().lower()
+        requested_utc = str(payload.get("requested_utc", "")).strip()
+        requested_dt = _parse_plan_dt(requested_utc) if requested_utc else None
+
+        if not command:
+            return False
+        if requested_utc and requested_utc == self._last_command_utc:
+            return False
+        if requested_dt is not None:
+            age_s = (datetime.now(timezone.utc) - requested_dt).total_seconds()
+            if age_s > 300:
+                self._last_command_utc = requested_utc
+                return False
+        if requested_utc:
+            self._last_command_utc = requested_utc
+
+        if command == "abort":
+            self._log_flight("🛑 Operator abort requested from dashboard.")
+            self._targets = []
+            self._current_target = None
+            try:
+                self.fsm.sequence.park()
+                self._log_flight("🛑 Abort requested telescope park.")
+            except Exception as e:
+                self._log_flight(f"⚠️ Abort park request failed: {e}")
+            self._transition(PipelineState.ABORTED, msg="Operator abort requested.")
+            return True
+
+        if command == "reset":
+            self._log_flight("♻️ Operator reset requested from dashboard.")
+            self._targets = []
+            self._current_target = None
+            self._planned_target_count = 0
+            self._transition(PipelineState.IDLE, sub="Standing by", msg="Operator reset. Awaiting next cycle.")
+            return True
+
+        self._log_flight(f"⚠️ Ignoring unknown operator command: {command}")
+        return False
 
     def _sun_altitude(self) -> float:
         try:

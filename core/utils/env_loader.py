@@ -61,6 +61,18 @@ def configured_scopes(cfg: dict | None = None, *, active_only: bool = False) -> 
     return scopes
 
 
+def effective_fleet_mode(cfg: dict | None = None) -> str:
+    cfg = cfg if isinstance(cfg, dict) else load_config()
+    requested = str(cfg.get("planner", {}).get("fleet_mode", "single")).strip().lower()
+    active_count = len(configured_scopes(cfg, active_only=True))
+
+    if requested == "auto":
+        return "split" if active_count >= 2 else "single"
+    if requested == "split":
+        return "split" if active_count >= 2 else "single"
+    return "single"
+
+
 def _norm_scope_token(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(value).strip().lower())
 

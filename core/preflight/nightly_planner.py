@@ -20,7 +20,7 @@ import astropy.units as u
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(PROJECT_ROOT))
 
-from core.utils.env_loader import load_config
+from core.utils.env_loader import configured_scopes, effective_fleet_mode, load_config
 from core.flight.exposure_planner import plan_exposure, DEFAULT_BORTLE
 
 try:
@@ -328,18 +328,12 @@ def greedy_order(candidates, planning_start_utc, start_az=DEFAULT_START_AZ):
 
 def _active_scopes(cfg: dict) -> list[dict]:
     scopes = []
-    for idx, entry in enumerate(cfg.get("seestars", [])):
-        if not isinstance(entry, dict):
-            continue
-        ip = str(entry.get("ip", "")).strip()
-        if not ip or ip == "TBD":
-            continue
-        name = str(entry.get("name", f"Scope-{idx + 1}")).strip() or f"Scope-{idx + 1}"
+    for idx, scope in enumerate(configured_scopes(cfg, active_only=True)):
         scopes.append({
             "index": idx,
-            "name": name,
-            "ip": ip,
-            "scope_id": f"scope{idx + 1:02d}",
+            "name": scope["scope_name"],
+            "ip": scope["ip"],
+            "scope_id": scope["scope_id"],
         })
     return scopes
 
@@ -439,7 +433,7 @@ def run_funnel():
     cfg = load_config()
     location_cfg = cfg.get("location", {})
     planner_cfg = cfg.get("planner", {})
-    fleet_mode = str(planner_cfg.get("fleet_mode", "single")).strip().lower()
+    fleet_mode = effective_fleet_mode(cfg)
     active_scopes = _active_scopes(cfg)
 
     lat = float(location_cfg.get("lat", 0.0))

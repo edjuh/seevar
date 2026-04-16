@@ -40,6 +40,7 @@ LOCAL_BUFFER      = DATA_DIR / "local_buffer"
 VERIFY_BUFFER     = DATA_DIR / "verify_buffer"
 ARCHIVE_DIR       = DATA_DIR / "archive"
 PROCESS_DIR       = DATA_DIR / "process"
+COMMAND_FILE      = DATA_DIR / "operator_command.json"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,6 +70,15 @@ def add_no_cache_headers(response):
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+
+def write_operator_command(command: str) -> None:
+    COMMAND_FILE.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "command": str(command).strip().lower(),
+        "requested_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    COMMAND_FILE.write_text(json.dumps(payload, indent=2))
 
 ALPACA_TIMEOUT = 2.0
 
@@ -800,6 +810,15 @@ def get_telemetry():
         "target_funnel": build_target_funnel(),
         "postflight": postflight,
     })
+
+
+@app.post('/command/<action>')
+def dashboard_command(action: str):
+    action = str(action).strip().lower()
+    if action not in {"abort", "reset"}:
+        return jsonify({"ok": False, "error": "unsupported_command"}), 400
+    write_operator_command(action)
+    return jsonify({"ok": True, "command": action})
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5050, debug=False)
