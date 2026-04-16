@@ -9,7 +9,6 @@ Objective: Builds the canonical nightly plan in data/tonights_plan.json using as
 import json
 import math
 import sys
-import re
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
@@ -327,11 +326,6 @@ def greedy_order(candidates, planning_start_utc, start_az=DEFAULT_START_AZ):
     return ordered
 
 
-def _scope_slug(name: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", str(name).strip().lower()).strip("-")
-    return slug or "scope"
-
-
 def _active_scopes(cfg: dict) -> list[dict]:
     scopes = []
     for idx, entry in enumerate(cfg.get("seestars", [])):
@@ -345,7 +339,7 @@ def _active_scopes(cfg: dict) -> list[dict]:
             "index": idx,
             "name": name,
             "ip": ip,
-            "slug": _scope_slug(name),
+            "scope_id": f"scope{idx + 1:02d}",
         })
     return scopes
 
@@ -392,7 +386,7 @@ def assign_targets_to_scopes(ordered, scopes, fleet_mode, start_az=DEFAULT_START
 
         enriched["assigned_scope"] = name
         enriched["assigned_scope_ip"] = best_scope["ip"]
-        enriched["assigned_scope_slug"] = best_scope["slug"]
+        enriched["assigned_scope_id"] = best_scope["scope_id"]
         enriched["assigned_scope_order"] = state["count"]
         assigned.append(enriched)
 
@@ -401,7 +395,7 @@ def assign_targets_to_scopes(ordered, scopes, fleet_mode, start_az=DEFAULT_START
             "target_count": state["count"],
             "block_minutes": state["block_minutes"],
             "ip": scope_index[name]["ip"],
-            "slug": scope_index[name]["slug"],
+            "scope_id": scope_index[name]["scope_id"],
         }
         for name, state in scope_state.items()
     }
@@ -425,12 +419,12 @@ def write_scope_plans(plan_out: dict, scopes: list[dict], fleet_mode: str):
                 **plan_out.get("metadata", {}),
                 "scope_name": scope["name"],
                 "scope_ip": scope["ip"],
-                "scope_slug": scope["slug"],
+                "scope_id": scope["scope_id"],
                 "scope_target_count": len(scoped_targets),
             },
             "targets": scoped_targets,
         }
-        out_path = FLEET_PLAN_DIR / f"tonights_plan.{scope['slug']}.json"
+        out_path = FLEET_PLAN_DIR / f"tonights_plan.{scope['scope_id']}.json"
         with open(out_path, "w") as f:
             json.dump(scoped_plan, f, indent=4)
 

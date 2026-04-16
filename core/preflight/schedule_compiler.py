@@ -10,7 +10,6 @@ import json
 import uuid
 import sys
 import logging
-import re
 from pathlib import Path
 
 try:
@@ -93,11 +92,6 @@ def _sorted_targets(targets):
     return list(targets)
 
 
-def _scope_slug(name: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", str(name).strip().lower()).strip("-")
-    return slug or "scope"
-
-
 def _build_startup_item(mount_mode):
     return {
         "action": "start_up_sequence",
@@ -120,6 +114,7 @@ def _build_target_item(target, exp_time):
     compiler_notes = {
         "recommended_order": target.get("recommended_order"),
         "assigned_scope": target.get("assigned_scope"),
+        "assigned_scope_id": target.get("assigned_scope_id"),
         "assigned_scope_order": target.get("assigned_scope_order"),
         "best_start_utc": target.get("best_start_utc"),
         "best_end_utc": target.get("best_end_utc"),
@@ -234,7 +229,7 @@ def compile_schedule():
                 scoped_targets.setdefault(scope_name, []).append(target)
 
         for scope_name, scope_targets in scoped_targets.items():
-            slug = _scope_slug(scope_name)
+            scope_id = scope_targets[0].get("assigned_scope_id", "scope00")
             scope_payload = _build_payload(
                 plan_objective,
                 plan_metadata,
@@ -244,7 +239,7 @@ def compile_schedule():
                 exp_time,
                 scope_name=scope_name,
             )
-            out_path = FLEET_PAYLOAD_DIR / f"ssc_payload.{slug}.json"
+            out_path = FLEET_PAYLOAD_DIR / f"ssc_payload.{scope_id}.json"
             with open(out_path, "w") as f:
                 json.dump(scope_payload, f, indent=4)
             logger.info(
