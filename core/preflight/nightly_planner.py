@@ -9,6 +9,7 @@ Objective: Builds the canonical nightly plan in data/tonights_plan.json using as
 import json
 import math
 import sys
+import re
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
@@ -38,6 +39,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 CATALOG_DIR = PROJECT_ROOT / "catalogs"
 FEDERATION_CATALOG = CATALOG_DIR / "federation_catalog.json"
 TONIGHTS_PLAN = DATA_DIR / "tonights_plan.json"
+FLEET_PLAN_DIR = DATA_DIR / "fleet_plans"
 
 LOOKAHEAD_HOURS = 36
 SAMPLE_MINUTES = 10
@@ -325,6 +327,114 @@ def greedy_order(candidates, planning_start_utc, start_az=DEFAULT_START_AZ):
     return ordered
 
 
+def _scope_slug(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", str(name).strip().lower()).strip("-")
+    return slug or "scope"
+
+
+def _active_scopes(cfg: dict) -> list[dict]:
+    scopes = []
+    for idx, entry in enumerate(cfg.get("seestars", [])):
+        if not isinstance(entry, dict):
+            continue
+        ip = str(entry.get("ip", "")).strip()
+        if not ip or ip == "TBD":
+            continue
+        name = str(entry.get("name", f"Scope-{idx + 1}")).strip() or f"Scope-{idx + 1}"
+        scopes.append({
+            "index": idx,
+            "name": name,
+            "ip": ip,
+            "slug": _scope_slug(name),
+        })
+    return scopes
+
+
+def assign_targets_to_scopes(ordered, scopes, fleet_mode, start_az=DEFAULT_START_AZ):
+    if fleet_mode != "split" or len(scopes) < 2:
+        return ordered, {}
+
+    scope_state = {
+        scope["name"]: {
+            "count": 0,
+            "block_minutes": 0,
+            "current_az": float(start_az),
+        }
+        for scope in scopes
+    }
+    scope_index = {scope["name"]: scope for scope in scopes}
+
+    assigned = []
+    for target in ordered:
+        best_scope = None
+        best_cost = None
+
+        for scope in scopes:
+            state = scope_state[scope["name"]]
+            slew_deg = az_distance(state["current_az"], float(target["best_az_deg"]))
+            block_minutes = int(target.get("required_block_minutes", 0))
+            cost = (
+                state["block_minutes"] + block_minutes,
+                round(slew_deg, 2),
+                state["count"],
+                scope["index"],
+            )
+            if best_cost is None or cost < best_cost:
+                best_scope = scope
+                best_cost = cost
+
+        enriched = dict(target)
+        name = best_scope["name"]
+        state = scope_state[name]
+        state["count"] += 1
+        state["block_minutes"] += int(target.get("required_block_minutes", 0))
+        state["current_az"] = float(target["best_az_deg"])
+
+        enriched["assigned_scope"] = name
+        enriched["assigned_scope_ip"] = best_scope["ip"]
+        enriched["assigned_scope_slug"] = best_scope["slug"]
+        enriched["assigned_scope_order"] = state["count"]
+        assigned.append(enriched)
+
+    summary = {
+        name: {
+            "target_count": state["count"],
+            "block_minutes": state["block_minutes"],
+            "ip": scope_index[name]["ip"],
+            "slug": scope_index[name]["slug"],
+        }
+        for name, state in scope_state.items()
+    }
+    return assigned, summary
+
+
+def write_scope_plans(plan_out: dict, scopes: list[dict], fleet_mode: str):
+    FLEET_PLAN_DIR.mkdir(parents=True, exist_ok=True)
+    for old in FLEET_PLAN_DIR.glob("*.json"):
+        old.unlink()
+
+    if fleet_mode != "split" or len(scopes) < 2:
+        return
+
+    targets = plan_out.get("targets", [])
+    for scope in scopes:
+        scoped_targets = [t for t in targets if t.get("assigned_scope") == scope["name"]]
+        scoped_plan = {
+            "#objective": f"Nightly split plan for {scope['name']}.",
+            "metadata": {
+                **plan_out.get("metadata", {}),
+                "scope_name": scope["name"],
+                "scope_ip": scope["ip"],
+                "scope_slug": scope["slug"],
+                "scope_target_count": len(scoped_targets),
+            },
+            "targets": scoped_targets,
+        }
+        out_path = FLEET_PLAN_DIR / f"tonights_plan.{scope['slug']}.json"
+        with open(out_path, "w") as f:
+            json.dump(scoped_plan, f, indent=4)
+
+
 def run_funnel():
     print("--- INITIATING NIGHTLY TRIAGE ---")
 
@@ -335,6 +445,8 @@ def run_funnel():
     cfg = load_config()
     location_cfg = cfg.get("location", {})
     planner_cfg = cfg.get("planner", {})
+    fleet_mode = str(planner_cfg.get("fleet_mode", "single")).strip().lower()
+    active_scopes = _active_scopes(cfg)
 
     lat = float(location_cfg.get("lat", 0.0))
     lon = float(location_cfg.get("lon", 0.0))
@@ -396,6 +508,12 @@ def run_funnel():
             analyzed.append(analyzed_target)
 
     ordered = greedy_order(analyzed, planning_start_utc, start_az=DEFAULT_START_AZ)
+    ordered, scope_plan_summary = assign_targets_to_scopes(
+        ordered,
+        active_scopes,
+        fleet_mode=fleet_mode,
+        start_az=DEFAULT_START_AZ,
+    )
 
     print(f"[+] Catalog total                : {gate_counts['catalog_total']}")
     print(f"[-] Deferred by cadence audit   : {gate_counts['cadence_skipped']}")
@@ -411,8 +529,10 @@ def run_funnel():
         "metadata": {
             "generated": datetime.now(timezone.utc).isoformat(),
             "schema_version": "2026.2",
-            "planner_version": "2.7.8",
+            "planner_version": "2.8.0",
             "planning_mode": "astronomical_dark",
+            "fleet_mode": fleet_mode,
+            "active_scope_count": len(active_scopes),
             "planning_start_utc": planning_start_utc.isoformat(),
             "planning_end_utc": planning_end_utc.isoformat(),
             "sample_minutes": SAMPLE_MINUTES,
@@ -424,6 +544,7 @@ def run_funnel():
             "planned_target_count": len(ordered),
             "gate_counts": gate_counts,
             "sector_counts": sector_counts,
+            "scope_plan_summary": scope_plan_summary,
         },
         "targets": ordered,
     }
@@ -431,7 +552,16 @@ def run_funnel():
     with open(TONIGHTS_PLAN, "w") as f:
         json.dump(plan_out, f, indent=4)
 
+    write_scope_plans(plan_out, active_scopes, fleet_mode)
+
     print(f"Tonight plan secured: {TONIGHTS_PLAN.name}")
+    if fleet_mode == "split" and scope_plan_summary:
+        print("Split mode assignments:")
+        for scope_name, summary in scope_plan_summary.items():
+            print(
+                f"  {scope_name}: {summary['target_count']} target(s), "
+                f"{summary['block_minutes']} planned block-minute(s)"
+            )
 
     if ordered:
         print("\nTop 10 tonight-plan targets:")

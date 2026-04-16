@@ -10,6 +10,7 @@ import json
 import uuid
 import sys
 import logging
+import re
 from pathlib import Path
 
 try:
@@ -28,6 +29,7 @@ CONFIG_PATH = PROJECT_ROOT / "config.toml"
 DATA_DIR = PROJECT_ROOT / "data"
 TONIGHTS_PLAN = DATA_DIR / "tonights_plan.json"
 OUTPUT_PAYLOAD = DATA_DIR / "ssc_payload.json"
+FLEET_PAYLOAD_DIR = DATA_DIR / "fleet_payloads"
 
 
 def convert_to_seestar_coords(ra_deg, dec_deg):
@@ -91,6 +93,11 @@ def _sorted_targets(targets):
     return list(targets)
 
 
+def _scope_slug(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", str(name).strip().lower()).strip("-")
+    return slug or "scope"
+
+
 def _build_startup_item(mount_mode):
     return {
         "action": "start_up_sequence",
@@ -112,6 +119,8 @@ def _build_target_item(target, exp_time):
 
     compiler_notes = {
         "recommended_order": target.get("recommended_order"),
+        "assigned_scope": target.get("assigned_scope"),
+        "assigned_scope_order": target.get("assigned_scope_order"),
         "best_start_utc": target.get("best_start_utc"),
         "best_end_utc": target.get("best_end_utc"),
         "window_minutes": target.get("window_minutes"),
@@ -156,6 +165,43 @@ def _build_target_item(target, exp_time):
     }
 
 
+def _build_payload(plan_objective, plan_metadata, targets, mount_mode, dithering, exp_time, scope_name=None):
+    payload = {
+        "#objective": "Compiled native SSC JSON payload for Seestar execution.",
+        "version": 1.1,
+        "Event": "Scheduler",
+        "schedule_id": str(uuid.uuid4()),
+        "state": "stopped",
+        "source_plan": {
+            "objective": plan_objective,
+            "metadata": plan_metadata,
+            "target_count": len(targets),
+            "scope_name": scope_name,
+        },
+        "compiler_settings": {
+            "mount_mode": mount_mode,
+            "dithering": dithering,
+            "exp_time": exp_time,
+        },
+        "list": [],
+    }
+
+    payload["list"].append(_build_startup_item(mount_mode))
+    for target in targets:
+        payload["list"].append(_build_target_item(target, exp_time))
+    payload["list"].append({
+        "action": "scope_park",
+        "params": {},
+        "schedule_item_id": str(uuid.uuid4()),
+    })
+    payload["list"].append({
+        "action": "shutdown",
+        "params": {},
+        "schedule_item_id": str(uuid.uuid4()),
+    })
+    return payload
+
+
 def compile_schedule():
     cfg = _load_config()
     planner_cfg = cfg.get("planner", {})
@@ -168,45 +214,45 @@ def compile_schedule():
         logger.warning("No targets in plan. Aborting compilation.")
         return
 
-    payload = {
-        "#objective": "Compiled native SSC JSON payload for Seestar execution.",
-        "version": 1.1,
-        "Event": "Scheduler",
-        "schedule_id": str(uuid.uuid4()),
-        "state": "stopped",
-        "source_plan": {
-            "objective": plan_objective,
-            "metadata": plan_metadata,
-            "target_count": len(targets),
-        },
-        "compiler_settings": {
-            "mount_mode": mount_mode,
-            "dithering": dithering,
-            "exp_time": exp_time,
-        },
-        "list": [],
-    }
-
-    payload["list"].append(_build_startup_item(mount_mode))
-
-    for target in targets:
-        payload["list"].append(_build_target_item(target, exp_time))
-
-    payload["list"].append({
-        "action": "scope_park",
-        "params": {},
-        "schedule_item_id": str(uuid.uuid4()),
-    })
-    payload["list"].append({
-        "action": "shutdown",
-        "params": {},
-        "schedule_item_id": str(uuid.uuid4()),
-    })
+    payload = _build_payload(plan_objective, plan_metadata, targets, mount_mode, dithering, exp_time)
 
     with open(OUTPUT_PAYLOAD, "w") as f:
         json.dump(payload, f, indent=4)
 
     logger.info("Compilation Complete. Generated %d targets into %s", len(targets), OUTPUT_PAYLOAD.name)
+
+    FLEET_PAYLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    for old in FLEET_PAYLOAD_DIR.glob("*.json"):
+        old.unlink()
+
+    fleet_mode = str(plan_metadata.get("fleet_mode", "single")).strip().lower()
+    if fleet_mode == "split":
+        scoped_targets = {}
+        for target in targets:
+            scope_name = target.get("assigned_scope")
+            if scope_name:
+                scoped_targets.setdefault(scope_name, []).append(target)
+
+        for scope_name, scope_targets in scoped_targets.items():
+            slug = _scope_slug(scope_name)
+            scope_payload = _build_payload(
+                plan_objective,
+                plan_metadata,
+                scope_targets,
+                mount_mode,
+                dithering,
+                exp_time,
+                scope_name=scope_name,
+            )
+            out_path = FLEET_PAYLOAD_DIR / f"ssc_payload.{slug}.json"
+            with open(out_path, "w") as f:
+                json.dump(scope_payload, f, indent=4)
+            logger.info(
+                "Scoped payload ready: %s (%d targets for %s)",
+                out_path.name,
+                len(scope_targets),
+                scope_name,
+            )
 
     preview = targets[:10]
     if preview:

@@ -47,6 +47,7 @@ target_key    = ""
 sun_altitude_limit = -18.0
 cadence_divisor      = 20    # period / cadence_divisor = observation interval (1/20th rule)
 cadence_fallback_days = 3.0   # fallback cadence (days) for targets without a known period
+fleet_mode         = "single" # single = one shared queue, split = divide targets across configured scopes
 simulation_mode    = false
 
 # -----------------------------------------------------------------------------
