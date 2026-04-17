@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/horizon_scanner_v2.py
-Version: 2.0.6
+Version: 2.0.7
 Objective: Rooftop-aware daytime horizon scanner using burst-median wide-camera frames
 and vectorized skyline detection for balcony / urban sites.
 """
@@ -200,9 +200,11 @@ def download_image(camera, client_id, timeout=20):
         ctype = r.headers.get("Content-Type", "")
         if r.status_code == 200 and "imagebytes" in ctype.lower():
             return _parse_imagebytes(r.content)
-    except Exception:
-        pass
+    except Exception as e:
+        log.debug("imagearrayvariant fast-path failed, falling back to JSON imagearray: %s", e)
 
+    # JSON imagearray can be substantially larger than imagebytes on the wire.
+    # Keep a longer transfer timeout here to avoid false negatives on slower links.
     r = requests.get(
         f"{ALPACA_CAMERA_BASE}/imagearray",
         params=params,
@@ -610,16 +612,16 @@ def median_smooth_profile(profile, window=SMOOTH_WINDOW):
 
     arr = np.array(full, dtype=np.float64)
 
-    for _ in range(2):
-        mask = np.isnan(arr)
-        if not np.any(mask):
-            break
-        idx = np.where(~mask, np.arange(len(mask)), 0)
-        np.maximum.accumulate(idx, out=idx)
-        arr[mask] = arr[idx][mask]
-
     if np.all(np.isnan(arr)):
         return {az: OPEN_SKY_DEFAULT for az in range(360)}
+
+    valid = np.flatnonzero(np.isfinite(arr))
+    if valid.size:
+        for az in range(360):
+            if np.isfinite(arr[az]):
+                continue
+            nearest = valid[np.argmin(np.minimum((az - valid) % 360, (valid - az) % 360))]
+            arr[az] = arr[nearest]
 
     padded = np.concatenate([arr[-window:], arr, arr[:window]])
     out = np.copy(arr)
@@ -667,6 +669,7 @@ def fill_gaps_from_accum(accum):
 
 
 def az_in_sector(az, start, end):
+    # Wrap-around sectors like 350°–10° should cover north correctly.
     if start <= end:
         return start <= az <= end
     return az >= start or az <= end
@@ -797,13 +800,24 @@ def run_scan(
     if dry_run:
         accum = defaultdict(list)
         for az in range(360):
-            if 240 <= az <= 320:
-                accum[az].append(70.0)
-            elif 150 <= az <= 180:
-                accum[az].append(20.0)
-            else:
-                accum[az].append(15.0)
+            accum[az].append(15.0)
         horizon, confidence = fill_gaps_from_accum(accum)
+        horizon, confidence = apply_manual_override(
+            horizon,
+            confidence,
+            WEST_HOUSE_START_AZ,
+            WEST_HOUSE_END_AZ,
+            WEST_HOUSE_ALT_DEG,
+            "west_house",
+        )
+        horizon, confidence = apply_manual_override(
+            horizon,
+            confidence,
+            150,
+            180,
+            20.0,
+            "dry_run_low_wall",
+        )
         return horizon, confidence, {}
 
     addr = f"{ip}:{port}"
@@ -878,7 +892,8 @@ def run_scan(
             frame_count += BURST_FRAMES
 
             mean_adu = max(float(np.mean(burst)), ADU_FLOOR)
-            expose_sec = expose_sec * (TARGET_MEAN_ADU / mean_adu) ** 0.5
+            computed_expose_sec = expose_sec * (TARGET_MEAN_ADU / mean_adu) ** 0.5
+            expose_sec = 0.7 * expose_sec + 0.3 * computed_expose_sec
             expose_sec = max(EXPOSE_MIN_SEC, min(EXPOSE_MAX_SEC, expose_sec))
 
             tag = f"{actual_az:05.1f}".replace(".", "_")
