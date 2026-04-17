@@ -7,8 +7,7 @@
 *.bak
 *.bak.*
 de421.bsp
-# Catalogs — keep directory layout, ignore generated catalog artifacts
-catalogs/campaign_targets.json
+# Catalogs — keep shipped starter catalog, ignore generated catalog artifacts
 catalogs/federation_catalog.json
 catalogs/reference_stars/
 config.toml
