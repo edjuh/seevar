@@ -177,6 +177,11 @@ def build_panorama_zip(
     pano_height = _next_power_of_two(pano_height)
     slice_width_px = max(64, int(round(pano_width / max(len(media_paths), 1))))
 
+    missing = [str(path) for path in media_paths if not Path(path).exists()]
+    if missing:
+        joined = "\n".join(missing)
+        raise FileNotFoundError(f"Input media not found:\n{joined}")
+
     frames = [_load_rgb(path) for path in media_paths]
     panorama = _blend_rgb_panorama(frames, pano_width, pano_height, slice_width_px)
 

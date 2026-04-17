@@ -55,6 +55,7 @@
 | core/preflight/horizon_stellarium_export.py | 1.1.0 | Exports horizon_mask.json into a Stellarium-ready polygonal landscape zip. |
 | core/preflight/horizon_stellarium_panorama.py | 1.0.0 | Builds a spherical Stellarium panorama landscape zip from horizon scanner v2 frame captures. |
 | core/preflight/stellarium_panorama_from_media.py | 1.0.0 | Builds a spherical Stellarium panorama package from normal RGB photos or a video capture. |
+| core/preflight/stellarium_panorama_capture.py | 1.0.0 | Captures real RTSP JPEG panorama frames from the Seestar wide camera and can build a Stellarium zip directly. |
 | core/preflight/ledger_manager.py | 2.3.1 | Applies cadence history to the canonical nightly plan while preserving nightly-planner metadata and contract. |
 | core/preflight/librarian.py | 4.3.0 | The Single Source of Truth. Parses raw AAVSO haul, checks for VSP charts, and writes the Federation Catalog. |
 | core/preflight/nightly_planner.py | 2.7.7 | Builds the canonical nightly plan in data/tonights_plan.json using astronomical dark, local horizon clearance, and Al... |
