@@ -49,6 +49,30 @@ def _gio_bin() -> str:
     return path
 
 
+def _resolve_share_watch_root(root):
+    if root is None:
+        return None
+    if _is_uri_location(root):
+        uri = str(root).rstrip("/")
+        lower = uri.lower()
+        if lower.endswith("/scenery_photo"):
+            return uri
+        if lower.endswith("/myworks"):
+            return f"{uri}/Scenery_photo"
+        return uri
+
+    path = Path(root)
+    candidates = [
+        path / "Scenery_photo",
+        path / "MyWorks" / "Scenery_photo",
+        path / "EMMC Images" / "MyWorks" / "Scenery_photo",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return path
+
+
 def _primary_scope_ip() -> str:
     cfg = load_config()
     scopes = cfg.get("seestars", [])
@@ -351,6 +375,7 @@ def capture_visual_panorama(
 ) -> tuple[list[Path], Path | None]:
     output_dir = _build_output_dir(output_dir)
     positions = _capture_positions(az_step_deg)
+    share_root = _resolve_share_watch_root(share_root)
     source = capture_source.lower().strip()
     if source == "auto":
         source = "share" if share_root and (_is_uri_location(share_root) or Path(share_root).exists()) else "rtsp"
