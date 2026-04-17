@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/horizon.py
-Version: 2.1.0
+Version: 2.1.1
 Objective: Veto and score targets based on local obstructions using Az/Alt mapping.
 """
 
@@ -53,7 +53,12 @@ def _load_obstructions() -> list:
         try:
             with open(CONFIG_PATH, "rb") as f:
                 config = tomllib.load(f)
-            return config.get("site", {}).get("obstructions", DEFAULT_OBSTRUCTIONS)
+            location_obstructions = config.get("location", {}).get("obstructions")
+            if location_obstructions:
+                return location_obstructions
+            site_obstructions = config.get("site", {}).get("obstructions")
+            if site_obstructions:
+                return site_obstructions
         except Exception:
             pass
     return DEFAULT_OBSTRUCTIONS
@@ -116,13 +121,22 @@ def best_windows(step: int = 5) -> list:
                 in_window = False
                 w_min = 999.0
 
+    if in_window:
+        windows.append((w_start, 360, round(w_min, 1)))
+
+    if len(windows) >= 2 and windows[0][0] == 0 and windows[-1][1] == 360:
+        merged_start = windows[-1][0]
+        merged_end = windows[0][1]
+        merged_min = round(min(windows[-1][2], windows[0][2]), 1)
+        windows = [(merged_start, merged_end, merged_min)] + windows[1:-1]
+
     return windows
 
 
 if __name__ == "__main__":
     _load_profile()
     mode = "PROFILE" if _use_profile else "BOX MODEL FALLBACK"
-    print(f"Horizon engine v2.1.0 — {mode}")
+    print(f"Horizon engine v2.1.1 — {mode}")
     print(f"Mask: {MASK_PATH}")
     print()
     print("Az    MinAlt  ReqAlt(+5)  Clear@25?")
