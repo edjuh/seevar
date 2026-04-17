@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/stellarium_panorama_from_media.py
-Version: 1.1.0
+Version: 1.2.0
 Objective: Build a spherical Stellarium panorama package from normal RGB photos
 or a video capture. This is the visual path and is intentionally separate from
 SeeVar's mathematical horizon scanner.
@@ -238,14 +238,17 @@ def build_panorama_zip(
         raise FileNotFoundError(f"Input media not found:\n{joined}")
 
     frames = [_load_rgb(path) for path in media_paths]
-    panorama = _try_opencv_stitch(frames)
-    if panorama is None:
+    if azimuths:
         panorama = _blend_rgb_panorama(frames, pano_width, pano_height, azimuths if azimuths else None, slice_width_px)
     else:
-        panorama = np.asarray(
-            Image.fromarray(panorama).resize((pano_width, pano_height), Image.Resampling.LANCZOS),
-            dtype=np.uint8,
-        )
+        panorama = _try_opencv_stitch(frames)
+        if panorama is None:
+            panorama = _blend_rgb_panorama(frames, pano_width, pano_height, None, slice_width_px)
+        else:
+            panorama = np.asarray(
+                Image.fromarray(panorama).resize((pano_width, pano_height), Image.Resampling.LANCZOS),
+                dtype=np.uint8,
+            )
 
     mask_payload = None
     if mask_path and Path(mask_path).exists():
@@ -261,14 +264,14 @@ def build_panorama_zip(
         "generated_utc": datetime.now(timezone.utc).isoformat(),
         "media_count": len(media_paths),
         "sources": [str(p) for p in media_paths],
-            "panorama": {
-                "width_px": pano_width,
-                "height_px": pano_height,
-                "top_alt_deg": float(top_alt),
-                "bottom_alt_deg": float(bottom_alt),
-                "azimuth_offset_deg": float(azimuth_offset_deg),
-            },
-        }, indent=2) + "\n"
+        "panorama": {
+            "width_px": pano_width,
+            "height_px": pano_height,
+            "top_alt_deg": float(top_alt),
+            "bottom_alt_deg": float(bottom_alt),
+            "azimuth_offset_deg": float(azimuth_offset_deg),
+        },
+    }, indent=2) + "\n"
 
     output_zip.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
@@ -282,7 +285,7 @@ def build_panorama_zip(
                 top_alt,
                 bottom_alt,
                 has_horizon=mask_payload is not None,
-                angle_rotatez=float(azimuth_offset_deg),
+                angle_rotatez=0.0,
             ),
         )
         zf.writestr(f"{folder}/location.json", location_json)

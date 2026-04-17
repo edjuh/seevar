@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/stellarium_panorama_capture.py
-Version: 1.4.0
+Version: 1.5.0
 Objective: Capture a real visual panorama while slewing around the horizon.
 Supports either direct RTSP snapshots or pulling freshly saved JPEGs from a
 mounted Seestar media share after switching the device into scenery mode.
@@ -495,7 +495,7 @@ def main():
     parser.add_argument("--telescope-num", type=int, default=hv2.TELESCOPE_NUM_DEFAULT)
     parser.add_argument("--client-id", type=int, default=hv2.CLIENT_ID_DEFAULT)
     parser.add_argument("--alt", type=float, default=20.0)
-    parser.add_argument("--az-step", type=float, default=30.0)
+    parser.add_argument("--az-step", type=float, default=15.0)
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--capture-source", choices=["auto", "rtsp", "share"], default="auto")
     parser.add_argument("--share-root", type=str, default=str(DEFAULT_SHARE_ROOT))
