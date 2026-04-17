@@ -253,7 +253,7 @@ See `core/preflight/stellarium_panorama_from_media.py` for building a panorama z
 from normal JPEG/MP4 inputs, or `core/preflight/stellarium_panorama_capture.py`
 for a guided capture flow that can switch the Seestar into `scenery` mode and
 pull newly saved JPEGs from a mounted Seestar media share (default mount:
-`~/seevar/s30_storage`).
+`~/seevar/s30_storage`) or directly from an `smb://...` Seestar share URI.
 
 Example:
 

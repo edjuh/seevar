@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/stellarium_panorama_capture.py
-Version: 1.2.0
+Version: 1.3.0
 Objective: Capture a real visual panorama while slewing around the horizon.
 Supports either direct RTSP snapshots or pulling freshly saved JPEGs from a
 mounted Seestar media share after switching the device into scenery mode.
@@ -17,6 +17,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import numpy as np
 from alpaca.camera import Camera
@@ -35,6 +36,17 @@ RTSP_WIDE_PORT = 4555
 RPC_PORT = 4700
 DEFAULT_SHARE_ROOT = PROJECT_ROOT / "s30_storage"
 _RPC_MSG_ID = 50000
+
+
+def _is_uri_location(root) -> bool:
+    return isinstance(root, str) and "://" in root
+
+
+def _gio_bin() -> str:
+    path = shutil.which("gio")
+    if not path:
+        raise RuntimeError("gio is required for direct smb:// share access")
+    return path
 
 
 def _primary_scope_ip() -> str:
@@ -176,10 +188,13 @@ def _capture_positions(step_deg: float) -> list[float]:
 
 
 def _snapshot_media(root: Path, suffixes: tuple[str, ...]) -> dict[Path, tuple[int, int]]:
-    if not root.exists():
-        raise FileNotFoundError(f"Media share root does not exist: {root}")
-    files: dict[Path, tuple[int, int]] = {}
-    for path in root.rglob("*"):
+    if _is_uri_location(root):
+        return _snapshot_media_uri(str(root), suffixes)
+    root_path = Path(root)
+    if not root_path.exists():
+        raise FileNotFoundError(f"Media share root does not exist: {root_path}")
+    files: dict[str, tuple[int, int]] = {}
+    for path in root_path.rglob("*"):
         if not path.is_file():
             continue
         if path.suffix.lower() not in suffixes:
@@ -188,22 +203,77 @@ def _snapshot_media(root: Path, suffixes: tuple[str, ...]) -> dict[Path, tuple[i
             stat = path.stat()
         except OSError:
             continue
-        files[path] = (stat.st_mtime_ns, stat.st_size)
+        files[str(path)] = (stat.st_mtime_ns, stat.st_size)
+    return files
+
+
+def _parse_gio_list_line(line: str) -> dict | None:
+    parts = line.rstrip("\n").split("\t")
+    if len(parts) < 3:
+        return None
+    uri = parts[0]
+    try:
+        size = int(parts[1])
+    except ValueError:
+        size = 0
+    type_field = parts[2].strip().lower()
+    attrs: dict[str, str] = {}
+    for field in parts[3:]:
+        if "=" in field:
+            key, value = field.split("=", 1)
+            attrs[key.strip()] = value.strip()
+    return {
+        "uri": uri,
+        "size": size,
+        "modified": int(attrs.get("time::modified", "0") or "0"),
+        "is_dir": "directory" in type_field,
+    }
+
+
+def _snapshot_media_uri(root_uri: str, suffixes: tuple[str, ...]) -> dict[str, tuple[int, int]]:
+    gio = _gio_bin()
+    todo = [root_uri.rstrip("/")]
+    seen: set[str] = set()
+    files: dict[str, tuple[int, int]] = {}
+
+    while todo:
+        current = todo.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        result = subprocess.run(
+            [gio, "list", "-u", "-a", "time::modified,size,standard::type", current],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        for line in result.stdout.splitlines():
+            parsed = _parse_gio_list_line(line)
+            if not parsed:
+                continue
+            uri = parsed["uri"]
+            if parsed["is_dir"]:
+                todo.append(uri)
+                continue
+            suffix = Path(urlparse(uri).path).suffix.lower()
+            if suffix not in suffixes:
+                continue
+            files[uri] = (int(parsed["modified"]) * 1_000_000_000, int(parsed["size"]))
     return files
 
 
 def _wait_for_new_media(
-    share_root: Path,
-    baseline: dict[Path, tuple[int, int]],
+    share_root,
+    baseline: dict[str, tuple[int, int]],
     suffixes: tuple[str, ...],
     timeout: float,
     poll_sec: float = 1.0,
-) -> Path:
+) -> str:
     deadline = time.monotonic() + timeout
-    candidate: Path | None = None
+    candidate: str | None = None
     while time.monotonic() < deadline:
         current = _snapshot_media(share_root, suffixes)
-        updates: list[tuple[int, Path]] = []
+        updates: list[tuple[int, str]] = []
         for path, stamp in current.items():
             prior = baseline.get(path)
             if prior is None or stamp != prior:
@@ -219,16 +289,21 @@ def _wait_for_new_media(
     stable_deadline = time.monotonic() + 5.0
     last_size = -1
     while time.monotonic() < stable_deadline:
-        stat = candidate.stat()
-        if stat.st_size == last_size:
+        current = _snapshot_media(share_root, suffixes)
+        stamp = current.get(candidate)
+        if stamp is None:
+            time.sleep(0.5)
+            continue
+        size = stamp[1]
+        if size == last_size:
             return candidate
-        last_size = stat.st_size
+        last_size = size
         time.sleep(0.5)
     return candidate
 
 
 def _capture_share_media(
-    share_root: Path,
+    share_root,
     output_dir: Path,
     tag: str,
     timeout: float,
@@ -241,8 +316,12 @@ def _capture_share_media(
             f"Take a scenery capture now; press Enter when the Seestar has saved it under {share_root} ..."
         )
     pulled = _wait_for_new_media(share_root, baseline, suffixes, timeout=timeout)
-    out_path = output_dir / f"panorama_az{tag}{pulled.suffix.lower()}"
-    shutil.copy2(pulled, out_path)
+    pulled_path = Path(urlparse(pulled).path) if _is_uri_location(pulled) else Path(pulled)
+    out_path = output_dir / f"panorama_az{tag}{pulled_path.suffix.lower()}"
+    if _is_uri_location(pulled):
+        subprocess.run([_gio_bin(), "copy", pulled, str(out_path)], check=True)
+    else:
+        shutil.copy2(pulled_path, out_path)
     hv2.log.info("Pulled media from share: %s -> %s", pulled, out_path)
     return out_path
 
@@ -257,7 +336,7 @@ def capture_visual_panorama(
     az_step_deg: float,
     output_dir: Path,
     capture_source: str,
-    share_root: Path | None,
+    share_root,
     share_timeout: float,
     prompt_capture: bool,
     view_mode: str,
@@ -274,7 +353,7 @@ def capture_visual_panorama(
     positions = _capture_positions(az_step_deg)
     source = capture_source.lower().strip()
     if source == "auto":
-        source = "share" if share_root and Path(share_root).exists() else "rtsp"
+        source = "share" if share_root and (_is_uri_location(share_root) or Path(share_root).exists()) else "rtsp"
     if source not in {"rtsp", "share"}:
         raise ValueError(f"Unsupported capture source: {capture_source}")
     if source == "share" and share_root is None:
@@ -341,7 +420,7 @@ def capture_visual_panorama(
             else:
                 captured.append(
                     _capture_share_media(
-                        share_root=Path(share_root),
+                        share_root=share_root,
                         output_dir=output_dir,
                         tag=tag,
                         timeout=share_timeout,
@@ -411,7 +490,7 @@ def main():
 
     effective_source = args.capture_source
     if effective_source == "auto":
-        effective_source = "share" if Path(args.share_root).exists() else "rtsp"
+        effective_source = "share" if (_is_uri_location(args.share_root) or Path(args.share_root).exists()) else "rtsp"
     if effective_source == "rtsp" and shutil.which("ffmpeg") is None:
         raise SystemExit("ffmpeg is required for RTSP panorama capture")
 
@@ -432,7 +511,7 @@ def main():
         az_step_deg=args.az_step,
         output_dir=Path(args.output_dir) if args.output_dir else None,
         capture_source=args.capture_source,
-        share_root=Path(args.share_root) if args.share_root else None,
+        share_root=args.share_root if args.share_root else None,
         share_timeout=float(args.share_timeout),
         prompt_capture=not args.no_prompt,
         view_mode=str(args.view_mode).strip().lower(),
