@@ -47,6 +47,23 @@ def _load_rgb(path: Path) -> np.ndarray:
     return np.asarray(image, dtype=np.uint8)
 
 
+def _try_opencv_stitch(frames: list[np.ndarray]) -> np.ndarray | None:
+    try:
+        import cv2  # type: ignore
+    except Exception:
+        return None
+
+    if len(frames) < 2:
+        return None
+
+    bgr_images = [cv2.cvtColor(frame, cv2.COLOR_RGB2BGR) for frame in frames]
+    stitcher = cv2.Stitcher_create(cv2.Stitcher_PANORAMA)
+    status, pano = stitcher.stitch(bgr_images)
+    if status != cv2.Stitcher_OK or pano is None:
+        return None
+    return cv2.cvtColor(pano, cv2.COLOR_BGR2RGB)
+
+
 def _blend_rgb_panorama(
     frames: list[np.ndarray],
     width: int,
@@ -183,7 +200,14 @@ def build_panorama_zip(
         raise FileNotFoundError(f"Input media not found:\n{joined}")
 
     frames = [_load_rgb(path) for path in media_paths]
-    panorama = _blend_rgb_panorama(frames, pano_width, pano_height, slice_width_px)
+    panorama = _try_opencv_stitch(frames)
+    if panorama is None:
+        panorama = _blend_rgb_panorama(frames, pano_width, pano_height, slice_width_px)
+    else:
+        panorama = np.asarray(
+            Image.fromarray(panorama).resize((pano_width, pano_height), Image.Resampling.LANCZOS),
+            dtype=np.uint8,
+        )
 
     mask_payload = None
     if mask_path and Path(mask_path).exists():
