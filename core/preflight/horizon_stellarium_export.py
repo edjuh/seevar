@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Filename: core/preflight/horizon_stellarium_export.py
+Version: 1.0.0
+Objective: Export SeeVar horizon_mask.json into a Stellarium-ready polygonal
+landscape zip containing horizon.txt, landscape.ini, and location.json.
+"""
+
+import argparse
+import json
+import re
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+import sys
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config
+from core.utils.observer_math import get_maidenhead_6char
+
+HORIZON_MASK = DATA_DIR / "horizon_mask.json"
+STELLARIUM_DIR = DATA_DIR / "stellarium"
+
+
+def _slugify(value: str) -> str:
+    token = re.sub(r"[^a-zA-Z0-9]+", "_", str(value or "").strip()).strip("_")
+    return token or "seevar_landscape"
+
+
+def _load_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return {}
+
+
+def _load_location() -> dict:
+    config = load_config()
+    loc = dict(config.get("location", {}))
+    source = "config"
+
+    live = _load_json(ENV_STATUS)
+    if live:
+        if live.get("lat") not in (None, "", 0, 0.0):
+            loc["lat"] = float(live["lat"])
+        if live.get("lon") not in (None, "", 0, 0.0):
+            loc["lon"] = float(live["lon"])
+        if live.get("elevation") not in (None, ""):
+            loc["elevation"] = float(live["elevation"])
+        if live.get("maidenhead"):
+            loc["maidenhead"] = str(live["maidenhead"])
+        source = "env_status"
+
+    lat = float(loc.get("lat", 0.0))
+    lon = float(loc.get("lon", 0.0))
+    elev = float(loc.get("elevation", 0.0))
+    maidenhead = str(loc.get("maidenhead") or get_maidenhead_6char(lat, lon))
+
+    return {
+        "lat": lat,
+        "lon": lon,
+        "elevation": elev,
+        "maidenhead": maidenhead,
+        "source": source,
+    }
+
+
+def _load_horizon_mask(path: Path) -> dict:
+    payload = _load_json(path)
+    profile = payload.get("profile", {})
+    if not isinstance(profile, dict) or not profile:
+        raise FileNotFoundError(f"No usable horizon profile found in {path}")
+    return payload
+
+
+def _horizon_txt(profile: dict) -> str:
+    lines = []
+    for az in range(360):
+        alt = float(profile.get(str(az), profile.get(az, 15.0)))
+        lines.append(f"{az} {alt:.1f}")
+    lines.append(f"360 {float(profile.get('0', profile.get(0, 15.0))):.1f}")
+    return "\r\n".join(lines) + "\r\n"
+
+
+def _landscape_ini(name: str, description: str) -> str:
+    return (
+        "[landscape]\r\n"
+        f"name = {name}\r\n"
+        "type = polygonal\r\n"
+        "author = SeeVar\r\n"
+        f"description = {description}\r\n"
+        "polygonal_horizon_list = horizon.txt\r\n"
+        "polygonal_horizon_list_mode = azDeg_altDeg\r\n"
+        "polygonal_angle_rotatez = 0\r\n"
+        "ground_color = 0.15,0.15,0.15\r\n"
+        "minimal_altitude = -5\r\n"
+    )
+
+
+def export_stellarium_zip(mask_path: Path, output_zip: Path | None = None, landscape_name: str | None = None) -> Path:
+    payload = _load_horizon_mask(mask_path)
+    profile = payload["profile"]
+    location = _load_location()
+
+    maidenhead = location["maidenhead"]
+    name = landscape_name or f"SeeVar {maidenhead}"
+    folder = _slugify(name)
+    description = (
+        f"SeeVar polygonal horizon for {maidenhead} "
+        f"(lat={location['lat']:.5f}, lon={location['lon']:.5f}, elev={location['elevation']:.1f}m)"
+    )
+
+    location_json = json.dumps({
+        "name": name,
+        "maidenhead": maidenhead,
+        "lat": location["lat"],
+        "lon": location["lon"],
+        "elevation_m": location["elevation"],
+        "location_source": location["source"],
+        "generated_utc": datetime.now(timezone.utc).isoformat(),
+        "horizon_source": str(mask_path),
+        "scanner_version": payload.get("scanner_version"),
+    }, indent=2) + "\n"
+
+    if output_zip is None:
+        STELLARIUM_DIR.mkdir(parents=True, exist_ok=True)
+        output_zip = STELLARIUM_DIR / f"{folder}.zip"
+    else:
+        output_zip = Path(output_zip)
+        output_zip.parent.mkdir(parents=True, exist_ok=True)
+
+    with zipfile.ZipFile(output_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(f"{folder}/horizon.txt", _horizon_txt(profile))
+        zf.writestr(f"{folder}/landscape.ini", _landscape_ini(name, description))
+        zf.writestr(f"{folder}/location.json", location_json)
+
+    return output_zip
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Export horizon_mask.json to a Stellarium polygonal landscape zip.")
+    parser.add_argument("--input", default=str(HORIZON_MASK))
+    parser.add_argument("--output", default=None)
+    parser.add_argument("--name", default=None, help="Optional Stellarium landscape name")
+    args = parser.parse_args()
+
+    out = export_stellarium_zip(
+        mask_path=Path(args.input),
+        output_zip=Path(args.output) if args.output else None,
+        landscape_name=args.name,
+    )
+    print(out)
+
+
+if __name__ == "__main__":
+    main()

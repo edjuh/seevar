@@ -31,6 +31,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.utils.env_loader import DATA_DIR, load_config
+from core.preflight.horizon_stellarium_export import export_stellarium_zip
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1069,6 +1070,8 @@ def main():
     parser.add_argument("--telescope-num", type=int, default=TELESCOPE_NUM_DEFAULT)
     parser.add_argument("--client-id", type=int, default=CLIENT_ID_DEFAULT)
     parser.add_argument("--output", type=str, default=str(HORIZON_FILE))
+    parser.add_argument("--stellarium-zip", type=str, default=None, help="Optional output zip for a Stellarium polygonal landscape export")
+    parser.add_argument("--stellarium-name", type=str, default=None, help="Optional Stellarium landscape display name")
     parser.add_argument("--balcony-site", action="store_true", help="Use stronger rooftop/balcony tuning")
     parser.add_argument("--west-house", action="store_true", help="Apply known west-side house obstruction override")
     parser.add_argument("--side-crop-frac", type=float, default=None)
@@ -1201,6 +1204,14 @@ def main():
         min_cols_per_deg=args.min_cols_per_deg,
         manual_overrides=manual_overrides,
     )
+
+    if args.stellarium_zip is not None:
+        zip_path = export_stellarium_zip(
+            mask_path=Path(args.output),
+            output_zip=Path(args.stellarium_zip),
+            landscape_name=args.stellarium_name,
+        )
+        print(f"Stellarium zip    : {zip_path}")
 
     print("\nDone.")
     print(f"Profile written to: {args.output}")
