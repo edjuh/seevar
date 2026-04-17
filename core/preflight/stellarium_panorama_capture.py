@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/stellarium_panorama_capture.py
-Version: 1.1.0
+Version: 1.2.0
 Objective: Capture a real visual panorama while slewing around the horizon.
 Supports either direct RTSP snapshots or pulling freshly saved JPEGs from a
 mounted Seestar media share after switching the device into scenery mode.
@@ -120,6 +120,44 @@ def _set_view_mode(ip: str, mode: str) -> None:
     time.sleep(2.0)
 
 
+def _slew_panorama_position(telescope: Telescope, location, az: float, alt: float) -> bool:
+    ra_h, dec_d = hv2.altaz_to_radec(az, alt, location)
+    for attempt in range(1, hv2.SLEW_RETRY_LIMIT + 1):
+        try:
+            telescope.SlewToCoordinatesAsync(ra_h, dec_d)
+        except Exception as exc:
+            hv2.log.warning(
+                "Panorama slew command failed at Az=%.1f° attempt %d/%d: %s",
+                az,
+                attempt,
+                hv2.SLEW_RETRY_LIMIT,
+                exc,
+            )
+            if attempt >= hv2.SLEW_RETRY_LIMIT:
+                return False
+            time.sleep(hv2.POST_RECOVERY_PAUSE_SEC)
+            continue
+
+        if hv2.wait_for_slew(telescope, timeout=45):
+            time.sleep(hv2.SETTLE_SEC)
+            return True
+
+        hv2.log.warning(
+            "Panorama slew timeout at Az=%.1f° attempt %d/%d",
+            az,
+            attempt,
+            hv2.SLEW_RETRY_LIMIT,
+        )
+        try:
+            telescope.AbortSlew()
+        except Exception:
+            pass
+        if attempt >= hv2.SLEW_RETRY_LIMIT:
+            return False
+        time.sleep(hv2.POST_RECOVERY_PAUSE_SEC)
+    return False
+
+
 def _build_output_dir(base_dir: Path | None) -> Path:
     if base_dir is not None:
         out = Path(base_dir)
@@ -223,6 +261,7 @@ def capture_visual_panorama(
     share_timeout: float,
     prompt_capture: bool,
     view_mode: str,
+    require_mode_switch: bool,
     video_seconds: float,
     build_zip: bool,
     zip_path: Path | None,
@@ -246,13 +285,14 @@ def capture_visual_panorama(
 
     addr = f"{ip}:{port}"
     telescope = Telescope(addr, telescope_num)
-    camera = Camera(addr, camera_num)
-
-    hv2.ALPACA_CAMERA_BASE = f"http://{ip}:{port}/api/v1/camera/{camera_num}"
+    camera = Camera(addr, camera_num) if source == "rtsp" else None
+    if camera is not None:
+        hv2.ALPACA_CAMERA_BASE = f"http://{ip}:{port}/api/v1/camera/{camera_num}"
 
     telescope.Connected = True
-    camera.Connected = True
-    hv2.configure_camera(camera)
+    if camera is not None:
+        camera.Connected = True
+        hv2.configure_camera(camera)
     try:
         telescope.Unpark()
     except Exception:
@@ -260,11 +300,15 @@ def capture_visual_panorama(
     try:
         _set_view_mode(ip, view_mode)
     except Exception as exc:
-        if source == "share":
+        if require_mode_switch:
             raise RuntimeError(f"Could not switch {ip} into {view_mode} mode: {exc}") from exc
-        hv2.log.warning("View mode switch to %s failed: %s", view_mode, exc)
+        hv2.log.warning(
+            "View mode switch to %s failed: %s. Continue and set the mode manually in the app if needed.",
+            view_mode,
+            exc,
+        )
 
-    if not hv2.probe_wide_camera(camera, client_id):
+    if camera is not None and not hv2.probe_wide_camera(camera, client_id):
         hv2.disconnect_safely(camera, telescope)
         raise RuntimeError("Wide camera probe failed before panorama capture")
 
@@ -276,7 +320,11 @@ def capture_visual_panorama(
                 continue
 
             hv2.log.info("[%02d/%02d] Panorama slew Az=%.1f° Alt=%.1f°", idx, len(positions), az, altitude_deg)
-            if not hv2.slew_with_recovery(telescope, camera, location, az, altitude_deg, client_id):
+            if source == "rtsp":
+                moved = hv2.slew_with_recovery(telescope, camera, location, az, altitude_deg, client_id)
+            else:
+                moved = _slew_panorama_position(telescope, location, az, altitude_deg)
+            if not moved:
                 hv2.log.warning("Skipping panorama stop at Az=%.1f°", az)
                 continue
 
@@ -349,6 +397,7 @@ def main():
     parser.add_argument("--share-timeout", type=float, default=90.0, help="Seconds to wait for a new JPEG on the mounted Seestar share")
     parser.add_argument("--no-prompt", action="store_true", help="Do not wait for Enter before watching the mounted share for a new file")
     parser.add_argument("--view-mode", type=str, default="scenery", help="JSON-RPC view mode to request before capture (default: scenery)")
+    parser.add_argument("--require-mode-switch", action="store_true", help="Fail if the requested view-mode switch does not confirm")
     parser.add_argument("--video-seconds", type=float, default=0.0, help="Optional short MP4 duration per azimuth stop")
     parser.add_argument("--no-zip", action="store_true")
     parser.add_argument("--zip-output", type=str, default=None)
@@ -387,6 +436,7 @@ def main():
         share_timeout=float(args.share_timeout),
         prompt_capture=not args.no_prompt,
         view_mode=str(args.view_mode).strip().lower(),
+        require_mode_switch=bool(args.require_mode_switch),
         video_seconds=float(args.video_seconds),
         build_zip=not args.no_zip,
         zip_path=Path(args.zip_output) if args.zip_output else None,
