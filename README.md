@@ -228,11 +228,25 @@ It produces:
 - `data/horizon_mask.png`
 - `data/horizon_frames/` debug artifacts
 
-It can also export a Stellarium-ready polygonal landscape zip containing:
+It can export two different Stellarium artifacts:
+
+- a polygonal horizon package for mathematically correct obstruction geometry
+- a spherical panorama package built from the saved scanner frames for visual context
+
+The polygonal package contains:
 
 - `horizon.txt`
 - `landscape.ini`
 - `location.json`
+- `readme.txt`
+
+The spherical panorama package contains:
+
+- `panorama.png`
+- `horizon.txt`
+- `landscape.ini`
+- `location.json`
+- `readme.txt`
 
 Example:
 
@@ -242,7 +256,9 @@ cd ~/seevar
   --ip 192.168.8.11 \
   --output /home/ed/seevar/data/horizon_mask.json \
   --stellarium-zip /home/ed/seevar/data/stellarium/SeeVar_JO22hj.zip \
-  --stellarium-name "SeeVar JO22hj"
+  --stellarium-name "SeeVar JO22hj Polygon" \
+  --stellarium-panorama-zip /home/ed/seevar/data/stellarium/SeeVar_JO22hj_panorama.zip \
+  --stellarium-panorama-name "SeeVar JO22hj Panorama"
 ```
 
 ## Documentation

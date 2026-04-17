@@ -32,6 +32,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.utils.env_loader import DATA_DIR, load_config
 from core.preflight.horizon_stellarium_export import export_stellarium_zip
+from core.preflight.horizon_stellarium_panorama import export_stellarium_panorama_zip
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1072,6 +1073,8 @@ def main():
     parser.add_argument("--output", type=str, default=str(HORIZON_FILE))
     parser.add_argument("--stellarium-zip", type=str, default=None, help="Optional output zip for a Stellarium polygonal landscape export")
     parser.add_argument("--stellarium-name", type=str, default=None, help="Optional Stellarium landscape display name")
+    parser.add_argument("--stellarium-panorama-zip", type=str, default=None, help="Optional output zip for a Stellarium spherical panorama landscape export")
+    parser.add_argument("--stellarium-panorama-name", type=str, default=None, help="Optional Stellarium spherical panorama display name")
     parser.add_argument("--balcony-site", action="store_true", help="Use stronger rooftop/balcony tuning")
     parser.add_argument("--west-house", action="store_true", help="Apply known west-side house obstruction override")
     parser.add_argument("--side-crop-frac", type=float, default=None)
@@ -1212,6 +1215,20 @@ def main():
             landscape_name=args.stellarium_name,
         )
         print(f"Stellarium zip    : {zip_path}")
+
+    if args.stellarium_panorama_zip is not None:
+        pano_zip = export_stellarium_panorama_zip(
+            mask_path=Path(args.output),
+            frame_dir=FRAME_DIR,
+            output_zip=Path(args.stellarium_panorama_zip),
+            landscape_name=args.stellarium_panorama_name,
+            pano_width=4096,
+            pano_height=None,
+            fov_h_deg=FOV_H_DEG,
+            fov_v_deg=FOV_V_DEG,
+            alt_center_deg=ALT_CENTER_DEG,
+        )
+        print(f"Stellarium pano   : {pano_zip}")
 
     print("\nDone.")
     print(f"Profile written to: {args.output}")

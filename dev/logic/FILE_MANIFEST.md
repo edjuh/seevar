@@ -50,9 +50,10 @@
 | core/preflight/fog_monitor.py | 1.0.1 | Infrared sky-clarity monitor using MLX90614 to prevent imaging in fog. Acts as a safety gate for photometry. |
 | core/preflight/gps.py | 1.5.1 | Bi-directional GPS provider with lazy initialization. Reads from RAM status and actively syncs to config.toml via Vau... |
 | core/preflight/hardware_audit.py | 3.0.0 | Alpaca REST hardware audit — reads telescope and camera state |
-| core/preflight/horizon.py | 2.1.0 | Veto and score targets based on local obstructions using Az/Alt mapping. |
+| core/preflight/horizon.py | 2.1.1 | Veto and score targets based on local obstructions using Az/Alt mapping. |
 | core/preflight/horizon_scanner_v2.py | 2.0.6 | Rooftop-aware daytime horizon scanner using burst-median wide-camera frames and vectorized skyline detection. |
-| core/preflight/horizon_stellarium_export.py | 1.0.0 | Exports horizon_mask.json into a Stellarium-ready polygonal landscape zip. |
+| core/preflight/horizon_stellarium_export.py | 1.1.0 | Exports horizon_mask.json into a Stellarium-ready polygonal landscape zip. |
+| core/preflight/horizon_stellarium_panorama.py | 1.0.0 | Builds a spherical Stellarium panorama landscape zip from horizon scanner v2 frame captures. |
 | core/preflight/ledger_manager.py | 2.3.1 | Applies cadence history to the canonical nightly plan while preserving nightly-planner metadata and contract. |
 | core/preflight/librarian.py | 4.3.0 | The Single Source of Truth. Parses raw AAVSO haul, checks for VSP charts, and writes the Federation Catalog. |
 | core/preflight/nightly_planner.py | 2.7.7 | Builds the canonical nightly plan in data/tonights_plan.json using astronomical dark, local horizon clearance, and Al... |
