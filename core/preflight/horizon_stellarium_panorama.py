@@ -68,23 +68,47 @@ def _load_frame(path: Path) -> np.ndarray:
     return scaled
 
 
-def _blend_panorama(frames: list[tuple[float, np.ndarray]], width: int, height: int, frame_width_px: int) -> np.ndarray:
+def _median_step_deg(azimuths: list[float]) -> float:
+    if len(azimuths) < 2:
+        return 20.0
+    ordered = sorted(a % 360.0 for a in azimuths)
+    diffs = []
+    for idx, az in enumerate(ordered):
+        nxt = ordered[(idx + 1) % len(ordered)]
+        diff = (nxt - az) % 360.0
+        if diff > 0:
+            diffs.append(diff)
+    return float(np.median(diffs)) if diffs else 20.0
+
+
+def _blend_panorama(
+    frames: list[tuple[float, np.ndarray]],
+    width: int,
+    height: int,
+    slice_width_px: int,
+    center_crop_ratio: float = 0.7,
+) -> np.ndarray:
     accum = np.zeros((height, width), dtype=np.float32)
     weights = np.zeros((height, width), dtype=np.float32)
 
-    x = np.linspace(-1.0, 1.0, frame_width_px, dtype=np.float32)
+    x = np.linspace(-1.0, 1.0, slice_width_px, dtype=np.float32)
     blend = np.clip(1.0 - np.abs(x), 0.05, 1.0)
 
     for az, frame in frames:
-        resized = Image.fromarray(frame, mode="L").resize((frame_width_px, height), Image.Resampling.BICUBIC)
+        w = frame.shape[1]
+        crop_w = max(16, int(round(w * center_crop_ratio)))
+        left = max(0, (w - crop_w) // 2)
+        right = min(w, left + crop_w)
+        cropped = frame[:, left:right]
+        resized = Image.fromarray(cropped).resize((slice_width_px, height), Image.Resampling.LANCZOS)
         img = np.asarray(resized, dtype=np.float32)
         center_x = (az % 360.0) / 360.0 * width
-        start_x = int(round(center_x - frame_width_px / 2.0))
-        for src_x in range(frame_width_px):
+        start_x = int(round(center_x - slice_width_px / 2.0))
+        for src_x in range(slice_width_px):
             dst_x = (start_x + src_x) % width
-            w = blend[src_x]
-            accum[:, dst_x] += img[:, src_x] * w
-            weights[:, dst_x] += w
+            weight = blend[src_x]
+            accum[:, dst_x] += img[:, src_x] * weight
+            weights[:, dst_x] += weight
 
     missing = weights <= 1e-6
     if np.any(missing):
@@ -103,7 +127,7 @@ def _blend_panorama(frames: list[tuple[float, np.ndarray]], width: int, height: 
 
 def _panorama_png_bytes(gray: np.ndarray) -> bytes:
     rgb = np.dstack([gray, gray, gray])
-    image = Image.fromarray(rgb, mode="RGB")
+    image = Image.fromarray(rgb)
     buf = io.BytesIO()
     image.save(buf, format="PNG")
     return buf.getvalue()
@@ -149,8 +173,17 @@ def export_stellarium_panorama_zip(
     profile = payload["profile"]
     location = _load_location()
 
-    frame_paths = sorted(frame_dir.glob("horizon_v2_az*.png"))
+    frame_paths = sorted(frame_dir.glob("horizon_v2_az*_rtsp.jpg"))
     frame_loader = _load_image_frame
+    if not frame_paths:
+        frame_paths = sorted(frame_dir.glob("horizon_v2_az*.png"))
+        frame_loader = _load_image_frame
+    if not frame_paths:
+        frame_paths = sorted(frame_dir.glob("horizon_v2_az*.ppm"))
+        frame_loader = _load_image_frame
+    if not frame_paths:
+        frame_paths = sorted(frame_dir.glob("horizon_v2_az*.png"))
+        frame_loader = _load_image_frame
     if not frame_paths:
         frame_paths = sorted(frame_dir.glob("horizon_v2_az*.npy"))
         frame_loader = _load_frame
@@ -165,10 +198,12 @@ def export_stellarium_panorama_zip(
 
     top_alt = alt_center_deg + fov_v_deg / 2.0
     bottom_alt = alt_center_deg - fov_v_deg / 2.0
-    frame_width_px = max(64, int(round(pano_width * (fov_h_deg / 360.0))))
+    azimuths = [_parse_azimuth(path) for path in frame_paths]
+    step_deg = _median_step_deg(azimuths)
+    slice_width_px = max(64, int(round(pano_width * (step_deg / 360.0))))
 
     frames = [(_parse_azimuth(path), frame_loader(path)) for path in frame_paths]
-    panorama = _blend_panorama(frames, pano_width, pano_height, frame_width_px)
+    panorama = _blend_panorama(frames, pano_width, pano_height, slice_width_px)
 
     maidenhead = location["maidenhead"]
     name = landscape_name or f"SeeVar {maidenhead} Panorama"
@@ -198,6 +233,7 @@ def export_stellarium_panorama_zip(
             "bottom_alt_deg": round(bottom_alt, 3),
             "frame_fov_h_deg": round(fov_h_deg, 3),
             "frame_fov_v_deg": round(fov_v_deg, 3),
+            "slice_span_deg": round(step_deg, 3),
         },
     }, indent=2) + "\n"
 
