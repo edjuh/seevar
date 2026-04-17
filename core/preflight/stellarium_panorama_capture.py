@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/stellarium_panorama_capture.py
-Version: 1.3.0
+Version: 1.4.0
 Objective: Capture a real visual panorama while slewing around the horizon.
 Supports either direct RTSP snapshots or pulling freshly saved JPEGs from a
 mounted Seestar media share after switching the device into scenery mode.
@@ -336,9 +336,7 @@ def _capture_share_media(
 ) -> Path:
     baseline = _snapshot_media(share_root, suffixes)
     if prompt:
-        input(
-            f"Take a scenery capture now; press Enter when the Seestar has saved it under {share_root} ..."
-        )
+        input(f"Ready for panorama_az{tag}. Trigger the scenery photo now, then press Enter to start watching {share_root} ...")
     pulled = _wait_for_new_media(share_root, baseline, suffixes, timeout=timeout)
     pulled_path = Path(urlparse(pulled).path) if _is_uri_location(pulled) else Path(pulled)
     out_path = output_dir / f"panorama_az{tag}{pulled_path.suffix.lower()}"
@@ -365,6 +363,7 @@ def capture_visual_panorama(
     prompt_capture: bool,
     view_mode: str,
     require_mode_switch: bool,
+    azimuth_offset_deg: float,
     video_seconds: float,
     build_zip: bool,
     zip_path: Path | None,
@@ -436,7 +435,8 @@ def capture_visual_panorama(
                 actual_az = float(telescope.Azimuth)
             except Exception:
                 actual_az = az
-            tag = f"{actual_az:05.1f}".replace(".", "_")
+            corrected_az = (actual_az + azimuth_offset_deg) % 360.0
+            tag = f"{corrected_az:05.1f}".replace(".", "_")
 
             jpg_path = output_dir / f"panorama_az{tag}.jpg"
             if source == "rtsp":
@@ -480,6 +480,7 @@ def capture_visual_panorama(
                 top_alt=top_alt,
                 bottom_alt=bottom_alt,
                 mask_path=HORIZON_MASK if HORIZON_MASK.exists() else None,
+                azimuth_offset_deg=float(azimuth_offset_deg),
             )
         return captured, zip_out
     finally:
@@ -499,9 +500,10 @@ def main():
     parser.add_argument("--capture-source", choices=["auto", "rtsp", "share"], default="auto")
     parser.add_argument("--share-root", type=str, default=str(DEFAULT_SHARE_ROOT))
     parser.add_argument("--share-timeout", type=float, default=90.0, help="Seconds to wait for a new JPEG on the mounted Seestar share")
-    parser.add_argument("--no-prompt", action="store_true", help="Do not wait for Enter before watching the mounted share for a new file")
+    parser.add_argument("--prompt", action="store_true", help="Pause for Enter before watching the share for a new file")
     parser.add_argument("--view-mode", type=str, default="scenery", help="JSON-RPC view mode to request before capture (default: scenery)")
     parser.add_argument("--require-mode-switch", action="store_true", help="Fail if the requested view-mode switch does not confirm")
+    parser.add_argument("--azimuth-offset-deg", type=float, default=-30.0, help="Apply a fixed azimuth correction before naming/placing panorama frames")
     parser.add_argument("--video-seconds", type=float, default=0.0, help="Optional short MP4 duration per azimuth stop")
     parser.add_argument("--no-zip", action="store_true")
     parser.add_argument("--zip-output", type=str, default=None)
@@ -538,9 +540,10 @@ def main():
         capture_source=args.capture_source,
         share_root=args.share_root if args.share_root else None,
         share_timeout=float(args.share_timeout),
-        prompt_capture=not args.no_prompt,
+        prompt_capture=bool(args.prompt),
         view_mode=str(args.view_mode).strip().lower(),
         require_mode_switch=bool(args.require_mode_switch),
+        azimuth_offset_deg=float(args.azimuth_offset_deg),
         video_seconds=float(args.video_seconds),
         build_zip=not args.no_zip,
         zip_path=Path(args.zip_output) if args.zip_output else None,
@@ -553,6 +556,8 @@ def main():
     print(f"Captured JPEGs : {len(captured)}")
     if captured:
         print(f"Media dir      : {captured[0].parent}")
+        if args.prompt:
+            print("Prompt mode    : enabled")
     if zip_out:
         print(f"Stellarium zip : {zip_out}")
 

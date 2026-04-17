@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/stellarium_panorama_from_media.py
-Version: 1.0.0
+Version: 1.1.0
 Objective: Build a spherical Stellarium panorama package from normal RGB photos
 or a video capture. This is the visual path and is intentionally separate from
 SeeVar's mathematical horizon scanner.
@@ -12,6 +12,7 @@ import argparse
 import io
 import json
 import math
+import re
 import shutil
 import subprocess
 import tempfile
@@ -47,6 +48,24 @@ def _load_rgb(path: Path) -> np.ndarray:
     return np.asarray(image, dtype=np.uint8)
 
 
+def _extract_media_azimuth(path: Path) -> float | None:
+    match = re.search(r"az(\d+(?:_\d+)?)", path.stem.lower())
+    if not match:
+        return None
+    token = match.group(1).replace("_", ".")
+    try:
+        return float(token) % 360.0
+    except ValueError:
+        return None
+
+
+def _order_media_paths(paths: list[Path]) -> list[Path]:
+    decorated = [(_extract_media_azimuth(path), idx, path) for idx, path in enumerate(paths)]
+    if all(az is not None for az, _, _ in decorated):
+        return [path for _, _, path in sorted(decorated, key=lambda item: (float(item[0]), item[1]))]
+    return paths
+
+
 def _try_opencv_stitch(frames: list[np.ndarray]) -> np.ndarray | None:
     try:
         import cv2  # type: ignore
@@ -68,12 +87,13 @@ def _blend_rgb_panorama(
     frames: list[np.ndarray],
     width: int,
     height: int,
+    azimuths: list[float] | None,
     slice_width_px: int,
     center_crop_ratio: float = 0.7,
 ) -> np.ndarray:
     accum = np.zeros((height, width, 3), dtype=np.float32)
     weights = np.zeros((height, width), dtype=np.float32)
-    blend = np.clip(1.0 - np.abs(np.linspace(-1.0, 1.0, slice_width_px, dtype=np.float32)), 0.05, 1.0)
+    blend = np.clip(1.0 - np.abs(np.linspace(-1.0, 1.0, slice_width_px, dtype=np.float32)), 0.02, 1.0)
 
     n = len(frames)
     for idx, frame in enumerate(frames):
@@ -84,7 +104,10 @@ def _blend_rgb_panorama(
         cropped = frame[:, left:right, :]
         resized = Image.fromarray(cropped).resize((slice_width_px, height), Image.Resampling.LANCZOS)
         img = np.asarray(resized, dtype=np.float32)
-        center_x = idx * (width / n) + (width / n) / 2.0
+        if azimuths and idx < len(azimuths):
+            center_x = (azimuths[idx] % 360.0) / 360.0 * width
+        else:
+            center_x = idx * (width / n) + (width / n) / 2.0
         start_x = int(round(center_x - slice_width_px / 2.0))
         for src_x in range(slice_width_px):
             dst_x = (start_x + src_x) % width
@@ -110,7 +133,15 @@ def _png_bytes(rgb: np.ndarray) -> bytes:
     return buf.getvalue()
 
 
-def _landscape_ini(name: str, description: str, location: dict, top_alt: float, bottom_alt: float, has_horizon: bool) -> str:
+def _landscape_ini(
+    name: str,
+    description: str,
+    location: dict,
+    top_alt: float,
+    bottom_alt: float,
+    has_horizon: bool,
+    angle_rotatez: float,
+) -> str:
     text = (
         "[landscape]\r\n"
         f"name = {name}\r\n"
@@ -120,7 +151,7 @@ def _landscape_ini(name: str, description: str, location: dict, top_alt: float, 
         "maptex = panorama.png\r\n"
         f"maptex_top = {top_alt:.2f}\r\n"
         f"maptex_bottom = {bottom_alt:.2f}\r\n"
-        "angle_rotatez = 0\r\n"
+        f"angle_rotatez = {angle_rotatez:.2f}\r\n"
         f"minimal_altitude = {math.floor(bottom_alt):d}\r\n"
         "\r\n"
         "[location]\r\n"
@@ -182,6 +213,7 @@ def build_panorama_zip(
     top_alt: float = 45.0,
     bottom_alt: float = -15.0,
     mask_path: Path | None = None,
+    azimuth_offset_deg: float = 0.0,
 ) -> Path:
     location = _load_location()
     folder = _slugify(name)
@@ -190,9 +222,15 @@ def build_panorama_zip(
         f"(lat={location['lat']:.5f}, lon={location['lon']:.5f}, elev={location['elevation']:.1f}m)"
     )
 
+    media_paths = _order_media_paths(media_paths)
     pano_width = _next_power_of_two(pano_width)
     pano_height = _next_power_of_two(pano_height)
-    slice_width_px = max(64, int(round(pano_width / max(len(media_paths), 1))))
+    azimuths = [_extract_media_azimuth(path) for path in media_paths]
+    if not any(az is not None for az in azimuths):
+        azimuths = []
+    else:
+        azimuths = [((az or 0.0) + azimuth_offset_deg) % 360.0 for az in azimuths]
+    slice_width_px = max(96, int(round((pano_width / max(len(media_paths), 1)) * 1.35)))
 
     missing = [str(path) for path in media_paths if not Path(path).exists()]
     if missing:
@@ -202,7 +240,7 @@ def build_panorama_zip(
     frames = [_load_rgb(path) for path in media_paths]
     panorama = _try_opencv_stitch(frames)
     if panorama is None:
-        panorama = _blend_rgb_panorama(frames, pano_width, pano_height, slice_width_px)
+        panorama = _blend_rgb_panorama(frames, pano_width, pano_height, azimuths if azimuths else None, slice_width_px)
     else:
         panorama = np.asarray(
             Image.fromarray(panorama).resize((pano_width, pano_height), Image.Resampling.LANCZOS),
@@ -223,20 +261,29 @@ def build_panorama_zip(
         "generated_utc": datetime.now(timezone.utc).isoformat(),
         "media_count": len(media_paths),
         "sources": [str(p) for p in media_paths],
-        "panorama": {
-            "width_px": pano_width,
-            "height_px": pano_height,
-            "top_alt_deg": float(top_alt),
-            "bottom_alt_deg": float(bottom_alt),
-        },
-    }, indent=2) + "\n"
+            "panorama": {
+                "width_px": pano_width,
+                "height_px": pano_height,
+                "top_alt_deg": float(top_alt),
+                "bottom_alt_deg": float(bottom_alt),
+                "azimuth_offset_deg": float(azimuth_offset_deg),
+            },
+        }, indent=2) + "\n"
 
     output_zip.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(f"{folder}/panorama.png", _png_bytes(panorama))
         zf.writestr(
             f"{folder}/landscape.ini",
-            _landscape_ini(name, description, location, top_alt, bottom_alt, has_horizon=mask_payload is not None),
+            _landscape_ini(
+                name,
+                description,
+                location,
+                top_alt,
+                bottom_alt,
+                has_horizon=mask_payload is not None,
+                angle_rotatez=float(azimuth_offset_deg),
+            ),
         )
         zf.writestr(f"{folder}/location.json", location_json)
         zf.writestr(
@@ -259,6 +306,7 @@ def main():
     parser.add_argument("--height", type=int, default=1024)
     parser.add_argument("--top-alt", type=float, default=45.0)
     parser.add_argument("--bottom-alt", type=float, default=-15.0)
+    parser.add_argument("--azimuth-offset-deg", type=float, default=0.0)
     parser.add_argument("images", nargs="*")
     args = parser.parse_args()
 
@@ -280,6 +328,7 @@ def main():
             top_alt=args.top_alt,
             bottom_alt=args.bottom_alt,
             mask_path=Path(args.mask) if args.mask else None,
+            azimuth_offset_deg=float(args.azimuth_offset_deg),
         )
         print(out)
     finally:
