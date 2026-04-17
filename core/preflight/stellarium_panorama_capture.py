@@ -2,14 +2,16 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/stellarium_panorama_capture.py
-Version: 1.0.0
-Objective: Capture a real visual panorama from the Seestar wide-camera RTSP
-stream while slewing around the horizon, then optionally build a Stellarium
-spherical landscape zip from the captured JPEGs.
+Version: 1.1.0
+Objective: Capture a real visual panorama while slewing around the horizon.
+Supports either direct RTSP snapshots or pulling freshly saved JPEGs from a
+mounted Seestar media share after switching the device into scenery mode.
 """
 
 import argparse
+import json
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -30,6 +32,9 @@ from core.utils.env_loader import DATA_DIR, load_config
 
 PANORAMA_DIR = DATA_DIR / "panorama_media"
 RTSP_WIDE_PORT = 4555
+RPC_PORT = 4700
+DEFAULT_SHARE_ROOT = PROJECT_ROOT / "s30_storage"
+_RPC_MSG_ID = 50000
 
 
 def _primary_scope_ip() -> str:
@@ -71,6 +76,50 @@ def _capture_rtsp_mp4(ip: str, out_path: Path, seconds: float, timeout: float | 
     subprocess.run(cmd, check=True, timeout=timeout or max(10.0, seconds + 8.0))
 
 
+def _rpc_call(ip: str, method: str, params=None, port: int = RPC_PORT, timeout: float = 6.0) -> dict:
+    global _RPC_MSG_ID
+    payload = {
+        "id": _RPC_MSG_ID,
+        "method": method,
+    }
+    if params is not None:
+        payload["params"] = params
+    _RPC_MSG_ID += 1
+
+    wire = (json.dumps(payload) + "\r\n").encode("utf-8")
+    chunks: list[bytes] = []
+    with socket.create_connection((ip, port), timeout=timeout) as sock:
+        sock.settimeout(timeout)
+        sock.sendall(wire)
+        while True:
+            block = sock.recv(65536)
+            if not block:
+                break
+            chunks.append(block)
+            if b"\r\n" in block:
+                break
+
+    if not chunks:
+        raise RuntimeError(f"{method}: empty response from {ip}:{port}")
+
+    raw = b"".join(chunks).splitlines()[0]
+    data = json.loads(raw.decode("utf-8"))
+    if "error" in data:
+        raise RuntimeError(f"{method}: {data['error']}")
+    return data
+
+
+def _set_view_mode(ip: str, mode: str) -> None:
+    hv2.log.info("Switching %s into %s mode via JSON-RPC", ip, mode)
+    try:
+        _rpc_call(ip, "iscope_stop_view")
+    except Exception as exc:
+        hv2.log.warning("iscope_stop_view failed before mode switch: %s", exc)
+    time.sleep(1.0)
+    _rpc_call(ip, "iscope_start_view", {"mode": mode})
+    time.sleep(2.0)
+
+
 def _build_output_dir(base_dir: Path | None) -> Path:
     if base_dir is not None:
         out = Path(base_dir)
@@ -88,6 +137,78 @@ def _capture_positions(step_deg: float) -> list[float]:
     return [round(v, 1) for v in values]
 
 
+def _snapshot_media(root: Path, suffixes: tuple[str, ...]) -> dict[Path, tuple[int, int]]:
+    if not root.exists():
+        raise FileNotFoundError(f"Media share root does not exist: {root}")
+    files: dict[Path, tuple[int, int]] = {}
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in suffixes:
+            continue
+        try:
+            stat = path.stat()
+        except OSError:
+            continue
+        files[path] = (stat.st_mtime_ns, stat.st_size)
+    return files
+
+
+def _wait_for_new_media(
+    share_root: Path,
+    baseline: dict[Path, tuple[int, int]],
+    suffixes: tuple[str, ...],
+    timeout: float,
+    poll_sec: float = 1.0,
+) -> Path:
+    deadline = time.monotonic() + timeout
+    candidate: Path | None = None
+    while time.monotonic() < deadline:
+        current = _snapshot_media(share_root, suffixes)
+        updates: list[tuple[int, Path]] = []
+        for path, stamp in current.items():
+            prior = baseline.get(path)
+            if prior is None or stamp != prior:
+                updates.append((stamp[0], path))
+        if updates:
+            candidate = max(updates, key=lambda item: item[0])[1]
+            break
+        time.sleep(poll_sec)
+
+    if candidate is None:
+        raise TimeoutError(f"No new media appeared under {share_root} within {timeout:.0f}s")
+
+    stable_deadline = time.monotonic() + 5.0
+    last_size = -1
+    while time.monotonic() < stable_deadline:
+        stat = candidate.stat()
+        if stat.st_size == last_size:
+            return candidate
+        last_size = stat.st_size
+        time.sleep(0.5)
+    return candidate
+
+
+def _capture_share_media(
+    share_root: Path,
+    output_dir: Path,
+    tag: str,
+    timeout: float,
+    prompt: bool,
+    suffixes: tuple[str, ...],
+) -> Path:
+    baseline = _snapshot_media(share_root, suffixes)
+    if prompt:
+        input(
+            f"Take a scenery capture now; press Enter when the Seestar has saved it under {share_root} ..."
+        )
+    pulled = _wait_for_new_media(share_root, baseline, suffixes, timeout=timeout)
+    out_path = output_dir / f"panorama_az{tag}{pulled.suffix.lower()}"
+    shutil.copy2(pulled, out_path)
+    hv2.log.info("Pulled media from share: %s -> %s", pulled, out_path)
+    return out_path
+
+
 def capture_visual_panorama(
     ip: str,
     port: int,
@@ -97,6 +218,11 @@ def capture_visual_panorama(
     altitude_deg: float,
     az_step_deg: float,
     output_dir: Path,
+    capture_source: str,
+    share_root: Path | None,
+    share_timeout: float,
+    prompt_capture: bool,
+    view_mode: str,
     video_seconds: float,
     build_zip: bool,
     zip_path: Path | None,
@@ -107,6 +233,13 @@ def capture_visual_panorama(
 ) -> tuple[list[Path], Path | None]:
     output_dir = _build_output_dir(output_dir)
     positions = _capture_positions(az_step_deg)
+    source = capture_source.lower().strip()
+    if source == "auto":
+        source = "share" if share_root and Path(share_root).exists() else "rtsp"
+    if source not in {"rtsp", "share"}:
+        raise ValueError(f"Unsupported capture source: {capture_source}")
+    if source == "share" and share_root is None:
+        raise ValueError("share_root is required when capture_source='share'")
 
     location, lat, lon, elev = hv2.get_location()
     sun_alt, sun_az = hv2.get_sun_altaz(lat, lon, elev)
@@ -124,6 +257,12 @@ def capture_visual_panorama(
         telescope.Unpark()
     except Exception:
         pass
+    try:
+        _set_view_mode(ip, view_mode)
+    except Exception as exc:
+        if source == "share":
+            raise RuntimeError(f"Could not switch {ip} into {view_mode} mode: {exc}") from exc
+        hv2.log.warning("View mode switch to %s failed: %s", view_mode, exc)
 
     if not hv2.probe_wide_camera(camera, client_id):
         hv2.disconnect_safely(camera, telescope)
@@ -148,15 +287,29 @@ def capture_visual_panorama(
             tag = f"{actual_az:05.1f}".replace(".", "_")
 
             jpg_path = output_dir / f"panorama_az{tag}.jpg"
-            _capture_rtsp_jpeg(ip, jpg_path)
-            captured.append(jpg_path)
+            if source == "rtsp":
+                _capture_rtsp_jpeg(ip, jpg_path)
+                captured.append(jpg_path)
+            else:
+                captured.append(
+                    _capture_share_media(
+                        share_root=Path(share_root),
+                        output_dir=output_dir,
+                        tag=tag,
+                        timeout=share_timeout,
+                        prompt=prompt_capture,
+                        suffixes=(".jpg", ".jpeg"),
+                    )
+                )
 
-            if video_seconds > 0:
+            if video_seconds > 0 and source == "rtsp":
                 mp4_path = output_dir / f"panorama_az{tag}.mp4"
                 try:
                     _capture_rtsp_mp4(ip, mp4_path, seconds=video_seconds)
                 except Exception as exc:
                     hv2.log.warning("Short video capture failed at Az=%.1f°: %s", az, exc)
+            elif video_seconds > 0 and source == "share":
+                hv2.log.info("video_seconds ignored for share capture source; copy videos manually from the mounted share if needed")
 
         zip_out = None
         if build_zip and captured:
@@ -182,7 +335,7 @@ def capture_visual_panorama(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Capture a real visual panorama from the Seestar wide-camera RTSP stream.")
+    parser = argparse.ArgumentParser(description="Capture a real visual panorama from Seestar via RTSP or mounted media share.")
     parser.add_argument("--ip", type=str, default=None)
     parser.add_argument("--port", type=int, default=32323)
     parser.add_argument("--camera-num", type=int, default=hv2.WIDE_CAMERA_NUM_DEFAULT)
@@ -191,6 +344,11 @@ def main():
     parser.add_argument("--alt", type=float, default=20.0)
     parser.add_argument("--az-step", type=float, default=30.0)
     parser.add_argument("--output-dir", type=str, default=None)
+    parser.add_argument("--capture-source", choices=["auto", "rtsp", "share"], default="auto")
+    parser.add_argument("--share-root", type=str, default=str(DEFAULT_SHARE_ROOT))
+    parser.add_argument("--share-timeout", type=float, default=90.0, help="Seconds to wait for a new JPEG on the mounted Seestar share")
+    parser.add_argument("--no-prompt", action="store_true", help="Do not wait for Enter before watching the mounted share for a new file")
+    parser.add_argument("--view-mode", type=str, default="scenery", help="JSON-RPC view mode to request before capture (default: scenery)")
     parser.add_argument("--video-seconds", type=float, default=0.0, help="Optional short MP4 duration per azimuth stop")
     parser.add_argument("--no-zip", action="store_true")
     parser.add_argument("--zip-output", type=str, default=None)
@@ -202,7 +360,10 @@ def main():
     parser.set_defaults(sun_visible=None)
     args = parser.parse_args()
 
-    if shutil.which("ffmpeg") is None:
+    effective_source = args.capture_source
+    if effective_source == "auto":
+        effective_source = "share" if Path(args.share_root).exists() else "rtsp"
+    if effective_source == "rtsp" and shutil.which("ffmpeg") is None:
         raise SystemExit("ffmpeg is required for RTSP panorama capture")
 
     ip = args.ip or _primary_scope_ip()
@@ -221,6 +382,11 @@ def main():
         altitude_deg=args.alt,
         az_step_deg=args.az_step,
         output_dir=Path(args.output_dir) if args.output_dir else None,
+        capture_source=args.capture_source,
+        share_root=Path(args.share_root) if args.share_root else None,
+        share_timeout=float(args.share_timeout),
+        prompt_capture=not args.no_prompt,
+        view_mode=str(args.view_mode).strip().lower(),
         video_seconds=float(args.video_seconds),
         build_zip=not args.no_zip,
         zip_path=Path(args.zip_output) if args.zip_output else None,

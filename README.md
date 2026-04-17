@@ -231,7 +231,7 @@ It produces:
 It can export two different Stellarium artifacts:
 
 - a polygonal horizon package for mathematically correct obstruction geometry
-- a spherical panorama package built from the saved scanner frames for visual context
+- a spherical panorama package for visual context
 
 The polygonal package contains:
 
@@ -247,6 +247,13 @@ The spherical panorama package contains:
 - `landscape.ini`
 - `location.json`
 - `readme.txt`
+
+For the visual package, prefer real RGB photos or videos over scanner luma frames.
+See `core/preflight/stellarium_panorama_from_media.py` for building a panorama zip
+from normal JPEG/MP4 inputs, or `core/preflight/stellarium_panorama_capture.py`
+for a guided capture flow that can switch the Seestar into `scenery` mode and
+pull newly saved JPEGs from a mounted Seestar media share (default mount:
+`~/seevar/s30_storage`).
 
 Example:
 
