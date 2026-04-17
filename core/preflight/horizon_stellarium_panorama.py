@@ -50,6 +50,11 @@ def _parse_azimuth(path: Path) -> float:
     return float(f"{match.group(1)}.{match.group(2)}")
 
 
+def _load_image_frame(path: Path) -> np.ndarray:
+    img = Image.open(path).convert("L")
+    return np.asarray(img, dtype=np.uint8)
+
+
 def _load_frame(path: Path) -> np.ndarray:
     arr = np.load(path)
     if arr.ndim == 3:
@@ -144,7 +149,11 @@ def export_stellarium_panorama_zip(
     profile = payload["profile"]
     location = _load_location()
 
-    frame_paths = sorted(frame_dir.glob("horizon_v2_az*.npy"))
+    frame_paths = sorted(frame_dir.glob("horizon_v2_az*.png"))
+    frame_loader = _load_image_frame
+    if not frame_paths:
+        frame_paths = sorted(frame_dir.glob("horizon_v2_az*.npy"))
+        frame_loader = _load_frame
     if not frame_paths:
         raise FileNotFoundError(f"No scanner frames found in {frame_dir}")
 
@@ -158,7 +167,7 @@ def export_stellarium_panorama_zip(
     bottom_alt = alt_center_deg - fov_v_deg / 2.0
     frame_width_px = max(64, int(round(pano_width * (fov_h_deg / 360.0))))
 
-    frames = [(_parse_azimuth(path), _load_frame(path)) for path in frame_paths]
+    frames = [(_parse_azimuth(path), frame_loader(path)) for path in frame_paths]
     panorama = _blend_panorama(frames, pano_width, pano_height, frame_width_px)
 
     maidenhead = location["maidenhead"]
@@ -180,6 +189,7 @@ def export_stellarium_panorama_zip(
         "horizon_source": str(mask_path),
         "frames_source": str(frame_dir),
         "frame_count": len(frame_paths),
+        "frame_format": frame_paths[0].suffix.lower(),
         "scanner_version": payload.get("scanner_version"),
         "panorama": {
             "width_px": pano_width,

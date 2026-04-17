@@ -22,6 +22,7 @@ import numpy as np
 import requests
 from alpaca.camera import Camera
 from alpaca.telescope import Telescope
+from PIL import Image
 
 from astropy.coordinates import AltAz, EarthLocation, SkyCoord, get_sun
 from astropy.time import Time
@@ -443,6 +444,12 @@ def write_debug_preview(img, debug, out_path):
     with open(out_path, "wb") as f:
         f.write(f"P6\n{rgb.shape[1]} {rgb.shape[0]}\n255\n".encode("ascii"))
         f.write(rgb.tobytes())
+
+
+def write_clean_preview(img, out_path):
+    gray = _stretch_to_u8(img)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(gray, mode="L").save(out_path)
 
 
 def detect_horizon_in_frame(
@@ -898,13 +905,16 @@ def run_scan(
                 accum_update(accum, az_deg, alt_deg)
 
             tag = f"{actual_az:05.1f}".replace(".", "_")
+            clean_path = FRAME_DIR / f"horizon_v2_az{tag}.png"
             preview_path = FRAME_DIR / f"horizon_v2_az{tag}.ppm"
+            write_clean_preview(burst, clean_path)
             write_debug_preview(burst, debug, preview_path)
 
             log.info(
-                "Accepted %d az degrees from this stop using %d columns; debug=%s",
+                "Accepted %d az degrees from this stop using %d columns; clean=%s debug=%s",
                 len(frame_hz),
                 debug["confident_cols"],
+                clean_path.name,
                 preview_path.name,
             )
         except Exception as e:
@@ -958,7 +968,9 @@ def run_offline_frame(
         min_cols_per_deg=min_cols_per_deg,
     )
 
+    clean_path = frame_path.with_suffix(".png")
     preview_path = frame_path.with_suffix(".ppm")
+    write_clean_preview(img, clean_path)
     write_debug_preview(img, debug, preview_path)
 
     accum = defaultdict(list)
