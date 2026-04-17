@@ -6,10 +6,9 @@
 *.axy
 *.bak
 *.bak.*
-catalogs/campaign_targets.json
-catalogs/federation_catalog.json
 de421.bsp
-# Catalogs — populated at runtime by fetcher, not shipped
+# Catalogs — runtime/generated content, not shipped
+catalogs/
 config.toml
 config.toml.ed
 *.corr
@@ -70,12 +69,6 @@ venv/
 *.wcs
 *.xlsx
 *.xyls
-catalogs/reference_stars/
 dev/media/
-catalogs/reference_stars/
 dev/media/
 *.mp4
-
-data
-
-catalogs
