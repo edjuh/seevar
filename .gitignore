@@ -7,8 +7,10 @@
 *.bak
 *.bak.*
 de421.bsp
-# Catalogs — runtime/generated content, not shipped
-catalogs/
+# Catalogs — keep directory layout, ignore generated catalog artifacts
+catalogs/campaign_targets.json
+catalogs/federation_catalog.json
+catalogs/reference_stars/
 config.toml
 config.toml.ed
 *.corr
