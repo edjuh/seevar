@@ -27,7 +27,7 @@ STELLARIUM_DIR = DATA_DIR / "stellarium"
 
 
 def _slugify(value: str) -> str:
-    token = re.sub(r"[^a-zA-Z0-9]+", "_", str(value or "").strip()).strip("_")
+    token = re.sub(r"[^a-zA-Z0-9]+", "_", str(value or "").strip().lower()).strip("_")
     return token or "seevar_landscape"
 
 

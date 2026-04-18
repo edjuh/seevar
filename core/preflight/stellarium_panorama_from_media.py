@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/stellarium_panorama_from_media.py
-Version: 1.2.0
+Version: 1.3.0
 Objective: Build a spherical Stellarium panorama package from normal RGB photos
 or a video capture. This is the visual path and is intentionally separate from
 SeeVar's mathematical horizon scanner.
@@ -10,14 +10,12 @@ SeeVar's mathematical horizon scanner.
 
 import argparse
 import io
-import json
 import math
 import re
 import shutil
 import subprocess
 import tempfile
 import zipfile
-from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -36,6 +34,14 @@ from core.preflight.horizon_stellarium_export import (
     _readme_txt,
     _slugify,
 )
+from core.preflight.panorama_calibration import (
+    PANORAMA_CALIBRATION,
+    apply_calibration,
+    load_calibration_points,
+    merge_calibration_points,
+    parse_reference_point,
+    save_calibration_points,
+)
 
 
 def _next_power_of_two(value: int) -> int:
@@ -48,8 +54,8 @@ def _load_rgb(path: Path) -> np.ndarray:
     return np.asarray(image, dtype=np.uint8)
 
 
-def _extract_media_azimuth(path: Path) -> float | None:
-    match = re.search(r"az(\d+(?:_\d+)?)", path.stem.lower())
+def _parse_media_token(pattern: str, stem: str) -> float | None:
+    match = re.search(pattern, stem.lower())
     if not match:
         return None
     token = match.group(1).replace("_", ".")
@@ -59,8 +65,33 @@ def _extract_media_azimuth(path: Path) -> float | None:
         return None
 
 
-def _order_media_paths(paths: list[Path]) -> list[Path]:
-    decorated = [(_extract_media_azimuth(path), idx, path) for idx, path in enumerate(paths)]
+def _extract_media_azimuth(
+    path: Path,
+    calibration_points: list[dict] | None = None,
+    fallback_offset_deg: float = 0.0,
+) -> float | None:
+    stem = path.stem
+    true_az = _parse_media_token(r"trueaz(\d+(?:_\d+)?)", stem)
+    if true_az is not None:
+        return true_az
+    observed_az = _parse_media_token(r"obs(\d+(?:_\d+)?)", stem)
+    if observed_az is not None:
+        return apply_calibration(observed_az, calibration_points, fallback_offset_deg=fallback_offset_deg)
+    legacy_az = _parse_media_token(r"(?<!true)(?<!obs)az(\d+(?:_\d+)?)", stem)
+    if legacy_az is not None:
+        return legacy_az
+    return None
+
+
+def _order_media_paths(
+    paths: list[Path],
+    calibration_points: list[dict] | None = None,
+    fallback_offset_deg: float = 0.0,
+) -> list[Path]:
+    decorated = [
+        (_extract_media_azimuth(path, calibration_points, fallback_offset_deg=fallback_offset_deg), idx, path)
+        for idx, path in enumerate(paths)
+    ]
     if all(az is not None for az, _, _ in decorated):
         return [path for _, _, path in sorted(decorated, key=lambda item: (float(item[0]), item[1]))]
     return paths
@@ -151,6 +182,7 @@ def _landscape_ini(
         "maptex = panorama.png\r\n"
         f"maptex_top = {top_alt:.2f}\r\n"
         f"maptex_bottom = {bottom_alt:.2f}\r\n"
+        "bottom_cap_color = 0.03,0.03,0.03\r\n"
         f"angle_rotatez = {angle_rotatez:.2f}\r\n"
         f"minimal_altitude = {math.floor(bottom_alt):d}\r\n"
         "\r\n"
@@ -214,6 +246,7 @@ def build_panorama_zip(
     bottom_alt: float = -15.0,
     mask_path: Path | None = None,
     azimuth_offset_deg: float = 0.0,
+    calibration_points: list[dict] | None = None,
 ) -> Path:
     location = _load_location()
     folder = _slugify(name)
@@ -222,14 +255,15 @@ def build_panorama_zip(
         f"(lat={location['lat']:.5f}, lon={location['lon']:.5f}, elev={location['elevation']:.1f}m)"
     )
 
-    media_paths = _order_media_paths(media_paths)
+    media_paths = _order_media_paths(media_paths, calibration_points, fallback_offset_deg=azimuth_offset_deg)
     pano_width = _next_power_of_two(pano_width)
     pano_height = _next_power_of_two(pano_height)
-    azimuths = [_extract_media_azimuth(path) for path in media_paths]
+    azimuths = [
+        _extract_media_azimuth(path, calibration_points, fallback_offset_deg=azimuth_offset_deg)
+        for path in media_paths
+    ]
     if not any(az is not None for az in azimuths):
         azimuths = []
-    else:
-        azimuths = [((az or 0.0) + azimuth_offset_deg) % 360.0 for az in azimuths]
     slice_width_px = max(96, int(round((pano_width / max(len(media_paths), 1)) * 1.35)))
 
     missing = [str(path) for path in media_paths if not Path(path).exists()]
@@ -254,25 +288,6 @@ def build_panorama_zip(
     if mask_path and Path(mask_path).exists():
         mask_payload = _load_horizon_mask(Path(mask_path))
 
-    location_json = json.dumps({
-        "name": name,
-        "maidenhead": location["maidenhead"],
-        "lat": location["lat"],
-        "lon": location["lon"],
-        "elevation_m": location["elevation"],
-        "location_source": location["source"],
-        "generated_utc": datetime.now(timezone.utc).isoformat(),
-        "media_count": len(media_paths),
-        "sources": [str(p) for p in media_paths],
-        "panorama": {
-            "width_px": pano_width,
-            "height_px": pano_height,
-            "top_alt_deg": float(top_alt),
-            "bottom_alt_deg": float(bottom_alt),
-            "azimuth_offset_deg": float(azimuth_offset_deg),
-        },
-    }, indent=2) + "\n"
-
     output_zip.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(f"{folder}/panorama.png", _png_bytes(panorama))
@@ -288,7 +303,6 @@ def build_panorama_zip(
                 angle_rotatez=0.0,
             ),
         )
-        zf.writestr(f"{folder}/location.json", location_json)
         zf.writestr(
             f"{folder}/readme.txt",
             _readme_txt(name, description, location, mask_path or HORIZON_MASK),
@@ -310,12 +324,23 @@ def main():
     parser.add_argument("--top-alt", type=float, default=45.0)
     parser.add_argument("--bottom-alt", type=float, default=-15.0)
     parser.add_argument("--azimuth-offset-deg", type=float, default=0.0)
+    parser.add_argument("--calibration-file", type=str, default=str(PANORAMA_CALIBRATION))
+    parser.add_argument("--reference", action="append", default=[], help="Compass anchor observed=true, e.g. 210=180 or 210=south")
+    parser.add_argument("--save-calibration", action="store_true", help="Write merged reference points back to the calibration JSON")
     parser.add_argument("images", nargs="*")
     args = parser.parse_args()
 
     media_paths: list[Path] = [Path(p) for p in args.images]
     temp_dir = None
     try:
+        calibration_points = load_calibration_points(Path(args.calibration_file)) if args.calibration_file else []
+        if args.reference:
+            calibration_points = merge_calibration_points(
+                calibration_points,
+                [parse_reference_point(spec) for spec in args.reference],
+            )
+            if args.save_calibration and args.calibration_file:
+                save_calibration_points(calibration_points, Path(args.calibration_file))
         if args.video:
             temp_dir = Path(tempfile.mkdtemp(prefix="seevar_pano_"))
             media_paths = _extract_video_frames(Path(args.video), temp_dir, args.frames)
@@ -332,6 +357,7 @@ def main():
             bottom_alt=args.bottom_alt,
             mask_path=Path(args.mask) if args.mask else None,
             azimuth_offset_deg=float(args.azimuth_offset_deg),
+            calibration_points=calibration_points,
         )
         print(out)
     finally:

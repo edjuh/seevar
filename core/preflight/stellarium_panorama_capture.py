@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/stellarium_panorama_capture.py
-Version: 1.5.0
+Version: 1.6.0
 Objective: Capture a real visual panorama while slewing around the horizon.
 Supports either direct RTSP snapshots or pulling freshly saved JPEGs from a
 mounted Seestar media share after switching the device into scenery mode.
@@ -29,6 +29,14 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import core.preflight.horizon_scanner_v2 as hv2
 from core.preflight.stellarium_panorama_from_media import build_panorama_zip
 from core.preflight.horizon_stellarium_export import HORIZON_MASK, STELLARIUM_DIR, _slugify
+from core.preflight.panorama_calibration import (
+    PANORAMA_CALIBRATION,
+    apply_calibration,
+    load_calibration_points,
+    merge_calibration_points,
+    parse_reference_point,
+    save_calibration_points,
+)
 from core.utils.env_loader import DATA_DIR, load_config
 
 PANORAMA_DIR = DATA_DIR / "panorama_media"
@@ -329,17 +337,17 @@ def _wait_for_new_media(
 def _capture_share_media(
     share_root,
     output_dir: Path,
-    tag: str,
+    stem: str,
     timeout: float,
     prompt: bool,
     suffixes: tuple[str, ...],
 ) -> Path:
     baseline = _snapshot_media(share_root, suffixes)
     if prompt:
-        input(f"Ready for panorama_az{tag}. Trigger the scenery photo now, then press Enter to start watching {share_root} ...")
+        input(f"Ready for {stem}. Trigger the scenery photo now, then press Enter to start watching {share_root} ...")
     pulled = _wait_for_new_media(share_root, baseline, suffixes, timeout=timeout)
     pulled_path = Path(urlparse(pulled).path) if _is_uri_location(pulled) else Path(pulled)
-    out_path = output_dir / f"panorama_az{tag}{pulled_path.suffix.lower()}"
+    out_path = output_dir / f"{stem}{pulled_path.suffix.lower()}"
     if _is_uri_location(pulled):
         subprocess.run([_gio_bin(), "copy", pulled, str(out_path)], check=True)
     else:
@@ -364,6 +372,7 @@ def capture_visual_panorama(
     view_mode: str,
     require_mode_switch: bool,
     azimuth_offset_deg: float,
+    calibration_points: list[dict] | None,
     video_seconds: float,
     build_zip: bool,
     zip_path: Path | None,
@@ -435,10 +444,20 @@ def capture_visual_panorama(
                 actual_az = float(telescope.Azimuth)
             except Exception:
                 actual_az = az
-            corrected_az = (actual_az + azimuth_offset_deg) % 360.0
-            tag = f"{corrected_az:05.1f}".replace(".", "_")
+            placed_az = apply_calibration(
+                actual_az,
+                calibration_points,
+                fallback_offset_deg=azimuth_offset_deg,
+            )
+            observed_tag = f"{actual_az % 360.0:05.1f}".replace(".", "_")
+            stem = f"panorama_obs{observed_tag}"
+            hv2.log.info(
+                "Panorama azimuth observed=%.1f° placed=%.1f°",
+                actual_az % 360.0,
+                placed_az,
+            )
 
-            jpg_path = output_dir / f"panorama_az{tag}.jpg"
+            jpg_path = output_dir / f"{stem}.jpg"
             if source == "rtsp":
                 _capture_rtsp_jpeg(ip, jpg_path)
                 captured.append(jpg_path)
@@ -447,7 +466,7 @@ def capture_visual_panorama(
                     _capture_share_media(
                         share_root=share_root,
                         output_dir=output_dir,
-                        tag=tag,
+                        stem=stem,
                         timeout=share_timeout,
                         prompt=prompt_capture,
                         suffixes=(".jpg", ".jpeg"),
@@ -455,7 +474,7 @@ def capture_visual_panorama(
                 )
 
             if video_seconds > 0 and source == "rtsp":
-                mp4_path = output_dir / f"panorama_az{tag}.mp4"
+                mp4_path = output_dir / f"{stem}.mp4"
                 try:
                     _capture_rtsp_mp4(ip, mp4_path, seconds=video_seconds)
                 except Exception as exc:
@@ -481,6 +500,7 @@ def capture_visual_panorama(
                 bottom_alt=bottom_alt,
                 mask_path=HORIZON_MASK if HORIZON_MASK.exists() else None,
                 azimuth_offset_deg=float(azimuth_offset_deg),
+                calibration_points=calibration_points,
             )
         return captured, zip_out
     finally:
@@ -504,6 +524,9 @@ def main():
     parser.add_argument("--view-mode", type=str, default="scenery", help="JSON-RPC view mode to request before capture (default: scenery)")
     parser.add_argument("--require-mode-switch", action="store_true", help="Fail if the requested view-mode switch does not confirm")
     parser.add_argument("--azimuth-offset-deg", type=float, default=-30.0, help="Apply a fixed azimuth correction before naming/placing panorama frames")
+    parser.add_argument("--calibration-file", type=str, default=str(PANORAMA_CALIBRATION), help="Optional compass calibration JSON")
+    parser.add_argument("--reference", action="append", default=[], help="Compass anchor observed=true, e.g. 210=180 or 210=south")
+    parser.add_argument("--save-calibration", action="store_true", help="Write merged reference points back to the calibration JSON")
     parser.add_argument("--video-seconds", type=float, default=0.0, help="Optional short MP4 duration per azimuth stop")
     parser.add_argument("--no-zip", action="store_true")
     parser.add_argument("--zip-output", type=str, default=None)
@@ -528,6 +551,16 @@ def main():
     else:
         sun_visible = bool(args.sun_visible)
 
+    calibration_points = load_calibration_points(Path(args.calibration_file)) if args.calibration_file else []
+    if args.reference:
+        calibration_points = merge_calibration_points(
+            calibration_points,
+            [parse_reference_point(spec) for spec in args.reference],
+        )
+        if args.save_calibration and args.calibration_file:
+            written = save_calibration_points(calibration_points, Path(args.calibration_file))
+            hv2.log.info("Saved compass calibration to %s", written)
+
     captured, zip_out = capture_visual_panorama(
         ip=ip,
         port=args.port,
@@ -544,6 +577,7 @@ def main():
         view_mode=str(args.view_mode).strip().lower(),
         require_mode_switch=bool(args.require_mode_switch),
         azimuth_offset_deg=float(args.azimuth_offset_deg),
+        calibration_points=calibration_points,
         video_seconds=float(args.video_seconds),
         build_zip=not args.no_zip,
         zip_path=Path(args.zip_output) if args.zip_output else None,
