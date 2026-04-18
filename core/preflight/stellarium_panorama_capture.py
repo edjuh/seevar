@@ -604,7 +604,16 @@ def main():
     parser.add_argument("--require-mode-switch", action="store_true", help="Fail if the requested view-mode switch does not confirm")
     parser.add_argument("--azimuth-offset-deg", type=float, default=-30.0, help="Apply a fixed azimuth correction before naming/placing panorama frames")
     parser.add_argument("--calibration-file", type=str, default=str(PANORAMA_CALIBRATION), help="Optional compass calibration JSON")
-    parser.add_argument("--reference", action="append", default=[], help="Compass anchor observed=true, e.g. 210=180 or 210=south")
+    parser.add_argument(
+        "--reference",
+        action="append",
+        default=[],
+        help=(
+            "Compass anchor. Examples: 210=180, 210=south, "
+            "obs=210,true=180,label=south roofline, "
+            "file=/path/panorama_obs210_3.jpg,true=135,label=SE railing"
+        ),
+    )
     parser.add_argument("--save-calibration", action="store_true", help="Write merged reference points back to the calibration JSON")
     parser.add_argument("--video-seconds", type=float, default=0.0, help="Optional short MP4 duration per azimuth stop")
     parser.add_argument("--no-zip", action="store_true")

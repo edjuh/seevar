@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/panorama_calibration.py
-Version: 1.0.0
+Version: 1.1.0
 Objective: Shared compass calibration helpers for panorama capture and
 Stellarium panorama layout.
 """
@@ -10,6 +10,7 @@ Stellarium panorama layout.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,12 +26,24 @@ PANORAMA_CALIBRATION = DATA_DIR / "panorama_compass_calibration.json"
 _CARDINAL_TRUE_AZ = {
     "n": 0.0,
     "north": 0.0,
+    "ne": 45.0,
+    "northeast": 45.0,
+    "north-east": 45.0,
     "e": 90.0,
     "east": 90.0,
+    "se": 135.0,
+    "southeast": 135.0,
+    "south-east": 135.0,
     "s": 180.0,
     "south": 180.0,
+    "sw": 225.0,
+    "southwest": 225.0,
+    "south-west": 225.0,
     "w": 270.0,
     "west": 270.0,
+    "nw": 315.0,
+    "northwest": 315.0,
+    "north-west": 315.0,
 }
 
 
@@ -49,16 +62,73 @@ def parse_true_azimuth(token: str) -> float:
     return normalize_azimuth(float(text))
 
 
+def extract_observed_azimuth_from_name(token: str) -> float | None:
+    text = str(token).strip()
+    match = re.search(r"obs(\d+(?:_\d+)?)", text.lower())
+    if match:
+        return normalize_azimuth(float(match.group(1).replace("_", ".")))
+    legacy = re.search(r"(?<!true)(?<!cmd)az(\d+(?:_\d+)?)", text.lower())
+    if legacy:
+        return normalize_azimuth(float(legacy.group(1).replace("_", ".")))
+    return None
+
+
+def _kv_parse(text: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for chunk in text.split(","):
+        chunk = chunk.strip()
+        if not chunk or "=" not in chunk:
+            continue
+        key, value = chunk.split("=", 1)
+        fields[key.strip().lower()] = value.strip()
+    return fields
+
+
 def parse_reference_point(spec: str) -> dict:
     text = str(spec).strip()
+    if "," in text and "=" in text:
+        fields = _kv_parse(text)
+        observed_token = fields.get("obs") or fields.get("observed")
+        file_token = fields.get("file") or fields.get("image") or fields.get("path")
+        true_token = fields.get("true") or fields.get("az") or fields.get("target")
+        if not true_token:
+            raise ValueError(f"Invalid reference '{spec}'. Missing true=...")
+        if observed_token:
+            observed = normalize_azimuth(float(observed_token))
+        elif file_token:
+            observed_from_file = extract_observed_azimuth_from_name(file_token)
+            if observed_from_file is None:
+                raise ValueError(f"Could not extract observed azimuth from '{file_token}'")
+            observed = observed_from_file
+        else:
+            raise ValueError(f"Invalid reference '{spec}'. Use obs=... or file=...")
+
+        true_az = parse_true_azimuth(true_token)
+        point = {
+            "observed_az_deg": observed,
+            "true_az_deg": true_az,
+            "delta_deg": shortest_delta_deg(observed, true_az),
+        }
+        if file_token:
+            point["file"] = str(file_token)
+        if "label" in fields:
+            point["label"] = fields["label"]
+        return point
+
     if "->" in text:
         lhs, rhs = text.split("->", 1)
     elif "=" in text:
         lhs, rhs = text.split("=", 1)
     else:
-        raise ValueError(f"Invalid reference '{spec}'. Use observed=true, e.g. 210=180 or 210=south")
+        raise ValueError(
+            f"Invalid reference '{spec}'. Use observed=true, e.g. 210=180, "
+            "210=south, or file=/path/panorama_obs210_3.jpg,true=180,label=south roofline"
+        )
 
-    observed = normalize_azimuth(float(lhs.strip()))
+    observed_token = lhs.strip()
+    observed = extract_observed_azimuth_from_name(observed_token)
+    if observed is None:
+        observed = normalize_azimuth(float(observed_token))
     true_az = parse_true_azimuth(rhs.strip())
     return {
         "observed_az_deg": observed,
@@ -94,6 +164,10 @@ def load_calibration_points(path: Path | None = None) -> list[dict]:
             "true_az_deg": true_az,
             "delta_deg": shortest_delta_deg(observed, true_az),
         })
+        if point.get("label"):
+            cleaned[-1]["label"] = str(point["label"])
+        if point.get("file"):
+            cleaned[-1]["file"] = str(point["file"])
     return cleaned
 
 
@@ -107,6 +181,10 @@ def merge_calibration_points(existing: list[dict], additions: list[dict]) -> lis
             "true_az_deg": true_az,
             "delta_deg": shortest_delta_deg(observed, true_az),
         }
+        if point.get("label"):
+            merged[observed]["label"] = str(point["label"])
+        if point.get("file"):
+            merged[observed]["file"] = str(point["file"])
     return [merged[key] for key in sorted(merged)]
 
 
@@ -120,6 +198,8 @@ def save_calibration_points(points: list[dict], path: Path | None = None) -> Pat
             {
                 "observed_az_deg": round(float(point["observed_az_deg"]), 3),
                 "true_az_deg": round(float(point["true_az_deg"]), 3),
+                **({"label": str(point["label"])} if point.get("label") else {}),
+                **({"file": str(point["file"])} if point.get("file") else {}),
             }
             for point in merge_calibration_points([], points)
         ],

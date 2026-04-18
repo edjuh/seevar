@@ -325,7 +325,16 @@ def main():
     parser.add_argument("--bottom-alt", type=float, default=-15.0)
     parser.add_argument("--azimuth-offset-deg", type=float, default=0.0)
     parser.add_argument("--calibration-file", type=str, default=str(PANORAMA_CALIBRATION))
-    parser.add_argument("--reference", action="append", default=[], help="Compass anchor observed=true, e.g. 210=180 or 210=south")
+    parser.add_argument(
+        "--reference",
+        action="append",
+        default=[],
+        help=(
+            "Compass anchor. Examples: 210=180, 210=south, "
+            "obs=210,true=180,label=south roofline, "
+            "file=/path/panorama_obs210_3.jpg,true=135,label=SE railing"
+        ),
+    )
     parser.add_argument("--save-calibration", action="store_true", help="Write merged reference points back to the calibration JSON")
     parser.add_argument("images", nargs="*")
     args = parser.parse_args()
