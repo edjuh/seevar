@@ -390,7 +390,7 @@ def _capture_share_media(
     suffixes: tuple[str, ...],
     min_mtime_ns: int,
     seen_paths: set[str],
-) -> Path:
+) -> tuple[Path, str]:
     baseline = _snapshot_media_safe(share_root, suffixes)
     if prompt:
         input(f"Ready for {stem}. Trigger the scenery photo now, then press Enter to start watching {share_root} ...")
@@ -410,7 +410,7 @@ def _capture_share_media(
         shutil.copy2(pulled_path, out_path)
     seen_paths.add(pulled)
     hv2.log.info("Pulled media from share: %s -> %s", pulled, out_path)
-    return out_path
+    return out_path, pulled
 
 
 def capture_visual_panorama(
@@ -482,6 +482,7 @@ def capture_visual_panorama(
         raise RuntimeError("Wide camera probe failed before panorama capture")
 
     captured: list[Path] = []
+    capture_manifest: list[dict] = []
     consumed_share_paths: set[str] = set()
     try:
         for idx, az in enumerate(positions, start=1):
@@ -508,10 +509,13 @@ def capture_visual_panorama(
                 calibration_points,
                 fallback_offset_deg=azimuth_offset_deg,
             )
+            commanded_tag = f"{az % 360.0:05.1f}".replace(".", "_")
             observed_tag = f"{actual_az % 360.0:05.1f}".replace(".", "_")
-            stem = f"panorama_obs{observed_tag}"
+            placed_tag = f"{placed_az % 360.0:05.1f}".replace(".", "_")
+            stem = f"panorama_cmd{commanded_tag}_obs{observed_tag}_true{placed_tag}"
             hv2.log.info(
-                "Panorama azimuth observed=%.1f° placed=%.1f°",
+                "Panorama azimuth commanded=%.1f° observed=%.1f° placed=%.1f°",
+                az % 360.0,
                 actual_az % 360.0,
                 placed_az,
             )
@@ -520,19 +524,31 @@ def capture_visual_panorama(
             if source == "rtsp":
                 _capture_rtsp_jpeg(ip, jpg_path)
                 captured.append(jpg_path)
+                source_path = None
             else:
-                captured.append(
-                    _capture_share_media(
-                        share_root=share_root,
-                        output_dir=output_dir,
-                        stem=stem,
-                        timeout=share_timeout,
-                        prompt=prompt_capture,
-                        suffixes=(".jpg", ".jpeg"),
-                        min_mtime_ns=step_ready_ns,
-                        seen_paths=consumed_share_paths,
-                    )
+                pulled_path, source_path = _capture_share_media(
+                    share_root=share_root,
+                    output_dir=output_dir,
+                    stem=stem,
+                    timeout=share_timeout,
+                    prompt=prompt_capture,
+                    suffixes=(".jpg", ".jpeg"),
+                    min_mtime_ns=step_ready_ns,
+                    seen_paths=consumed_share_paths,
                 )
+                captured.append(pulled_path)
+            capture_manifest.append(
+                {
+                    "step_index": idx,
+                    "commanded_az_deg": round(float(az % 360.0), 3),
+                    "observed_az_deg": round(float(actual_az % 360.0), 3),
+                    "placed_az_deg": round(float(placed_az % 360.0), 3),
+                    "captured_file": str(captured[-1]),
+                    "capture_source": source,
+                    "share_source": source_path,
+                    "step_ready_utc": datetime.fromtimestamp(step_ready_ns / 1_000_000_000, tz=timezone.utc).isoformat(),
+                }
+            )
 
             if video_seconds > 0 and source == "rtsp":
                 mp4_path = output_dir / f"{stem}.mp4"
@@ -563,6 +579,8 @@ def capture_visual_panorama(
                 azimuth_offset_deg=float(azimuth_offset_deg),
                 calibration_points=calibration_points,
             )
+        manifest_path = output_dir / "capture_manifest.json"
+        manifest_path.write_text(json.dumps({"captures": capture_manifest}, indent=2) + "\n")
         return captured, zip_out
     finally:
         hv2.disconnect_safely(camera, telescope)
