@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/preflight/stellarium_panorama_from_media.py
-Version: 1.3.0
+Version: 1.4.0
 Objective: Build a spherical Stellarium panorama package from normal RGB photos
 or a video capture. This is the visual path and is intentionally separate from
 SeeVar's mathematical horizon scanner.
@@ -158,9 +158,42 @@ def _blend_rgb_panorama(
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
-def _png_bytes(rgb: np.ndarray) -> bytes:
+def _apply_horizon_alpha(
+    panorama: np.ndarray,
+    profile: dict,
+    top_alt: float,
+    bottom_alt: float,
+    feather_px: int = 10,
+) -> np.ndarray:
+    height, width = panorama.shape[:2]
+    rgba = np.dstack([panorama, np.full((height, width), 255, dtype=np.uint8)])
+    alt_span = max(float(top_alt) - float(bottom_alt), 1e-6)
+    feather_px = max(1, int(feather_px))
+
+    for x in range(width):
+        az = (x / width) * 360.0
+        az0 = int(math.floor(az)) % 360
+        az1 = (az0 + 1) % 360
+        frac = az - math.floor(az)
+        alt0 = float(profile.get(str(az0), profile.get(az0, 15.0)))
+        alt1 = float(profile.get(str(az1), profile.get(az1, alt0)))
+        horizon_alt = alt0 * (1.0 - frac) + alt1 * frac
+        horizon_y = int(round(((float(top_alt) - horizon_alt) / alt_span) * (height - 1)))
+        horizon_y = max(0, min(height - 1, horizon_y))
+        clear_until = max(0, horizon_y - feather_px)
+        if clear_until > 0:
+            rgba[:clear_until, x, 3] = 0
+        band_top = clear_until
+        band_bottom = min(height, horizon_y + feather_px + 1)
+        if band_bottom > band_top:
+            alpha_band = np.linspace(0, 255, band_bottom - band_top, dtype=np.uint8)
+            rgba[band_top:band_bottom, x, 3] = np.minimum(rgba[band_top:band_bottom, x, 3], alpha_band)
+    return rgba
+
+
+def _png_bytes(image: np.ndarray) -> bytes:
     buf = io.BytesIO()
-    Image.fromarray(rgb).save(buf, format="PNG")
+    Image.fromarray(image).save(buf, format="PNG")
     return buf.getvalue()
 
 
@@ -287,6 +320,12 @@ def build_panorama_zip(
     mask_payload = None
     if mask_path and Path(mask_path).exists():
         mask_payload = _load_horizon_mask(Path(mask_path))
+        panorama = _apply_horizon_alpha(
+            panorama,
+            mask_payload["profile"],
+            top_alt=float(top_alt),
+            bottom_alt=float(bottom_alt),
+        )
 
     output_zip.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
