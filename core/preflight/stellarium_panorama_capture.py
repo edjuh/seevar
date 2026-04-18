@@ -9,6 +9,7 @@ mounted Seestar media share after switching the device into scenery mode.
 """
 
 import argparse
+import errno
 import json
 import shutil
 import socket
@@ -226,17 +227,56 @@ def _snapshot_media(root: Path, suffixes: tuple[str, ...]) -> dict[Path, tuple[i
     if not root_path.exists():
         raise FileNotFoundError(f"Media share root does not exist: {root_path}")
     files: dict[str, tuple[int, int]] = {}
-    for path in root_path.rglob("*"):
-        if not path.is_file():
-            continue
-        if path.suffix.lower() not in suffixes:
-            continue
+    try:
+        entries = list(root_path.rglob("*"))
+    except OSError:
+        raise
+    for path in entries:
         try:
+            if not path.is_file():
+                continue
+            if path.suffix.lower() not in suffixes:
+                continue
             stat = path.stat()
         except OSError:
             continue
         files[str(path)] = (stat.st_mtime_ns, stat.st_size)
     return files
+
+
+def _is_stale_file_handle(exc: BaseException) -> bool:
+    message = str(exc).lower()
+    err_no = getattr(exc, "errno", None)
+    return err_no == errno.ESTALE or "stale file handle" in message
+
+
+def _snapshot_media_safe(root, suffixes: tuple[str, ...], retries: int = 3, retry_sleep: float = 1.0):
+    last_exc: BaseException | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            return _snapshot_media(root, suffixes)
+        except OSError as exc:
+            last_exc = exc
+            if not _is_stale_file_handle(exc) or attempt >= retries:
+                break
+            hv2.log.warning(
+                "Media share snapshot hit stale file handle at %s (attempt %d/%d); retrying...",
+                root,
+                attempt,
+                retries,
+            )
+            time.sleep(retry_sleep)
+        except subprocess.CalledProcessError as exc:
+            last_exc = exc
+            if attempt >= retries:
+                break
+            time.sleep(retry_sleep)
+    if last_exc is not None:
+        raise RuntimeError(
+            f"Could not snapshot media share {root}: {last_exc}. "
+            "If this is a mounted Samba path, remount it before continuing."
+        ) from last_exc
+    raise RuntimeError(f"Could not snapshot media share {root}")
 
 
 def _parse_gio_list_line(line: str) -> dict | None:
@@ -299,14 +339,21 @@ def _wait_for_new_media(
     baseline: dict[str, tuple[int, int]],
     suffixes: tuple[str, ...],
     timeout: float,
+    min_mtime_ns: int,
+    seen_paths: set[str] | None = None,
     poll_sec: float = 1.0,
 ) -> str:
     deadline = time.monotonic() + timeout
     candidate: str | None = None
+    consumed = seen_paths or set()
     while time.monotonic() < deadline:
-        current = _snapshot_media(share_root, suffixes)
+        current = _snapshot_media_safe(share_root, suffixes)
         updates: list[tuple[int, str]] = []
         for path, stamp in current.items():
+            if path in consumed:
+                continue
+            if int(stamp[0]) < int(min_mtime_ns):
+                continue
             prior = baseline.get(path)
             if prior is None or stamp != prior:
                 updates.append((stamp[0], path))
@@ -321,7 +368,7 @@ def _wait_for_new_media(
     stable_deadline = time.monotonic() + 5.0
     last_size = -1
     while time.monotonic() < stable_deadline:
-        current = _snapshot_media(share_root, suffixes)
+        current = _snapshot_media_safe(share_root, suffixes)
         stamp = current.get(candidate)
         if stamp is None:
             time.sleep(0.5)
@@ -341,17 +388,27 @@ def _capture_share_media(
     timeout: float,
     prompt: bool,
     suffixes: tuple[str, ...],
+    min_mtime_ns: int,
+    seen_paths: set[str],
 ) -> Path:
-    baseline = _snapshot_media(share_root, suffixes)
+    baseline = _snapshot_media_safe(share_root, suffixes)
     if prompt:
         input(f"Ready for {stem}. Trigger the scenery photo now, then press Enter to start watching {share_root} ...")
-    pulled = _wait_for_new_media(share_root, baseline, suffixes, timeout=timeout)
+    pulled = _wait_for_new_media(
+        share_root,
+        baseline,
+        suffixes,
+        timeout=timeout,
+        min_mtime_ns=min_mtime_ns,
+        seen_paths=seen_paths,
+    )
     pulled_path = Path(urlparse(pulled).path) if _is_uri_location(pulled) else Path(pulled)
     out_path = output_dir / f"{stem}{pulled_path.suffix.lower()}"
     if _is_uri_location(pulled):
         subprocess.run([_gio_bin(), "copy", pulled, str(out_path)], check=True)
     else:
         shutil.copy2(pulled_path, out_path)
+    seen_paths.add(pulled)
     hv2.log.info("Pulled media from share: %s -> %s", pulled, out_path)
     return out_path
 
@@ -425,6 +482,7 @@ def capture_visual_panorama(
         raise RuntimeError("Wide camera probe failed before panorama capture")
 
     captured: list[Path] = []
+    consumed_share_paths: set[str] = set()
     try:
         for idx, az in enumerate(positions, start=1):
             if sun_visible and hv2.az_distance(az, sun_az) < hv2.SUN_EXCLUSION_DEG:
@@ -439,6 +497,7 @@ def capture_visual_panorama(
             if not moved:
                 hv2.log.warning("Skipping panorama stop at Az=%.1f°", az)
                 continue
+            step_ready_ns = time.time_ns()
 
             try:
                 actual_az = float(telescope.Azimuth)
@@ -470,6 +529,8 @@ def capture_visual_panorama(
                         timeout=share_timeout,
                         prompt=prompt_capture,
                         suffixes=(".jpg", ".jpeg"),
+                        min_mtime_ns=step_ready_ns,
+                        seen_paths=consumed_share_paths,
                     )
                 )
 
