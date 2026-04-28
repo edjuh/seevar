@@ -571,7 +571,6 @@ PrivateDevices=yes
 RestrictRealtime=yes
 RestrictSUIDSGID=yes
 LockPersonality=yes
-CapabilityBoundingSet=
 ReadWritePaths=${SEEVAR_DIR}/data ${SEEVAR_DIR}/logs
 TimeoutStartSec=180s
 TimeoutStopSec=10s
