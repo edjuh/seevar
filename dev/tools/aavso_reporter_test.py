@@ -30,6 +30,7 @@ TEST_OBSERVATIONS = [
         "amass":   1.234,
         "chart":   "X12345T",
         "notes":   "SeeVar_pipeline_test",
+        "peak_adu": 42112.0,
     },
     {
         "target":  "SS CYG",
@@ -44,6 +45,7 @@ TEST_OBSERVATIONS = [
         "amass":   1.301,
         "chart":   "X12345T",
         "notes":   "SeeVar_pipeline_test",
+        "peak_adu": 43851.0,
     },
 ]
 
@@ -64,6 +66,7 @@ TEST_BAA_CCD_OBSERVATIONS = [
             {"source_id": "000-BCF-528", "v_mag": 12.400, "v_mag_err": 0.012, "inst_mag": 17.579, "inst_err": 0.021},
             {"source_id": "000-BCF-530", "v_mag": 12.980, "v_mag_err": 0.015, "inst_mag": 18.161, "inst_err": 0.024},
         ],
+        "peak_adu": 42112.0,
     },
     {
         "target": "SS CYG",
@@ -81,6 +84,7 @@ TEST_BAA_CCD_OBSERVATIONS = [
             {"source_id": "000-BCF-528", "v_mag": 12.400, "v_mag_err": 0.012, "inst_mag": 17.604, "inst_err": 0.022},
             {"source_id": "000-BCF-530", "v_mag": 12.980, "v_mag_err": 0.015, "inst_mag": 18.186, "inst_err": 0.024},
         ],
+        "peak_adu": 43851.0,
     },
 ]
 

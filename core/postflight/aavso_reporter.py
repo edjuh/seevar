@@ -42,6 +42,7 @@ VALID_FILTERS = {
 DEFAULT_BAA_TELESCOPE = "ZWO Seestar S30-Pro"
 DEFAULT_BAA_CAMERA = "Integrated CMOS"
 DEFAULT_BAA_ANALYSIS = "SeeVar"
+DEFAULT_SATURATION_CEILING = 60000
 
 
 def _default_software_name() -> str:
@@ -50,6 +51,25 @@ def _default_software_name() -> str:
         return str(SWCREATE)
     except Exception:
         return "SeeVar"
+
+
+def _build_saturation_note(obs: dict) -> str:
+    checked = obs.get("saturation_checked", True)
+    saturated = bool(obs.get("saturated", False))
+    ceiling = obs.get("saturation_ceiling", DEFAULT_SATURATION_CEILING)
+    peak = obs.get("peak_adu")
+
+    if not checked:
+        return "SATCHECK=UNKNOWN"
+
+    status = "FAIL" if saturated else "PASS"
+    parts = [f"SATCHECK={status}", f"SATLIM={ceiling}"]
+    if peak not in (None, ""):
+        try:
+            parts.append(f"PEAKADU={float(peak):.1f}")
+        except Exception:
+            parts.append(f"PEAKADU={peak}")
+    return " ".join(parts)
 
 
 class AAVSOReporter:
@@ -203,6 +223,11 @@ class AAVSOReporter:
 
     def _normalize_observation(self, obs: dict, idx: int) -> dict[str, str]:
         target = self._normalize_text(obs.get("target"), f"observations[{idx}].target")
+        if bool(obs.get("saturated", False)):
+            raise ValueError(f"{target} is marked saturated and must not be exported")
+        base_notes = self._normalize_text(obs.get("notes", "na"), f"{target}.notes", default="na")
+        sat_note = _build_saturation_note(obs)
+        notes = sat_note if base_notes == "na" else f"{base_notes}; {sat_note}"
         return {
             "target": target,
             "jd": self._fmt_num(obs.get("jd"), 5, f"{target}.jd"),
@@ -218,7 +243,7 @@ class AAVSOReporter:
             "amass": self._fmt_num(obs.get("amass", "na"), 3, f"{target}.amass", allow_na=True),
             "group": self._normalize_text(obs.get("group", "na"), f"{target}.group", default="na"),
             "chart": self._normalize_text(obs.get("chart", "na"), f"{target}.chart", default="na"),
-            "notes": self._normalize_text(obs.get("notes", "na"), f"{target}.notes", default="na"),
+            "notes": notes,
         }
 
     def validate_observation(self, obs: dict, idx: int = 1) -> dict[str, str]:
@@ -382,6 +407,8 @@ class BAACCDReporter(AAVSOReporter):
 
     def _normalize_baa_observation(self, obs: dict, idx: int) -> dict:
         target = self._normalize_text(obs.get("target"), f"observations[{idx}].target")
+        if bool(obs.get("saturated", False)):
+            raise ValueError(f"{target} is marked saturated and must not be exported")
         comp_rows = obs.get("comp_rows") or []
         if not isinstance(comp_rows, list):
             raise ValueError(f"{target}.comp_rows must be a list when using BAACCDReporter")
@@ -409,6 +436,8 @@ class BAACCDReporter(AAVSOReporter):
             "exp_len": self._fmt_num(obs.get("exp_len"), 0, f"{target}.exp_len"),
             "file_name": self._normalize_text(obs.get("file_name"), f"{target}.file_name"),
             "chart": self._normalize_text(obs.get("chart", "na"), f"{target}.chart", default="na"),
+            "peak_adu": obs.get("peak_adu"),
+            "saturation_note": _build_saturation_note(obs),
             "comp_rows": norm_comp_rows,
         }
 
@@ -420,6 +449,20 @@ class BAACCDReporter(AAVSOReporter):
         target_name = rows[0]["target"]
         chart_id = rows[0]["chart"]
         max_comps = max((len(row["comp_rows"]) for row in rows), default=0)
+
+        sat_summaries = []
+        for row in rows:
+            peak = row.get("peak_adu")
+            if peak not in (None, ""):
+                sat_summaries.append(f"{row['jd']}:{_build_saturation_note(row)}")
+            else:
+                sat_summaries.append(f"{row['jd']}:{row['saturation_note']}")
+        sat_comment = " | ".join(sat_summaries)
+        comment = self.comment.strip()
+        if comment and sat_comment:
+            comment = f"{comment} | {sat_comment}"
+        elif sat_comment:
+            comment = sat_comment
 
         lines = [
             "File Format\tCCD/CMOS v2.03",
@@ -433,7 +476,7 @@ class BAACCDReporter(AAVSOReporter):
             f"Magnitude type\t{self.magnitude_type}",
             f"Photometry software\t{self.software_name}",
             f"Analysis software\t{self.analysis_software}",
-            f"Comment\t{self.comment}",
+            f"Comment\t{comment}",
             "",
         ]
 
