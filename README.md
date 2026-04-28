@@ -55,7 +55,7 @@ It is making the science chain more defensible and operationally safer:
 - dark-calibrated working frames, with bias / flat plumbing added
 - sigma-clipped comparison-star ensembles
 - deterministic AAVSO report staging
-- BAA-modified AAVSO Extended test-file export
+- BAA-modified AAVSO Extended and richer CCD/CMOS test-file export
 - multi-scope execution without shared-file collisions
 
 ---

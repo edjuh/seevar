@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/postflight/bayer_photometry.py
-Version: 2.4.0
+Version: 2.5.0
 Objective: Bayer-channel aperture photometry engine for the IMX585 using real solved WCS
 products for source placement, with header-validated Bayer pattern handling and
 astropy-backed sigma clipping on comparison-star zero points.
@@ -36,6 +36,7 @@ MIN_CLIPPED_COMPS = 3
 CLIP_SIGMA = 2.5
 CLIP_MAX_ITERS = 5
 PSF_MODEL = "moffat"
+INSTRUMENTAL_MAG_ZEROPOINT = 25.0
 
 
 def _channel_mask(abs_y: np.ndarray, abs_x: np.ndarray, pattern: str, channel: str) -> np.ndarray:
@@ -413,12 +414,17 @@ def differential_magnitude(
             continue
 
         zp = v_mag + 2.5 * math.log10(m[flux_key])
+        comp_inst_mag = INSTRUMENTAL_MAG_ZEROPOINT - 2.5 * math.log10(m[flux_key])
+        comp_inst_err = 1.0857 / comp_snr if comp_snr > 0 else 9.99
         comp_rows.append({
             "zp": float(zp),
             "weight": float(comp_snr ** 2),
             "snr": float(comp_snr),
             "source_id": comp.get("source_id", "GAIA"),
             "v_mag": float(v_mag),
+            "v_mag_err": float(comp.get("v_mag_err", 0.0)),
+            "inst_mag": round(float(comp_inst_mag), 3),
+            "inst_err": round(float(comp_inst_err), 3),
         })
 
     if not comp_rows:
@@ -442,6 +448,7 @@ def differential_magnitude(
     avg_zp = float(np.sum(w_arr * zp_arr) / w_sum)
     zp_std = float(np.sqrt(np.sum(w_arr * (zp_arr - avg_zp) ** 2) / w_sum))
     magnitude = avg_zp - 2.5 * math.log10(target_flux)
+    target_inst_mag = INSTRUMENTAL_MAG_ZEROPOINT - 2.5 * math.log10(target_flux)
 
     snr_err = 1.0857 / target_snr if target_snr > 0 else 9.99
     total_err = round(math.sqrt(zp_std ** 2 + snr_err ** 2), 3)
@@ -459,8 +466,11 @@ def differential_magnitude(
         "zp_std": round(zp_std, 4),
         "channel": channel,
         "target_snr": round(target_snr, 1),
+        "target_inst_mag": round(float(target_inst_mag), 3),
+        "target_inst_err": round(float(snr_err), 3),
         "peak_adu": round(t.get("peak", 0), 1),
         "r_ap_used": target_r_ap,
         "comp_label": brightest["source_id"],
+        "comp_rows": clipped_rows,
         "bayer_pattern": fits_file.bayer_pattern,
     }
