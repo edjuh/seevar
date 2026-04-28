@@ -563,15 +563,6 @@ ExecStart=${PYBIN} core/preflight/schedule_compiler.py
 StandardOutput=append:${SEEVAR_DIR}/logs/planner.log
 StandardError=append:${SEEVAR_DIR}/logs/planner.log
 
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=yes
-PrivateDevices=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-ReadWritePaths=${SEEVAR_DIR}/data ${SEEVAR_DIR}/logs
 TimeoutStartSec=180s
 TimeoutStopSec=10s
 
