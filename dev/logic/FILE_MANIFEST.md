@@ -87,6 +87,7 @@
 | data/weather_state.json | JSON | Data/Configuration file. |
 | dev/CONTRIBUTING.md | 1.2.0 (Garmt) | Defines the strict technical standards, workflow protocols, and "Garmt" purified header requirements for all project... |
 | dev/logic/AAVSO_LOGIC.MD | 2.0.0 (Praw) | Rules for scientific targeting, cadence, photometry |
+| dev/logic/BAA_LOGIC.MD | 1.0.0 | Rules for BAA VSS export formats and Seestar-specific output defaults |
 | dev/logic/AI_CONTEXT.MD | 2.0.0 | The absolute architectural law, environment standards, and logic constraints for AI-assisted development of the SeeVa... |
 | dev/logic/ALPACA_BRIDGE.MD | 2.0.0 | No objective defined. |
 | dev/logic/API_PROTOCOL.MD | 4.0.0 (Haarlem / March 2026) | Definitive ZWO JSON-RPC method mapping for SeeVar. |

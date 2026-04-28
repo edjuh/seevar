@@ -8,6 +8,7 @@
 Hardware acquisition: `API_PROTOCOL.MD`.
 Data file ownership: `DATA_DICTIONARY.MD`.
 Cadence implementation: `core/preflight/audit.py`.
+BAA export specifics: `BAA_LOGIC.MD`.
 
 ---
 
