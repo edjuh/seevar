@@ -26,7 +26,7 @@ from core.utils.env_loader import load_config
 
 log = logging.getLogger("AAVSOReporter")
 
-DEFAULT_OBSTYPE = "DSLR"
+DEFAULT_OBSTYPE = "CMOS"
 DEFAULT_FILTER = "TG"
 VALID_FLAGS = {"YES", "NO"}
 VALID_MTYPES = {"STD", "DIF"}
@@ -80,7 +80,7 @@ class AAVSOReporter:
       - FILTER : TG
       - TRANS  : NO
       - MTYPE  : STD
-      - OBSTYPE: DSLR
+      - OBSTYPE: CMOS
     """
 
     def __init__(self, observer_code: str | None = None, software_name: str | None = None, obstype: str = DEFAULT_OBSTYPE):

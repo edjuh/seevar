@@ -62,8 +62,8 @@ Green pixels occupy positions [0,0] and [1,1].
 Extraction: array[0::2, 0::2] and array[1::2, 1::2], averaged.
 ```
 
-- Filter designation for AAVSO reports: `CV` (Clear/V-proxy)
-- FITS header keyword: `FILTER = 'CV'`
+- Filter designation for Seestar TG photometry reports: `TG`
+- FITS header keyword: `FILTER = 'TG'`
 - Science processor: `core/postflight/science_processor.py`
 - Output: `*_Green.fits` — single-channel float32, sky-subtracted
 
@@ -108,7 +108,7 @@ Required fields per observation:
 | `DATE` | `DATE-OBS` FITS header (JD) | `2460413.394` |
 | `MAG` | `PhotometryPipeline` differential result | `11.42` |
 | `MAGERR` | photometry SNR-derived | `0.05` |
-| `FILT` | `FILTER` FITS header | `CV` |
+| `FILT` | `FILTER` FITS header | `TG` |
 | `TRANS` | always `NO` (no transform applied) | `NO` |
 | `MTYPE` | always `STD` (standard ensemble) | `STD` |
 | `CNAME` | ensemble comp star AUIDs | `000-BCB-641` |
