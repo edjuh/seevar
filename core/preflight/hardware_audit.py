@@ -18,9 +18,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.flight.pilot import (
     AlpacaTelescope, AlpacaCamera, TelemetryBlock,
-    SEESTAR_HOST, ALPACA_PORT,
+    ALPACA_PORT,
 )
-from core.utils.env_loader import DATA_DIR
+from core.utils.env_loader import DATA_DIR, load_config, selected_scope_host
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,8 +36,8 @@ VETO_TEMP    = 55.0
 class HardwareAudit:
     """Alpaca hardware gate for preflight."""
 
-    def __init__(self, host: str = SEESTAR_HOST, port: int = ALPACA_PORT):
-        self.host = host
+    def __init__(self, host: str | None = None, port: int = ALPACA_PORT):
+        self.host = host or selected_scope_host(load_config())[0]
         self.port = port
 
     def run_audit(self) -> bool:

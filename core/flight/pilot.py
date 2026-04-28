@@ -38,7 +38,7 @@ from astropy.time import Time
 from astropy.wcs import WCS
 import astropy.units as u
 
-from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config, selected_scope, scope_file_tag
+from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config, selected_scope, selected_scope_host, scope_file_tag
 from core.flight.field_rotation import max_exposure_s as rotation_limited_exposure
 
 # ---------------------------------------------------------------------------
@@ -46,21 +46,7 @@ from core.flight.field_rotation import max_exposure_s as rotation_limited_exposu
 # ---------------------------------------------------------------------------
 
 def _resolve_seestar_host() -> tuple[str, str]:
-    cfg = load_config()
-
-    alpaca_cfg = cfg.get("alpaca", {}) if isinstance(cfg, dict) else {}
-    alpaca_host = str(alpaca_cfg.get("host", "")).strip()
-    if alpaca_host and alpaca_host != "TBD":
-        return alpaca_host, "config.alpaca.host"
-
-    scope = selected_scope(cfg)
-    if scope:
-        for key in ("host", "ip"):
-            value = str(scope.get(key, "")).strip()
-            if value and value != "TBD":
-                return value, f"config.{scope.get('scope_id', 'scope')}.{key}"
-
-    return "10.0.0.1", "fallback.default"
+    return selected_scope_host(load_config())
 
 
 # ---------------------------------------------------------------------------
@@ -301,8 +287,9 @@ class AlpacaClient:
 
 
 class AlpacaTelescope(AlpacaClient):
-    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT, device_number: int = TELESCOPE_NUM):
-        super().__init__(ip, port, "telescope", device_number)
+    def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = TELESCOPE_NUM):
+        host, _ = selected_scope_host(load_config()) if not ip else (ip, "explicit argument")
+        super().__init__(host, port, "telescope", device_number)
 
     def unpark(self):
         self._put("unpark")
@@ -376,8 +363,9 @@ class AlpacaCamera(AlpacaClient):
         5: "Error",
     }
 
-    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT, device_number: int = CAMERA_NUM):
-        super().__init__(ip, port, "camera", device_number)
+    def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = CAMERA_NUM):
+        host, _ = selected_scope_host(load_config()) if not ip else (ip, "explicit argument")
+        super().__init__(host, port, "camera", device_number)
 
     def set_gain(self, gain: int):
         self._put("gain", Gain=str(gain))
@@ -446,8 +434,9 @@ class AlpacaFilterWheel(AlpacaClient):
     IR = 1
     LP = 2
 
-    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT, device_number: int = FILTERWHEEL_NUM):
-        super().__init__(ip, port, "filterwheel", device_number)
+    def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = FILTERWHEEL_NUM):
+        host, _ = selected_scope_host(load_config()) if not ip else (ip, "explicit argument")
+        super().__init__(host, port, "filterwheel", device_number)
 
     def set_position(self, pos: int):
         self._put("position", Position=str(pos))
@@ -629,14 +618,15 @@ class DiamondSequence:
       acquire(target, status_cb, telemetry) -> FrameResult
     """
 
-    def __init__(self, host: str = SEESTAR_HOST, port: int = ALPACA_PORT):
-        self.host = host
+    def __init__(self, host: str | None = None, port: int = ALPACA_PORT):
+        resolved_host, resolved_source = selected_scope_host(load_config()) if not host else (host, "explicit argument")
+        self.host = resolved_host
         self.port = port
-        self.host_source = "explicit argument" if host != SEESTAR_HOST else SEESTAR_HOST_SOURCE
+        self.host_source = resolved_source
         logger.info("DiamondSequence endpoint: %s:%d (%s)", self.host, self.port, self.host_source)
-        self._telescope = AlpacaTelescope(host, port)
-        self._camera = AlpacaCamera(host, port)
-        self._filter = AlpacaFilterWheel(host, port)
+        self._telescope = AlpacaTelescope(self.host, port)
+        self._camera = AlpacaCamera(self.host, port)
+        self._filter = AlpacaFilterWheel(self.host, port)
         self._session_ready = False
         self._session_connects = 0
         self._last_session_error = ""

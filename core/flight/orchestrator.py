@@ -30,6 +30,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.utils.env_loader import DATA_DIR, effective_fleet_mode, load_config, selected_scope, selected_scope_id, scope_file_tag
 from core.flight.pilot import (
     AcquisitionTarget,
+    DiamondSequence,
     SEESTAR_HOST,
     GAIN,
     TelemetryBlock,
@@ -287,6 +288,7 @@ class Orchestrator:
         self._scope_id = selected_scope_id()
         self._scope = selected_scope(cfg, self._scope_id)
         self._scope_name = self._scope.get("scope_name") or self._scope.get("name") or self._scope_id or "primary"
+        self._scope_host = str(self._scope.get("host") or self._scope.get("ip") or SEESTAR_HOST).strip() or SEESTAR_HOST
         self._mission_file = MISSION_FILE
         self._state_file = STATE_FILE
         self._plan_file = PLAN_FILE
@@ -321,7 +323,7 @@ class Orchestrator:
             "exposures_total": 0,
         }
 
-        self._dark_library = DarkLibrary(host=SEESTAR_HOST)
+        self._dark_library = DarkLibrary(host=self._scope_host)
         self._tonights_sequences = set()
         self._last_telemetry = None
         self._planned_target_count = 0
@@ -331,6 +333,7 @@ class Orchestrator:
         self.simulation_mode = "--simulate" in sys.argv
 
         self.fsm = SovereignFSM()
+        self.fsm.sequence = DiamondSequence(host=self._scope_host)
 
         if self.simulation_mode:
             self.fsm.sequence = MockDiamondSequence()
@@ -450,7 +453,7 @@ class Orchestrator:
 
         if not self.simulation_mode:
             self._log_flight("[A2] Safety gate — securing zero-state")
-            zero = enforce_zero_state()
+            zero = enforce_zero_state(host=self._scope_host)
             if not zero:
                 self._log_flight("[A2] ⚠️ zero-state unconfirmed — continuing to session init")
             else:

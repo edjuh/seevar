@@ -15,8 +15,9 @@ import requests
 
 from core.flight.pilot import (
     AlpacaTelescope, AlpacaCamera,
-    SEESTAR_HOST, ALPACA_PORT,
+    ALPACA_PORT,
 )
+from core.utils.env_loader import load_config, selected_scope_host
 
 logger = logging.getLogger("seevar.neutralizer")
 
@@ -42,12 +43,14 @@ def _require_connected(device, label: str):
         raise RuntimeError(f"{label} reports connected=false after connect()")
 
 
-def enforce_zero_state(host: str = SEESTAR_HOST, port: int = ALPACA_PORT) -> bool:
+def enforce_zero_state(host: str | None = None, port: int = ALPACA_PORT) -> bool:
     """
     Park telescope and verify camera idle.
 
     Returns True if zero-state achieved, False on failure.
     """
+    if not host:
+        host, _ = selected_scope_host(load_config())
     logger.info("enforce_zero_state: Alpaca REST on %s:%d", host, port)
 
     ok, error = _management_status(host, port)

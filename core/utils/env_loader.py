@@ -67,6 +67,30 @@ def configured_scopes(cfg: dict | None = None, *, active_only: bool = False) -> 
     return scopes
 
 
+def selected_scope_host(
+    cfg: dict | None = None,
+    scope_id: str | None = None,
+    *,
+    fallback: str = "10.0.0.1",
+) -> tuple[str, str]:
+    cfg = cfg if isinstance(cfg, dict) else load_config()
+
+    alpaca_cfg = cfg.get("alpaca", {}) if isinstance(cfg, dict) else {}
+    alpaca_host = str(alpaca_cfg.get("host", "")).strip()
+    if alpaca_host and alpaca_host != "TBD":
+        return alpaca_host, "config.alpaca.host"
+
+    scope = selected_scope(cfg, scope_id)
+    if scope:
+        for key in ("host", "ip"):
+            value = str(scope.get(key, "")).strip()
+            if value and value != "TBD":
+                scope_ref = scope.get("scope_id") or scope.get("scope_name") or "scope"
+                return value, f"config.{scope_ref}.{key}"
+
+    return fallback, "fallback.default"
+
+
 def live_available_scopes(cfg: dict | None = None, *, cache_ttl: float = 5.0) -> list[dict]:
     cfg = cfg if isinstance(cfg, dict) else load_config()
     scopes = configured_scopes(cfg, active_only=True)

@@ -20,8 +20,8 @@ import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.utils.env_loader import load_config, selected_scope
-from core.flight.pilot import AlpacaCamera, AlpacaFilterWheel, TelemetryBlock, SEESTAR_HOST, ALPACA_PORT
+from core.utils.env_loader import load_config, selected_scope, selected_scope_host
+from core.flight.pilot import AlpacaCamera, AlpacaFilterWheel, TelemetryBlock, ALPACA_PORT
 from core.flight.dark_library import DarkLibrary
 from core.postflight.calibration_assets import (
     FLAT_LIBRARY_DIR,
@@ -42,11 +42,12 @@ def _load_master(path: str | Path) -> np.ndarray:
 
 
 class FlatLibrary:
-    def __init__(self, host: str = SEESTAR_HOST, port: int = ALPACA_PORT):
-        self.host = host
+    def __init__(self, host: str | None = None, port: int = ALPACA_PORT):
+        cfg = load_config()
+        self._scope = selected_scope(cfg)
+        self.host = host or str(self._scope.get("host") or self._scope.get("ip") or selected_scope_host(cfg)[0])
         self.port = port
-        self._scope = selected_scope(load_config())
-        self._dark_library = DarkLibrary(host=host, port=port)
+        self._dark_library = DarkLibrary(host=self.host, port=port)
         ensure_calibration_dirs()
         FLAT_LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
 
