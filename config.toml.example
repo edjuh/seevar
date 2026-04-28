@@ -38,6 +38,15 @@ webobs_token  = ""
 target_key    = ""
 
 # -----------------------------------------------------------------------------
+# BAA — optional
+# Used only for the BAA-modified AAVSO Extended export variant.
+# Leave empty to let SeeVar derive sane defaults from [location] and [[seestars]].
+# -----------------------------------------------------------------------------
+[baa]
+telescope = ""
+camera    = ""
+
+# -----------------------------------------------------------------------------
 # PLANNER — required
 # sun_altitude_limit : astronomical darkness threshold in degrees (-18.0)
 # simulation_mode    : true = run without hardware (development only)

@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 Filename: core/postflight/aavso_reporter.py
-Version: 1.4.0
+Version: 1.5.0
 Objective: Generate and validate AAVSO Extended Format reports in data/reports/
-           using SeeVar TG photometry defaults for OSC Bayer data.
+           using SeeVar TG photometry defaults for OSC Bayer data. Also
+           supports the BAA-modified AAVSO Extended variant.
 """
 
 import logging
@@ -37,6 +38,9 @@ VALID_FILTERS = {
     "Z", "Y", "J", "H", "K",
     "C", "HA", "OIII", "SII",
 }
+
+DEFAULT_BAA_TELESCOPE = "ZWO Seestar S30-Pro"
+DEFAULT_BAA_CAMERA = "Integrated CMOS"
 
 
 def _default_software_name() -> str:
@@ -92,6 +96,13 @@ class AAVSOReporter:
 
         return ""
 
+    def _load_config(self) -> dict:
+        try:
+            return load_config()
+        except Exception as e:
+            log.warning("Config load failed: %s", e)
+            return {}
+
     def _normalize_flag(self, value, field: str, allowed: set[str]) -> str:
         val = str(value).strip().upper()
         if val not in allowed:
@@ -117,6 +128,43 @@ class AAVSOReporter:
                 return default
             raise ValueError(f"{field} is required")
         return text.replace(",", ";").replace("\n", " ").replace("\r", " ")
+
+    def _build_location_string(self) -> str:
+        cfg = self._load_config()
+        loc = cfg.get("location", {}) if isinstance(cfg, dict) else {}
+        lat = float(loc.get("lat", 0.0))
+        lon = float(loc.get("lon", 0.0))
+        elev = float(loc.get("elevation", 0.0))
+
+        lat_suffix = "N" if lat >= 0 else "S"
+        lon_suffix = "E" if lon >= 0 else "W"
+        return f"{abs(lat):.6f}{lat_suffix} {abs(lon):.6f}{lon_suffix} H{int(round(elev))}m"
+
+    def _build_telescope_string(self) -> str:
+        cfg = self._load_config()
+        baa = cfg.get("baa", {}) if isinstance(cfg, dict) else {}
+        explicit = str(baa.get("telescope", "")).strip()
+        if explicit:
+            return explicit
+
+        scopes = cfg.get("seestars", []) if isinstance(cfg, dict) else []
+        if scopes:
+            scope = scopes[0] or {}
+            model = str(scope.get("model", "")).strip()
+            mount = str(scope.get("mount", "")).strip()
+            name = str(scope.get("name", "")).strip()
+            parts = [part for part in [name, model, mount] if part]
+            if parts:
+                return " / ".join(parts)
+        return DEFAULT_BAA_TELESCOPE
+
+    def _build_camera_string(self) -> str:
+        cfg = self._load_config()
+        baa = cfg.get("baa", {}) if isinstance(cfg, dict) else {}
+        explicit = str(baa.get("camera", "")).strip()
+        if explicit:
+            return explicit
+        return DEFAULT_BAA_CAMERA
 
     def _fmt_num(self, value, places=3, field="value", allow_na=False) -> str:
         if value in (None, ""):
@@ -230,6 +278,78 @@ class AAVSOReporter:
             f.write(text)
 
         log.info("AAVSO report written: %s", save_path)
+        return save_path
+
+
+class BAAModifiedExtendedReporter(AAVSOReporter):
+    """
+    Generates the BAA-supported modified AAVSO Extended format.
+
+    Differences from stock AAVSO Extended:
+      - #TYPE=AAVSO EXT BAA V1.00
+      - adds #LOCATION / #TELESCOPE / #CAMERA
+      - uses tab delimiters
+    """
+
+    def __init__(
+        self,
+        observer_code: str | None = None,
+        software_name: str | None = None,
+        obstype: str = DEFAULT_OBSTYPE,
+        location: str | None = None,
+        telescope: str | None = None,
+        camera: str | None = None,
+    ):
+        super().__init__(observer_code=observer_code, software_name=software_name, obstype=obstype)
+        self.location = self._normalize_text(location or self._build_location_string(), "baa.location")
+        self.telescope = self._normalize_text(telescope or self._build_telescope_string(), "baa.telescope")
+        self.camera = self._normalize_text(camera or self._build_camera_string(), "baa.camera")
+
+    def _header_lines(self) -> list[str]:
+        return [
+            "#TYPE=AAVSO EXT BAA V1.00",
+            f"#OBSCODE={self.obs_code}",
+            f"#SOFTWARE={self.software_name}",
+            "#DELIM=TAB",
+            "#DATE=JD",
+            f"#OBSTYPE={self.obstype}",
+            f"#LOCATION={self.location}",
+            f"#TELESCOPE={self.telescope}",
+            f"#CAMERA={self.camera}",
+            "#NAME\tDATE\tMAG\tMERR\tFILT\tTRANS\tMTYPE\tCNAME\tCMAG\tKNAME\tKMAG\tAMASS\tGROUP\tCHART\tNOTES",
+        ]
+
+    def render_report_text(self, observations: list[dict], validate: bool = True) -> str:
+        rows = self.validate_report(observations) if validate else observations
+        lines = list(self._header_lines())
+        for row in rows:
+            lines.append("\t".join([
+                row["target"],
+                row["jd"],
+                row["mag"],
+                row["err"],
+                row["filter"],
+                row["trans"],
+                row["mtype"],
+                row["comp"],
+                row["cmag"],
+                row["kname"],
+                row["kmag"],
+                row["amass"],
+                row["group"],
+                row["chart"],
+                row["notes"],
+            ]))
+        return "\n".join(lines) + "\n"
+
+    def finalize_report(self, observations: list[dict], validate: bool = True) -> Path:
+        text = self.render_report_text(observations, validate=validate)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+        filename = f"BAA_AAVSO_EXT_{self.obs_code}_{timestamp}.txt"
+        save_path = self.report_dir / filename
+        with open(save_path, "w", encoding="utf-8") as f:
+            f.write(text)
+        log.info("BAA-modified AAVSO report written: %s", save_path)
         return save_path
 
 

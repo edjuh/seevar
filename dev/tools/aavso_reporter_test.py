@@ -4,9 +4,8 @@
 Filename: dev/tools/aavso_reporter_test.py
 Version: 1.0.0
 Objective: Generate a small dummy AAVSO Extended Format report for WebObs
-           preview testing. Uses SS Cyg with plausible synthetic values.
-           Upload to https://www.aavso.org/webobs — review the light-curve
-           preview, then CANCEL. Do not submit synthetic data to the AID.
+           preview testing, or the BAA-modified AAVSO Extended variant for
+           VSSDB testing. Uses SS Cyg with plausible synthetic values.
 """
 
 import sys
@@ -15,7 +14,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(PROJECT_ROOT))
 
-from core.postflight.aavso_reporter import AAVSOReporter
+from core.postflight.aavso_reporter import AAVSOReporter, BAAModifiedExtendedReporter
 
 TEST_OBSERVATIONS = [
     {
@@ -49,11 +48,16 @@ TEST_OBSERVATIONS = [
 ]
 
 def main():
+    mode = (sys.argv[1] if len(sys.argv) > 1 else "aavso").strip().lower()
     print("[SeeVar] AAVSO Reporter test driver")
     print("=" * 50)
-    rep = AAVSOReporter()
+    if mode == "baa":
+        rep = BAAModifiedExtendedReporter(observer_code="TEST")
+    else:
+        rep = AAVSOReporter(observer_code="TEST")
     print(f"Observer code : {rep.obs_code}")
     print(f"Report dir    : {rep.report_dir}")
+    print(f"Mode          : {mode}")
     print()
     path = rep.finalize_report(TEST_OBSERVATIONS)
     print(f"[OK] Report written: {path}")
@@ -66,9 +70,12 @@ def main():
     print()
     print("Next steps:")
     print("  1. Review the file above — check format looks correct")
-    print("  2. Go to https://www.aavso.org/webobs")
-    print("  3. Upload the file — review the light-curve preview")
-    print("  4. CANCEL — do not submit synthetic data to the AID")
+    if mode == "baa":
+        print("  2. Send the file to the BAA VSS contact for parser verification")
+    else:
+        print("  2. Go to https://www.aavso.org/webobs")
+        print("  3. Upload the file — review the light-curve preview")
+        print("  4. CANCEL — do not submit synthetic data to the AID")
     print(f"\nReport path: {path}")
 
 if __name__ == "__main__":
