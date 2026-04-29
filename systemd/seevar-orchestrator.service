@@ -11,7 +11,7 @@ WorkingDirectory=%h/seevar
 Environment=PYTHONPATH=%h/seevar
 Environment=PYTHONUNBUFFERED=1
 ExecStart=%h/seevar/.venv/bin/python3 core/flight/orchestrator.py
-Restart=always
+Restart=on-failure
 RestartSec=15
 StandardOutput=append:%h/seevar/logs/orchestrator.log
 StandardError=append:%h/seevar/logs/orchestrator.log

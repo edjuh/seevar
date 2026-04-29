@@ -11,6 +11,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from astropy.io import fits
+
 import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -99,6 +101,17 @@ def _existing_asset(entry: dict) -> bool:
     return bool(path and Path(path).exists())
 
 
+def _valid_fits_asset(entry: dict) -> bool:
+    if not _existing_asset(entry):
+        return False
+    path = Path(entry.get("master_path", ""))
+    try:
+        with fits.open(path) as hdul:
+            return bool(hdul and hdul[0].header.get("SIMPLE", True))
+    except Exception:
+        return False
+
+
 def best_bias_asset(gain: int | None) -> dict | None:
     if gain in (None, ""):
         return None
@@ -128,7 +141,7 @@ def best_flat_asset(scope_id: str | None, filter_name: str | None, *, ready_only
     candidates = []
 
     for entry in payload.get("assets", {}).get("flat", {}).values():
-        if not _existing_asset(entry):
+        if not _valid_fits_asset(entry):
             continue
         if ready_only and not bool(entry.get("flat_ready", False)):
             continue
