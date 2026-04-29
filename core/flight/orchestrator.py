@@ -615,7 +615,11 @@ class Orchestrator:
             n_frames = max(1, int(planned_n_frames or 1))
         else:
             try:
-                exp_plan = plan_exposure(get_target_mag(name), sky_bortle=self._sky_bortle())
+                exp_plan = plan_exposure(
+                    get_target_mag(name),
+                    sky_bortle=self._sky_bortle(),
+                    mount_mode=self._mount_mode(),
+                )
                 exp_ms = int(exp_plan.exp_ms)
                 n_frames = max(1, int(planned_n_frames or getattr(exp_plan, "n_frames", 1)))
             except Exception:
@@ -969,6 +973,12 @@ class Orchestrator:
             return float(self._cfg.get("location", {}).get("bortle", 6.0))
         except Exception:
             return 6.0
+
+    def _mount_mode(self) -> str:
+        try:
+            return str(self._scope.get("mount", "altaz")).strip().lower()
+        except Exception:
+            return "altaz"
 
     def _log_flight(self, message: str):
         stamp = datetime.now(timezone.utc).strftime("%H:%M:%S")

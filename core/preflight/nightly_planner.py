@@ -130,7 +130,21 @@ def astronomical_dark_mask(times, location, sun_limit_deg):
     return np.array(sun_alt <= sun_limit_deg, dtype=bool)
 
 
-def _science_exposure_hint(target, sky_bortle=DEFAULT_BORTLE):
+def _normalize_mount_mode(value):
+    raw = str(value or "altaz").strip().lower()
+    if raw in {"eq", "equatorial"}:
+        return "eq"
+    return "altaz"
+
+
+def _primary_mount_mode(cfg: dict, active_scopes: list[dict] | None = None) -> str:
+    scopes = active_scopes or cfg.get("seestars", []) or []
+    if scopes:
+        return _normalize_mount_mode(scopes[0].get("mount", "altaz"))
+    return "altaz"
+
+
+def _science_exposure_hint(target, sky_bortle=DEFAULT_BORTLE, mount_mode="altaz"):
     bright_mag = target.get("mag_max")
     faint_mag = target.get("min_mag")
 
@@ -150,13 +164,18 @@ def _science_exposure_hint(target, sky_bortle=DEFAULT_BORTLE):
         bright_mag = target_mag
 
     try:
-        return plan_exposure(target_mag=target_mag, mag_bright=bright_mag, sky_bortle=int(sky_bortle))
+        return plan_exposure(
+            target_mag=target_mag,
+            mag_bright=bright_mag,
+            sky_bortle=int(sky_bortle),
+            mount_mode=mount_mode,
+        )
     except Exception:
         return None
 
 
-def estimate_required_block_minutes(target, sky_bortle=DEFAULT_BORTLE):
-    hint = _science_exposure_hint(target, sky_bortle=sky_bortle)
+def estimate_required_block_minutes(target, sky_bortle=DEFAULT_BORTLE, mount_mode="altaz"):
+    hint = _science_exposure_hint(target, sky_bortle=sky_bortle, mount_mode=mount_mode)
     if hint is not None:
         integration_min = math.ceil(float(hint.total_sec) / 60.0)
         settle_min = 1 if float(hint.exp_sec) <= 5.0 else 2
@@ -248,7 +267,7 @@ def score_window(start_idx, end_idx, times, alt_arr, az_arr, req_arr, block_minu
     }
 
 
-def analyze_target(target, times, altaz_frame, dark_mask, sky_bortle=DEFAULT_BORTLE):
+def analyze_target(target, times, altaz_frame, dark_mask, sky_bortle=DEFAULT_BORTLE, mount_mode="altaz"):
     coord = SkyCoord(
         ra=float(target.get("ra", 0.0)) * u.deg,
         dec=float(target.get("dec", 0.0)) * u.deg,
@@ -268,7 +287,7 @@ def analyze_target(target, times, altaz_frame, dark_mask, sky_bortle=DEFAULT_BOR
     any_above_horizon = bool(np.any(dark_mask & (alt_arr >= horizon_arr)))
     any_above_margin = bool(np.any(dark_mask & (alt_arr >= req_arr)))
 
-    block_minutes = estimate_required_block_minutes(target, sky_bortle=sky_bortle)
+    block_minutes = estimate_required_block_minutes(target, sky_bortle=sky_bortle, mount_mode=mount_mode)
     min_samples = max(1, math.ceil(block_minutes / SAMPLE_MINUTES))
 
     usable = dark_mask & (alt_arr >= req_arr)
@@ -300,7 +319,7 @@ def analyze_target(target, times, altaz_frame, dark_mask, sky_bortle=DEFAULT_BOR
     current_margin = float(clearance_margin(current_az, current_alt, clearance_margin_deg=CLEARANCE_MARGIN_DEG))
 
     out = dict(target)
-    exposure_hint = _science_exposure_hint(target, sky_bortle=sky_bortle)
+    exposure_hint = _science_exposure_hint(target, sky_bortle=sky_bortle, mount_mode=mount_mode)
 
     out["current_alt"] = round(current_alt, 2)
     out["current_az"] = round(current_az, 2)
@@ -385,6 +404,7 @@ def _active_scopes(cfg: dict) -> list[dict]:
             "name": scope["scope_name"],
             "ip": scope["ip"],
             "scope_id": scope["scope_id"],
+            "mount": scope.get("mount", "altaz"),
         })
     return scopes
 
@@ -486,6 +506,7 @@ def run_funnel():
     planner_cfg = cfg.get("planner", {})
     fleet_mode = effective_fleet_mode(cfg)
     active_scopes = _active_scopes(cfg)
+    mount_mode = _primary_mount_mode(cfg, active_scopes)
 
     lat = float(location_cfg.get("lat", 0.0))
     lon = float(location_cfg.get("lon", 0.0))
@@ -531,7 +552,14 @@ def run_funnel():
             gate_counts["cadence_skipped"] += 1
             continue
 
-        analyzed_target, diag = analyze_target(t, trimmed_times, altaz_frame, trimmed_dark_mask, sky_bortle=sky_bortle)
+        analyzed_target, diag = analyze_target(
+            t,
+            trimmed_times,
+            altaz_frame,
+            trimmed_dark_mask,
+            sky_bortle=sky_bortle,
+            mount_mode=mount_mode,
+        )
 
         if diag["dark"]:
             gate_counts["survive_dark"] += 1
