@@ -8,6 +8,7 @@ Objective: Fleet-ready dashboard with Alpaca REST telemetry on port 32323 and ni
 import json
 import logging
 import os
+import struct
 import sys
 import time
 import subprocess
@@ -392,6 +393,150 @@ def _primary_scope_ip() -> str | None:
     return ip if ip and ip != "TBD" else None
 
 
+def _primary_scope_port() -> int:
+    cfg = load_config("~/seevar/config.toml")
+    seestars = cfg.get("seestars", [])
+    if seestars:
+        try:
+            return int(seestars[0].get("alpaca_port", 32323))
+        except (TypeError, ValueError):
+            pass
+    return 32323
+
+
+def _next_preview_txid() -> int:
+    current = getattr(_next_preview_txid, "_txid", 0) + 1
+    setattr(_next_preview_txid, "_txid", current)
+    return current
+
+
+def _parse_imagebytes(raw: bytes) -> np.ndarray:
+    if len(raw) < 32:
+        raise ValueError(f"ImageBytes too short: {len(raw)} bytes")
+
+    error_num = struct.unpack_from("<i", raw, 4)[0]
+    data_start = struct.unpack_from("<i", raw, 8)[0]
+    image_element = struct.unpack_from("<i", raw, 12)[0]
+    rank = struct.unpack_from("<i", raw, 20)[0]
+    dim1 = struct.unpack_from("<i", raw, 24)[0]
+    dim2 = struct.unpack_from("<i", raw, 28)[0]
+
+    if error_num != 0:
+        raise ValueError(f"ImageBytes error: {error_num}")
+    if rank != 2:
+        raise ValueError(f"Unsupported ImageBytes rank: {rank}")
+
+    dtype_map = {
+        1: np.int16,
+        2: np.int32,
+        3: np.float64,
+        6: np.uint16,
+        8: np.uint32,
+    }
+    dtype = dtype_map.get(image_element, np.int32)
+    return np.frombuffer(raw[data_start:], dtype=dtype).reshape((dim2, dim1)).astype(np.float32, copy=False)
+
+
+def _alpaca_camera_request(base: str, method: str, endpoint: str, *, timeout: float = 8.0, **params):
+    payload = {
+        "ClientID": 42,
+        "ClientTransactionID": _next_preview_txid(),
+    }
+    payload.update(params)
+
+    if method == "GET":
+        response = http_requests.get(f"{base}/{endpoint}", params=payload, timeout=timeout)
+    else:
+        response = http_requests.put(f"{base}/{endpoint}", data=payload, timeout=timeout)
+
+    data = response.json()
+    err = data.get("ErrorNumber", 0)
+    if err:
+        raise RuntimeError(f"Alpaca {endpoint}: error {err} - {data.get('ErrorMessage', '')}")
+    return data.get("Value")
+
+
+def _download_alpaca_image(base: str, *, timeout: float = 12.0) -> np.ndarray:
+    params = {
+        "ClientID": 42,
+        "ClientTransactionID": _next_preview_txid(),
+    }
+    try:
+        response = http_requests.get(
+            f"{base}/imagearrayvariant",
+            params=params,
+            timeout=timeout,
+            headers={"Accept": "application/imagebytes"},
+        )
+        if response.status_code == 200 and "imagebytes" in response.headers.get("Content-Type", "").lower():
+            return _parse_imagebytes(response.content)
+    except Exception as exc:
+        log.debug("Wide preview imagebytes unavailable: %s", exc)
+
+    response = http_requests.get(f"{base}/imagearray", params=params, timeout=max(timeout, 30.0))
+    data = response.json()
+    err = data.get("ErrorNumber", 0)
+    if err:
+        raise RuntimeError(f"imagearray: error {err} - {data.get('ErrorMessage', '')}")
+
+    value = data.get("Value")
+    if value is None:
+        raise RuntimeError("imagearray returned no Value")
+    return np.array(value, dtype=np.float32)
+
+
+def _render_array_jpeg(data: np.ndarray) -> bytes:
+    if data.ndim == 3:
+        data = data[:, :, 1]
+    if data.ndim != 2:
+        raise ValueError(f"preview expects 2D image data, got {data.ndim}D")
+
+    if min(data.shape) >= 2:
+        data = data[::2, ::2]
+
+    finite = data[np.isfinite(data)]
+    if finite.size == 0:
+        raise ValueError("preview image has no finite pixels")
+
+    lo, hi = np.percentile(finite, [1.0, 99.5])
+    if hi <= lo:
+        hi = lo + 1.0
+    scaled = np.clip((data - lo) / (hi - lo), 0.0, 1.0)
+    image = (scaled * 255.0).astype(np.uint8)
+
+    out = io.BytesIO()
+    Image.fromarray(image).save(out, format="JPEG", quality=82)
+    return out.getvalue()
+
+
+def _alpaca_wide_snapshot_jpeg() -> bytes | None:
+    ip = _primary_scope_ip()
+    if not ip:
+        return None
+
+    base = f"http://{ip}:{_primary_scope_port()}/api/v1/camera/1"
+    try:
+        try:
+            _alpaca_camera_request(base, "PUT", "connected", timeout=4.0, Connected="true")
+        except Exception as exc:
+            log.debug("Wide preview connect attempt failed: %s", exc)
+
+        try:
+            _alpaca_camera_request(base, "PUT", "startexposure", timeout=4.0, Duration="0.002", Light="true")
+            deadline = time.monotonic() + 10.0
+            while time.monotonic() < deadline:
+                if bool(_alpaca_camera_request(base, "GET", "imageready", timeout=3.0)):
+                    break
+                time.sleep(0.25)
+        except Exception as exc:
+            log.debug("Wide preview fresh exposure unavailable, trying last image: %s", exc)
+
+        return _render_array_jpeg(_download_alpaca_image(base))
+    except Exception as exc:
+        log.info("Alpaca wide snapshot unavailable: %s", exc)
+        return None
+
+
 def _rtsp_snapshot_jpeg(kind: str) -> bytes | None:
     ip = _primary_scope_ip()
     stream_port = {"tele": 4554, "wide": 4555}.get(kind)
@@ -433,26 +578,7 @@ def _latest_preview_file(kind: str) -> Path | None:
 
 def _render_preview_jpeg(fits_path: Path) -> bytes:
     data = fits.getdata(fits_path, 0).astype(np.float32)
-    if data.ndim != 2:
-        raise ValueError("preview expects 2D FITS")
-
-    if min(data.shape) >= 2:
-        data = data[::2, ::2]
-
-    finite = data[np.isfinite(data)]
-    if finite.size == 0:
-        raise ValueError("preview image has no finite pixels")
-
-    lo, hi = np.percentile(finite, [1.0, 99.5])
-    if hi <= lo:
-        hi = lo + 1.0
-    scaled = np.clip((data - lo) / (hi - lo), 0.0, 1.0)
-    image = (scaled * 255.0).astype(np.uint8)
-    rgb = np.dstack([image, image, image])
-
-    out = io.BytesIO()
-    Image.fromarray(rgb).save(out, format="JPEG", quality=82)
-    return out.getvalue()
+    return _render_array_jpeg(data)
 
 
 def load_plan():
@@ -691,6 +817,12 @@ def preview_image(kind: str):
         jpeg = _rtsp_snapshot_jpeg(kind)
         if jpeg:
             return Response(jpeg, mimetype='image/jpeg')
+        if kind == "wide":
+            jpeg = _alpaca_wide_snapshot_jpeg()
+            if jpeg:
+                resp = Response(jpeg, mimetype='image/jpeg')
+                resp.headers['X-Preview-File'] = 'alpaca-camera-1'
+                return resp
 
     fits_path = _latest_preview_file(kind)
     if fits_path is None:
