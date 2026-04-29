@@ -39,6 +39,7 @@ logging.basicConfig(
 log = logging.getLogger("Accountant")
 
 DATA_DIR = PROJECT_ROOT / "data"
+LOG_DIR = PROJECT_ROOT / "logs"
 LOCAL_BUFFER = DATA_DIR / "local_buffer"
 ARCHIVE_DIR = DATA_DIR / "archive"
 PROCESS_DIR = DATA_DIR / "process"
@@ -55,6 +56,36 @@ MAX_STACK_FRAMES = 24
 
 _engine = CalibrationEngine()
 _analyst = MasterAnalyst()
+
+
+def _install_accountant_log_handler():
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    log_path = LOG_DIR / "accountant.log"
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logger_names = [
+        "Accountant",
+        "MasterAnalyst",
+        "seevar.dark_calibrator",
+        "seevar.calibration_engine",
+        "seevar.bayer_photometry",
+        "seevar.gaia_resolver",
+    ]
+    for logger_name in logger_names:
+        target_logger = logging.getLogger(logger_name)
+        for handler in target_logger.handlers:
+            if getattr(handler, "baseFilename", None) == str(log_path):
+                break
+        else:
+            file_handler = logging.FileHandler(log_path, mode="a")
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(formatter)
+            target_logger.addHandler(file_handler)
+
+
+_install_accountant_log_handler()
 
 
 @contextmanager
@@ -447,6 +478,33 @@ def _archive_group(group_items: list[dict]):
         _archive_frame(item["path"])
 
 
+def _archive_paths(paths: list[Path]):
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    seen = set()
+    for path in paths:
+        if not path:
+            continue
+        path = Path(path)
+        for candidate in (path, path.with_suffix(".wcs")):
+            key = str(candidate)
+            if key in seen:
+                continue
+            seen.add(key)
+            try:
+                if candidate.exists():
+                    shutil.move(str(candidate), str(ARCHIVE_DIR / candidate.name))
+            except Exception as e:
+                log.warning("  Archive failed for %s: %s", candidate.name, e)
+
+
+def _archive_failed_group(group_items: list[dict], calibrated_paths: list[Path], stack_path: Path | None):
+    raw_paths = [item["path"] for item in group_items]
+    transient_paths = raw_paths + list(calibrated_paths)
+    if stack_path:
+        transient_paths.append(stack_path)
+    _archive_paths(transient_paths)
+
+
 def _purge_paths(paths: list[Path]):
     seen = set()
     for path in paths:
@@ -660,8 +718,7 @@ def process_buffer():
                     ledger[key]["status"] = "FAILED_NO_WCS"
                 ledger[key]["last_calibration_state"] = "STACK_FAILED_NO_WCS"
                 _clear_unclosed_success(ledger[key])
-                _cleanup_intermediates(calibrated_paths, stack_path)
-                _archive_group(items)
+                _archive_failed_group(items, calibrated_paths, stack_path)
                 save_ledger(ledger)
                 save_missing_calibrations(ledger)
                 processed += raw_count
@@ -699,6 +756,7 @@ def process_buffer():
 
             status = result.get("status", "error")
             error = result.get("error", "")
+            observation_success = False
 
             if status == "ok":
                 snr = result.get("target_snr", 0.0)
@@ -744,6 +802,7 @@ def process_buffer():
                         "last_calibration_state": cal_state,
                     })
                     successes += 1
+                    observation_success = True
                 else:
                     log.warning("  %s poor SNR=%.1f (min %.1f)", key, snr, MIN_SNR)
                     if ledger[key].get("status") != "OBSERVED":
@@ -789,7 +848,11 @@ def process_buffer():
                 ledger[key]["last_calibration_state"] = cal_state
                 _clear_unclosed_success(ledger[key])
 
-            _cleanup_completed_group(items, calibrated_paths, stack_path)
+            if observation_success:
+                _cleanup_completed_group(items, calibrated_paths, stack_path)
+            else:
+                log.info("  Archiving failed reduction artifacts for %s", key)
+                _archive_failed_group(items, calibrated_paths, stack_path)
             save_ledger(ledger)
             save_missing_darks(ledger)
             save_missing_calibrations(ledger)
