@@ -25,7 +25,7 @@ from core.ledger_manager import calculate_cadence, load_ledger
 from core.flight.exposure_planner import plan_exposure, DEFAULT_BORTLE
 
 try:
-    from core.preflight.horizon import required_altitude, clearance_margin, horizon_altitude
+    from core.preflight.horizon import required_altitude, clearance_margin, horizon_altitude, horizon_summary
 except ImportError:
     from core.preflight.horizon import horizon_altitude
 
@@ -34,6 +34,9 @@ except ImportError:
 
     def clearance_margin(az: float, alt: float, clearance_margin_deg: float = 0.0) -> float:
         return float(alt) - required_altitude(az, clearance_margin_deg=clearance_margin_deg)
+
+    def horizon_summary() -> dict:
+        return {"uses_profile": False, "science_floor_deg": 15.0, "obstruction_count": 0}
 
 DATA_DIR = PROJECT_ROOT / "data"
 CATALOG_DIR = PROJECT_ROOT / "catalogs"
@@ -513,6 +516,7 @@ def run_funnel():
     cfg = load_config()
     location_cfg = cfg.get("location", {})
     planner_cfg = cfg.get("planner", {})
+    horizon_info = horizon_summary()
     fleet_mode = effective_fleet_mode(cfg)
     active_scopes = _active_scopes(cfg)
     mount_mode = _primary_mount_mode(cfg, active_scopes)
@@ -617,6 +621,12 @@ def run_funnel():
     print(f"[+] Survive +{CLEARANCE_MARGIN_DEG:.0f}° margin      : {gate_counts['survive_margin']}")
     print(f"[+] Survive required block       : {gate_counts['survive_block']}")
     print(f"[=] Final tonight-plan count    : {len(ordered)}")
+    print(
+        "[=] Horizon model               : "
+        f"{'profile+safety' if horizon_info.get('uses_profile') else 'safety'} "
+        f"floor={float(horizon_info.get('science_floor_deg', 0.0)):.1f}° "
+        f"boxes={int(horizon_info.get('obstruction_count', 0))}"
+    )
     if gate_counts["cadence_skipped"]:
         print(
             "[=] Ledger deferred              : "
@@ -648,6 +658,7 @@ def run_funnel():
             "ledger_skip_reasons": ledger_skip_reasons,
             "sector_counts": sector_counts,
             "scope_plan_summary": scope_plan_summary,
+            "horizon_model": horizon_info,
         },
         "targets": ordered,
     }

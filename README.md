@@ -229,6 +229,22 @@ It produces:
 - `data/horizon_mask.png`
 - `data/horizon_frames/` debug artifacts
 
+The scanned profile is advisory geometry, not the last word. SeeVar always
+applies `[location].horizon_limit` and manual obstruction boxes as hard safety
+floors on top of `data/horizon_mask.json`. Use manual boxes for known roofs,
+trees, balcony rails, or any sector where a scanner result is questionable:
+
+```toml
+[[location.obstructions]]
+label    = "west_house_roof"
+az_start = 225.0
+az_end   = 355.0
+min_alt  = 70.0
+```
+
+Wrap-around sectors are supported, for example `az_start = 330` and
+`az_end = 20`.
+
 It can export two different Stellarium artifacts:
 
 - a polygonal horizon package for mathematically correct obstruction geometry

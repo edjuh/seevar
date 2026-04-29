@@ -25,6 +25,26 @@ bortle         = 7        # 1 = pristine dark sky, 9 = city centre
 horizon_limit  = 30.0     # minimum target altitude in degrees
 moon_avoidance = 30.0     # minimum angular distance from moon in degrees
 
+# Manual obstruction boxes are always applied as safety floors, even when a
+# scanned data/horizon_mask.json profile exists. Use these for houses, roofs,
+# trees, balconies, or any sector where an experimental scan is not trustworthy.
+#
+# [[location.obstructions]]
+# label    = "west_house_roof"
+# az_start = 225.0
+# az_end   = 355.0     # wrap-around sectors are allowed, e.g. 330 -> 20
+# min_alt  = 70.0
+
+# -----------------------------------------------------------------------------
+# HORIZON — optional
+# profile_enabled : true uses data/horizon_mask.json when present.
+# safety_floor_deg: hard minimum altitude before manual obstructions are applied.
+#                  [location].horizon_limit is also honored as a safety floor.
+# -----------------------------------------------------------------------------
+[horizon]
+profile_enabled = true
+safety_floor_deg = 15.0
+
 # -----------------------------------------------------------------------------
 # AAVSO — required
 # observer_code : your official AAVSO observer code (e.g. REDA)
