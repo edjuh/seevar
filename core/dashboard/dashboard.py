@@ -82,6 +82,7 @@ def write_operator_command(command: str) -> None:
     COMMAND_FILE.write_text(json.dumps(payload, indent=2))
 
 ALPACA_TIMEOUT = 2.0
+WIDE_PREVIEW_EXPOSURE_SEC = 0.5
 
 
 HW_CACHE = {
@@ -522,8 +523,15 @@ def _alpaca_wide_snapshot_jpeg() -> bytes | None:
             log.debug("Wide preview connect attempt failed: %s", exc)
 
         try:
-            _alpaca_camera_request(base, "PUT", "startexposure", timeout=4.0, Duration="0.002", Light="true")
-            deadline = time.monotonic() + 10.0
+            _alpaca_camera_request(
+                base,
+                "PUT",
+                "startexposure",
+                timeout=4.0,
+                Duration=str(WIDE_PREVIEW_EXPOSURE_SEC),
+                Light="true",
+            )
+            deadline = time.monotonic() + max(10.0, WIDE_PREVIEW_EXPOSURE_SEC + 6.0)
             while time.monotonic() < deadline:
                 if bool(_alpaca_camera_request(base, "GET", "imageready", timeout=3.0)):
                     break
