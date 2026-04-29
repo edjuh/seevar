@@ -69,6 +69,9 @@
         .control-btn:disabled { opacity: 0.35; cursor: default; }
         .control-btn.abort { color: var(--alert-red); border-color: #4f1d1d; }
         .control-btn.reset { color: #88ccff; border-color: #234154; }
+        .preview-card { width: 100%; max-width: 260px; margin-top: 18px; border-top: 1px dashed #333; padding-top: 12px; }
+        .preview-title { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.65em; letter-spacing: 1.5px; margin-bottom: 8px; }
+        .verify-preview { width: 100%; height: 120px; object-fit: cover; border: 1px solid #2a2a2a; background: #050505; }
         @keyframes pulse-green { 0% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } 50% { box-shadow: 0 0 30px rgba(57,255,20,0.8); } 100% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } }
         @keyframes pulse-blue { 0% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } 50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(93,173,226,0.8); } 100% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } }
         @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -174,6 +177,10 @@
                     <button id="abort-btn" class="control-btn abort" type="button">ABORT</button>
                     <button id="reset-btn" class="control-btn reset" type="button">RESET</button>
                 </div>
+                <div class="preview-card">
+                    <div class="preview-title"><span>A7 VERIFY VIEW</span><span>LATEST</span></div>
+                    <img id="verify-preview" class="verify-preview" src="/preview/verify.jpg" alt="Latest pointing verification frame">
+                </div>
             </div>
         </div>
 
@@ -276,6 +283,11 @@
             fetch('/telemetry?ts=' + Date.now(), { cache: 'no-store' })
                 .then(res => res.json())
                 .then(data => {
+                    const verifyPreview = document.getElementById('verify-preview');
+                    if (verifyPreview) {
+                        verifyPreview.src = '/preview/verify.jpg?ts=' + Date.now();
+                    }
+
                     if(data.maidenhead) document.getElementById('telemetry-mh').innerText = data.maidenhead;
 
                     if(data.gps_status) {

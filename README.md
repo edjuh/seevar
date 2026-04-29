@@ -259,6 +259,20 @@ The accountant tries the aligned stack first, then the newest calibrated single
 frames. When the cap is reached, the target fails honestly and processing moves
 on.
 
+A7 in-flight pointing verification is separate from postflight. It is governed
+by `[flight]` and should fail fast:
+
+```toml
+[flight]
+pointing_plate_solve_timeout_sec  = 35
+pointing_plate_solve_cpulimit_sec = 30
+pointing_max_retries              = 0
+frame_retry_limit                 = 0
+```
+
+The latest verification frame can be viewed through the dashboard endpoint
+`/preview/verify.jpg`.
+
 It can export two different Stellarium artifacts:
 
 - a polygonal horizon package for mathematically correct obstruction geometry

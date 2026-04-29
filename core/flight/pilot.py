@@ -49,6 +49,25 @@ def _resolve_seestar_host() -> tuple[str, str]:
     return selected_scope_host(load_config())
 
 
+def _flight_cfg() -> dict:
+    cfg = load_config()
+    return cfg.get("flight", {}) if isinstance(cfg, dict) else {}
+
+
+def _cfg_float(key: str, default: float) -> float:
+    try:
+        return float(_flight_cfg().get(key, default))
+    except Exception:
+        return default
+
+
+def _cfg_int(key: str, default: int) -> int:
+    try:
+        return int(round(float(_flight_cfg().get(key, default))))
+    except Exception:
+        return default
+
+
 # ---------------------------------------------------------------------------
 # Constants — single source of truth (S30-Pro / Alpaca v1.2.0-3)
 # ---------------------------------------------------------------------------
@@ -87,13 +106,14 @@ VETO_TEMP = 55.0
 
 CLIENT_ID = 42
 
-VERIFY_EXPOSURE_SEC = 2.0
+VERIFY_EXPOSURE_SEC = max(0.5, _cfg_float("pointing_verify_exposure_sec", 2.0))
 VERIFY_EXPOSURE_RETRY_SEC = 2.0
-POINTING_TOLERANCE_ARCMIN = 12.0
-POINTING_MAX_RETRIES = 1
-PLATESOLVE_RADIUS_DEG = 5.0
-PLATESOLVE_DOWNSAMPLE = 1
-PLATESOLVE_TIMEOUT = 90
+POINTING_TOLERANCE_ARCMIN = max(0.1, _cfg_float("pointing_tolerance_arcmin", 12.0))
+POINTING_MAX_RETRIES = max(0, _cfg_int("pointing_max_retries", 0))
+PLATESOLVE_RADIUS_DEG = max(0.1, _cfg_float("pointing_plate_solve_radius_deg", 5.0))
+PLATESOLVE_DOWNSAMPLE = max(1, _cfg_int("pointing_plate_solve_downsample", 1))
+PLATESOLVE_TIMEOUT = max(5, _cfg_int("pointing_plate_solve_timeout_sec", 35))
+PLATESOLVE_CPULIMIT = max(5, min(PLATESOLVE_TIMEOUT, _cfg_int("pointing_plate_solve_cpulimit_sec", 30)))
 
 LOCAL_BUFFER = DATA_DIR / "local_buffer"
 VERIFY_BUFFER = DATA_DIR / "verify_buffer"
@@ -793,7 +813,7 @@ class DiamondSequence:
             "--scale-low", "3.0",
             "--scale-high", "4.5",
             "--tweak-order", "1",
-            "--cpulimit", "45",
+            "--cpulimit", str(PLATESOLVE_CPULIMIT),
         ]
 
         logger.info(

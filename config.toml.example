@@ -80,6 +80,22 @@ fleet_mode         = "single" # single = one shared queue, split = divide when 2
 simulation_mode    = false
 
 # -----------------------------------------------------------------------------
+# FLIGHT — optional
+# A7 pointing verification must fail fast. If it cannot solve a 2s verification
+# frame in roughly half a minute, the target is probably clouded, blocked, or
+# off-field; move on instead of burning the night.
+# -----------------------------------------------------------------------------
+[flight]
+pointing_verify_exposure_sec       = 2.0
+pointing_plate_solve_timeout_sec   = 35
+pointing_plate_solve_cpulimit_sec  = 30
+pointing_plate_solve_radius_deg    = 5.0
+pointing_plate_solve_downsample    = 1
+pointing_tolerance_arcmin          = 12.0
+pointing_max_retries               = 0
+frame_retry_limit                  = 0
+
+# -----------------------------------------------------------------------------
 # STORAGE — required
 # lifeboat_dir : local fallback when RAID1 / NAS is not available
 # primary_dir  : main archive destination (RAID1 mount or local)
