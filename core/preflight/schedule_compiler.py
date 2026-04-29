@@ -43,8 +43,33 @@ def _load_config():
         return tomllib.load(f)
 
 
-def _select_exp_time(planner_cfg):
-    mount_mode = planner_cfg.get("mount_mode", "ALT/AZ").upper()
+def _normalize_mount_mode(value):
+    raw = str(value or "ALT/AZ").strip().lower()
+    if raw in {"eq", "equatorial"}:
+        return "EQ"
+    if raw in {"altaz", "alt/az", "alt-az", "az"}:
+        return "ALT/AZ"
+    return raw.upper()
+
+
+def _scope_mount_mode(cfg, scope_name=None):
+    scopes = cfg.get("seestars", []) or []
+    if scope_name:
+        for scope in scopes:
+            if str(scope.get("name", "")).strip() == str(scope_name).strip():
+                return _normalize_mount_mode(scope.get("mount", "ALT/AZ"))
+    if scopes:
+        return _normalize_mount_mode(scopes[0].get("mount", "ALT/AZ"))
+    return "ALT/AZ"
+
+
+def _select_exp_time(cfg, scope_name=None):
+    planner_cfg = cfg.get("planner", {})
+    # Legacy [planner].mount_mode remains supported, but scope-level mount is
+    # authoritative because mixed fleets can contain both ALT/AZ and EQ units.
+    mount_mode = _scope_mount_mode(cfg, scope_name)
+    if planner_cfg.get("mount_mode"):
+        mount_mode = _normalize_mount_mode(planner_cfg.get("mount_mode"))
     dithering = bool(planner_cfg.get("dithering", False))
 
     logger.info("Compiling for Intended State: %s | Dithering: %s", mount_mode, dithering)
@@ -200,7 +225,7 @@ def _build_payload(plan_objective, plan_metadata, targets, mount_mode, dithering
 def compile_schedule():
     cfg = _load_config()
     planner_cfg = cfg.get("planner", {})
-    mount_mode, dithering, exp_time = _select_exp_time(planner_cfg)
+    mount_mode, dithering, exp_time = _select_exp_time(cfg)
 
     plan_objective, plan_metadata, targets = _load_plan()
     targets = _sorted_targets(targets)
@@ -230,13 +255,14 @@ def compile_schedule():
 
         for scope_name, scope_targets in scoped_targets.items():
             scope_id = scope_targets[0].get("assigned_scope_id", "scope00")
+            scope_mount_mode, scope_dithering, scope_exp_time = _select_exp_time(cfg, scope_name=scope_name)
             scope_payload = _build_payload(
                 plan_objective,
                 plan_metadata,
                 scope_targets,
-                mount_mode,
-                dithering,
-                exp_time,
+                scope_mount_mode,
+                scope_dithering,
+                scope_exp_time,
                 scope_name=scope_name,
             )
             out_path = FLEET_PAYLOAD_DIR / f"ssc_payload.{scope_id}.json"
@@ -250,7 +276,7 @@ def compile_schedule():
             )
 
     preview = targets[:10]
-    if preview:
+    if preview and bool(planner_cfg.get("compiler_preview", False)):
         logger.info("First compiled targets:")
         for t in preview:
             logger.info(
