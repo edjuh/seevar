@@ -531,15 +531,6 @@ RestartSec=10
 StandardOutput=append:${SEEVAR_DIR}/logs/dashboard.log
 StandardError=append:${SEEVAR_DIR}/logs/dashboard.err
 
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=yes
-PrivateDevices=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-ReadWritePaths=${SEEVAR_DIR}/data ${SEEVAR_DIR}/logs
 TimeoutStartSec=30s
 TimeoutStopSec=10s
 
@@ -601,15 +592,6 @@ RestartSec=15
 StandardOutput=append:${SEEVAR_DIR}/logs/orchestrator.log
 StandardError=append:${SEEVAR_DIR}/logs/orchestrator.log
 
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=yes
-PrivateDevices=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-ReadWritePaths=${SEEVAR_DIR}/data ${SEEVAR_DIR}/logs
 TimeoutStartSec=30s
 TimeoutStopSec=10s
 
@@ -635,15 +617,6 @@ RestartSec=30
 StandardOutput=append:${SEEVAR_DIR}/logs/weather.log
 StandardError=append:${SEEVAR_DIR}/logs/weather.err
 
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=yes
-PrivateDevices=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-ReadWritePaths=${SEEVAR_DIR}/data ${SEEVAR_DIR}/logs
 TimeoutStartSec=30s
 TimeoutStopSec=10s
 
@@ -669,15 +642,6 @@ RestartSec=10
 StandardOutput=append:${SEEVAR_DIR}/logs/gps.log
 StandardError=append:${SEEVAR_DIR}/logs/gps.err
 
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=yes
-PrivateDevices=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-ReadWritePaths=${SEEVAR_DIR}/data ${SEEVAR_DIR}/logs
 TimeoutStartSec=30s
 TimeoutStopSec=10s
 

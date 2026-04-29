@@ -9,14 +9,5 @@ WorkingDirectory=%h/seevar
 Environment=PYTHONPATH=%h/seevar
 ExecStart=%h/seevar/.venv/bin/python3 core/preflight/seeing_scraper.py
 
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=yes
-PrivateDevices=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-ReadWritePaths=%h/seevar/data %h/seevar/logs
 TimeoutStartSec=30s
 TimeoutStopSec=10s

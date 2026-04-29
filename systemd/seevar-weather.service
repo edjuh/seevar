@@ -16,15 +16,6 @@ RestartSec=30
 StandardOutput=append:%h/seevar/logs/weather.log
 StandardError=append:%h/seevar/logs/weather.log
 
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=yes
-PrivateDevices=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-ReadWritePaths=%h/seevar/data %h/seevar/logs
 TimeoutStartSec=30s
 TimeoutStopSec=10s
 
