@@ -24,7 +24,6 @@ PrivateDevices=yes
 RestrictRealtime=yes
 RestrictSUIDSGID=yes
 LockPersonality=yes
-CapabilityBoundingSet=
 ReadWritePaths=%h/seevar/data %h/seevar/logs
 TimeoutStartSec=30s
 TimeoutStopSec=10s
