@@ -644,11 +644,13 @@ def process_buffer():
 
             solve = None
             solve_path = None
+            solve_wcs_path = None
             cal_state = "DARKSUB_SINGLE"
             for candidate_path, candidate_state in candidate_paths:
                 solve = _analyst.solve_frame(str(candidate_path))
                 if solve.get("ok"):
                     solve_path = candidate_path
+                    solve_wcs_path = Path(solve["wcs_path"])
                     cal_state = candidate_state
                     break
 
@@ -665,6 +667,25 @@ def process_buffer():
                 processed += raw_count
                 continue
 
+            # If the aligned stack would not solve but an individual frame did, reuse the
+            # single-frame WCS on the stack for photometry. This preserves the stacked SNR
+            # when the field geometry is stable but the stack confuses solve-field.
+            if (
+                stack_path
+                and solve_path
+                and solve_wcs_path
+                and solve_path != stack_path
+                and solve_wcs_path.exists()
+            ):
+                log.info(
+                    "  stack solve fallback for %s: reusing WCS from %s on %s",
+                    key,
+                    solve_path.name,
+                    stack_path.name,
+                )
+                solve_path = stack_path
+                cal_state = f"{cal_state}+STACK_WCS_FALLBACK"
+
             target_mag = mag_lookup.get(key)
             result = _engine.calibrate(
                 Path(solve_path),
@@ -672,7 +693,7 @@ def process_buffer():
                 dec_deg,
                 key,
                 target_mag=target_mag,
-                wcs_path=Path(solve["wcs_path"]),
+                wcs_path=solve_wcs_path,
                 solve_result=solve,
             )
 

@@ -1038,6 +1038,20 @@ class DiamondSequence:
             else:
                 notify("A10", f"Reusing established pointing for {target.name}")
 
+            try:
+                tracking_now = self._telescope.safe_get("tracking")
+                if tracking_now is False:
+                    notify("A10", "Tracking reported OFF before science exposure; re-enabling")
+                    self._telescope.set_tracking(True)
+                    time.sleep(1.0)
+                    tracking_after = self._telescope.safe_get("tracking")
+                    if tracking_after is False:
+                        logger.warning("Tracking still reports OFF after re-enable request")
+                elif tracking_now is None:
+                    logger.warning("Tracking state unavailable before science exposure")
+            except Exception as e:
+                logger.warning("Tracking verification before science exposure failed: %s", e)
+
             notify("A10", f"Set gain={GAIN} and start science exposure {exp_sec:.1f}s")
             try:
                 self._camera.set_gain(GAIN)
