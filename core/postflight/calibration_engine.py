@@ -77,7 +77,20 @@ class CalibrationEngine:
         )
 
         if result.get("status") != "ok":
-            logger.warning("Photometry failed for %s: %s", target_name, result.get("error"))
+            target_measurement = result.get("target_measurement") or {}
+            if target_measurement:
+                logger.warning(
+                    "Photometry failed for %s: %s target_flux_G=%s target_snr_G=%s peak=%s xy=(%s,%s)",
+                    target_name,
+                    result.get("error"),
+                    target_measurement.get("flux_G"),
+                    target_measurement.get("snr_G"),
+                    target_measurement.get("peak"),
+                    target_measurement.get("cx"),
+                    target_measurement.get("cy"),
+                )
+            else:
+                logger.warning("Photometry failed for %s: %s", target_name, result.get("error"))
             return result
 
         snr = result.get("target_snr", 0)

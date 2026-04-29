@@ -447,8 +447,9 @@ def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: dateti
         return None
 
     # A plain median suppresses drifting stars in sparse alt/az bursts; mean preserves the signal better.
+    # Preserve signed float data; clipping here destroys the calibrated background model.
     stacked = np.mean(np.stack(aligned, axis=0), axis=0)
-    stacked = np.clip(stacked, 0, 65535).astype(np.uint16)
+    stacked = stacked.astype(np.float32)
 
     header["OBJECT"] = target_name
     header["NCOMBINE"] = len(aligned)
@@ -456,6 +457,7 @@ def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: dateti
     header["ALIGNMTH"] = "SHIFTMEAN"
     header["ALIGNSUC"] = len(aligned)
     header["ALIGNREF"] = aligned_names[0][:68]
+    header["BUNIT"] = "ADU-DARKSUB"
     if exptimes:
         usable_exptimes = exptimes[:len(aligned)]
         header["TOTEXP"] = round(sum(usable_exptimes), 3)

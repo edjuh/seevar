@@ -64,6 +64,26 @@ APERTURE_RADIUS_PIX = 1.7 * TYPICAL_FWHM_PIX
 N_PIX_APERTURE      = math.pi * APERTURE_RADIUS_PIX ** 2
 
 
+def _empirical_frame_floor_sec(target_mag: float, mag_bright: float) -> float:
+    """
+    Practical S30-Pro lower bound for TG photometry.
+
+    The analytic CCD equation is optimistic for the Seestar wide/OSC path. The
+    2026-04-29 flight showed 1s frames can leave 10.5-12 mag targets at or below
+    the post-dark aperture noise floor. Use a conservative floor unless the
+    target has a genuinely bright state where saturation is the dominant risk.
+    """
+    if mag_bright <= 8.0:
+        return MIN_EXP_SEC
+    if target_mag >= 12.0:
+        return 20.0
+    if target_mag >= 10.0:
+        return 10.0
+    if target_mag >= 9.0:
+        return 5.0
+    return MIN_EXP_SEC
+
+
 # ---------------------------------------------------------------------------
 # Result container
 # ---------------------------------------------------------------------------
@@ -177,7 +197,7 @@ def plan_exposure(
         except ImportError:
             pass
 
-    t_frame = min(max(t_frame, MIN_EXP_SEC), MAX_FRAME_SEC)
+    t_frame = min(max(t_frame, _empirical_frame_floor_sec(target_mag, mag_bright)), MAX_FRAME_SEC)
 
     # Chunking
     bortle_penalty = 1.0 + max(0, (sky_bortle - 4) * 0.15)

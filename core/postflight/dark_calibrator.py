@@ -150,13 +150,17 @@ class DarkCalibrator:
             except Exception as e:
                 logger.warning("Skipping flat for %s due to load error: %s", science_fits.name, e)
 
-        calibrated = np.clip(calibrated, 0, 65535).astype(np.uint16)
+        # Keep signed calibrated pixels for photometry. Clipping dark-subtracted
+        # frames to uint16 turns slightly over-subtracted sky into hard zeros,
+        # which biases local sky subtraction and can erase faint target flux.
+        calibrated = calibrated.astype(np.float32)
         out_path = _calibrated_output_path(science_fits)
 
         sci_header["CALSTAT"] = "DARKSUB+FLAT" if flat_key else "DARKSUB"
         sci_header["DARKKEY"] = Path(dark_path).stem[:68]
         sci_header["DARKEXP"] = int(exp_ms)
         sci_header["DARKGAIN"] = int(gain)
+        sci_header["BUNIT"] = "ADU-DARKSUB"
         if flat_key:
             sci_header["FLATKEY"] = flat_key[:68]
 

@@ -375,11 +375,11 @@ def differential_magnitude(
 
     t = fits_file.measure_star(target_ra, target_dec, r_ap=None)
     if "error" in t:
-        return {"status": "fail", "error": t["error"]}
+        return {"status": "fail", "error": t["error"], "target_measurement": t}
     if t.get("saturated"):
-        return {"status": "fail", "error": "target_saturated", "peak_adu": t.get("peak")}
+        return {"status": "fail", "error": "target_saturated", "peak_adu": t.get("peak"), "target_measurement": t}
     if t[flux_key] <= 0:
-        return {"status": "fail", "error": "target_flux_zero_or_negative"}
+        return {"status": "fail", "error": "target_flux_zero_or_negative", "target_measurement": t}
 
     target_flux = t[flux_key]
     target_snr = t[snr_key]
