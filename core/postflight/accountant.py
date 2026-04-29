@@ -51,6 +51,7 @@ ACCOUNTANT_LOCK = DATA_DIR / "accountant.lock"
 
 MIN_SNR = 5.0
 STACK_GROUP_GAP_SEC = 900
+MAX_STACK_FRAMES = 24
 
 _engine = CalibrationEngine()
 _analyst = MasterAnalyst()
@@ -335,15 +336,43 @@ def _stack_output_path(target_name: str, obs_dt: datetime, n_frames: int) -> Pat
     return PROCESS_DIR / f"{safe_name}_{stamp}_STACK_{n_frames}x.fits"
 
 
+def _stack_subset(paths: list[Path], limit: int = MAX_STACK_FRAMES) -> list[Path]:
+    if len(paths) <= limit:
+        return list(paths)
+    if limit <= 1:
+        return [paths[-1]]
+
+    step = (len(paths) - 1) / float(limit - 1)
+    picks = []
+    seen = set()
+    for idx in range(limit):
+        chosen = paths[int(round(idx * step))]
+        key = str(chosen)
+        if key in seen:
+            continue
+        seen.add(key)
+        picks.append(chosen)
+    return picks
+
+
 def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: datetime) -> Path | None:
     if len(calibrated_paths) < 2:
         return None
+
+    stack_paths = _stack_subset(calibrated_paths, MAX_STACK_FRAMES)
+    if len(stack_paths) < len(calibrated_paths):
+        log.info(
+            "  stack input capped for %s: using %d/%d frame(s) to control memory",
+            target_name,
+            len(stack_paths),
+            len(calibrated_paths),
+        )
 
     arrays = []
     header = None
     exptimes = []
     source_names = []
-    for path in calibrated_paths:
+    for path in stack_paths:
         try:
             with fits.open(path) as hdul:
                 arrays.append(hdul[0].data.astype(np.float32))
