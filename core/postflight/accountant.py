@@ -30,6 +30,7 @@ from core.postflight.calibration_engine import CalibrationEngine
 from core.postflight.master_analyst import MasterAnalyst
 from core.postflight.dark_calibrator import dark_calibrator
 from core.postflight.calibration_assets import ensure_calibration_dirs, save_missing_calibrations
+from core.utils.env_loader import load_config
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,6 +54,21 @@ ACCOUNTANT_LOCK = DATA_DIR / "accountant.lock"
 MIN_SNR = 5.0
 STACK_GROUP_GAP_SEC = 900
 MAX_STACK_FRAMES = 24
+
+
+def _postflight_cfg() -> dict:
+    cfg = load_config()
+    return cfg.get("postflight", {}) if isinstance(cfg, dict) else {}
+
+
+def _cfg_int(key: str, default: int) -> int:
+    try:
+        return int(round(float(_postflight_cfg().get(key, default))))
+    except Exception:
+        return default
+
+
+MAX_PLATE_SOLVE_CANDIDATES = max(1, _cfg_int("max_plate_solve_candidates", 3))
 
 _engine = CalibrationEngine()
 _analyst = MasterAnalyst()
@@ -712,11 +728,22 @@ def process_buffer():
                 candidate_paths.append((stack_path, f"DARKSUB_STACK_{len(calibrated_paths)}"))
             candidate_paths.extend((path, "DARKSUB_SINGLE") for path in reversed(calibrated_paths))
 
+            total_solve_candidates = len(candidate_paths)
+            if total_solve_candidates > MAX_PLATE_SOLVE_CANDIDATES:
+                candidate_paths = candidate_paths[:MAX_PLATE_SOLVE_CANDIDATES]
+                log.warning(
+                    "  %s plate-solve candidates capped: using %d/%d candidate(s)",
+                    key,
+                    len(candidate_paths),
+                    total_solve_candidates,
+                )
+
             solve = None
             solve_path = None
             solve_wcs_path = None
             cal_state = "DARKSUB_SINGLE"
             for candidate_path, candidate_state in candidate_paths:
+                log.info("  %s plate-solve candidate: %s", key, candidate_path.name)
                 solve = _analyst.solve_frame(str(candidate_path))
                 if solve.get("ok"):
                     solve_path = candidate_path

@@ -245,6 +245,20 @@ min_alt  = 70.0
 Wrap-around sectors are supported, for example `az_start = 330` and
 `az_end = 20`.
 
+If postflight appears stuck on a bad field, check `logs/accountant.log`.
+Plate solving is capped by `[postflight]`:
+
+```toml
+[postflight]
+max_plate_solve_candidates = 3
+plate_solve_timeout_sec    = 90
+plate_solve_cpulimit_sec   = 75
+```
+
+The accountant tries the aligned stack first, then the newest calibrated single
+frames. When the cap is reached, the target fails honestly and processing moves
+on.
+
 It can export two different Stellarium artifacts:
 
 - a polygonal horizon package for mathematically correct obstruction geometry

@@ -108,6 +108,16 @@ max_humidity_pct   = 90.0   # %       — humidity warning only (HUMID) — dew 
 fog_abort          = true   # bool    — any fog reading aborts the session
 
 # -----------------------------------------------------------------------------
+# POSTFLIGHT — optional
+# Caps plate solving so a bad roof/cloud frame cannot pin the accountant for
+# hours. Candidate order is stack first, then newest calibrated single frames.
+# -----------------------------------------------------------------------------
+[postflight]
+max_plate_solve_candidates = 3
+plate_solve_timeout_sec    = 90
+plate_solve_cpulimit_sec   = 75
+
+# -----------------------------------------------------------------------------
 # NOTIFICATIONS — optional
 # Create a Telegram bot via @BotFather to receive session alerts.
 # Leave both fields empty to disable notifications entirely.
