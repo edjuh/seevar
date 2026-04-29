@@ -329,6 +329,7 @@ class Orchestrator:
         self._planned_target_count = 0
         self._last_command_utc = ""
         self._battery_park_pct = int(self._cfg.get("power", {}).get("battery_park_pct", VETO_BATTERY))
+        self._sun_limit_deg = self._configured_sun_limit_deg()
 
         self.simulation_mode = "--simulate" in sys.argv
 
@@ -368,7 +369,7 @@ class Orchestrator:
         battery_guard_active = (
             not self.simulation_mode
             and self._state not in (PipelineState.PARKED, PipelineState.ABORTED)
-            and (self._state != PipelineState.IDLE or self._sun_altitude() < self.SUN_LIMIT_DEG)
+            and (self._state != PipelineState.IDLE or self._sun_altitude() < self._sun_limit_deg)
         )
         if battery_guard_active:
             if self._enforce_battery_guard():
@@ -426,10 +427,10 @@ class Orchestrator:
 
     def _run_idle(self):
         sun_alt = self._sun_altitude()
-        msg = f"Sun at {sun_alt:.1f}°. Waiting for night (<{self.SUN_LIMIT_DEG}°)."
+        msg = f"Sun at {sun_alt:.1f}°. Waiting for night (<{self._sun_limit_deg}°)."
         self._write_state(sub="Standing by", msg=msg)
 
-        if self.simulation_mode or sun_alt < self.SUN_LIMIT_DEG:
+        if self.simulation_mode or sun_alt < self._sun_limit_deg:
             if not self.simulation_mode:
                 go, reason = self._check_weather_veto()
                 if not go:
@@ -780,7 +781,7 @@ class Orchestrator:
     def _run_parked(self):
         self._current_target = None
         sun_alt = self._sun_altitude()
-        if not self.simulation_mode and sun_alt >= self.SUN_LIMIT_DEG:
+        if not self.simulation_mode and sun_alt >= self._sun_limit_deg:
             self._targets = []
             self._planned_target_count = 0
             self._tonights_sequences.clear()
@@ -973,6 +974,12 @@ class Orchestrator:
             return float(self._cfg.get("location", {}).get("bortle", 6.0))
         except Exception:
             return 6.0
+
+    def _configured_sun_limit_deg(self) -> float:
+        try:
+            return float(self._cfg.get("planner", {}).get("sun_altitude_limit", self.SUN_LIMIT_DEG))
+        except Exception:
+            return float(self.SUN_LIMIT_DEG)
 
     def _mount_mode(self) -> str:
         try:
