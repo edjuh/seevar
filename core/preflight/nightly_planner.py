@@ -396,6 +396,15 @@ def greedy_order(candidates, planning_start_utc, start_az=DEFAULT_START_AZ):
     return ordered
 
 
+def renumber_recommended_order(targets: list[dict]) -> list[dict]:
+    renumbered = []
+    for idx, target in enumerate(targets, start=1):
+        item = dict(target)
+        item["recommended_order"] = idx
+        renumbered.append(item)
+    return renumbered
+
+
 def _active_scopes(cfg: dict) -> list[dict]:
     scopes = []
     for idx, scope in enumerate(live_available_scopes(cfg)):
@@ -592,13 +601,14 @@ def run_funnel():
         if reason in ledger_skip_reasons:
             ledger_skip_reasons[reason] += 1
 
-    ordered = due_ordered
+    ordered = renumber_recommended_order(due_ordered)
     ordered, scope_plan_summary = assign_targets_to_scopes(
         ordered,
         active_scopes,
         fleet_mode=fleet_mode,
         start_az=DEFAULT_START_AZ,
     )
+    ordered = renumber_recommended_order(ordered)
 
     print(f"[+] Catalog total                : {gate_counts['catalog_total']}")
     print(f"[-] Deferred by cadence audit   : {gate_counts['cadence_skipped']}")
