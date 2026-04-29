@@ -160,7 +160,9 @@ def inspect_results():
 
     if ledger_status != "FAILED_QC_LOW_SNR":
         raise SystemExit(1)
-    if cal_files or archived or stacks or remaining_raw:
+    if cal_files or stacks or remaining_raw:
+        raise SystemExit(1)
+    if len(archived) < 2:
         raise SystemExit(1)
 
     print("")

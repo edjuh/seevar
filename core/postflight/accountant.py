@@ -279,13 +279,7 @@ def _parse_header(fpath: Path, header: dict) -> tuple:
 
 
 def _archive_frame(fpath: Path):
-    try:
-        shutil.move(str(fpath), str(ARCHIVE_DIR / fpath.name))
-        sidecar = fpath.with_suffix(".wcs")
-        if sidecar.exists():
-            shutil.move(str(sidecar), str(ARCHIVE_DIR / sidecar.name))
-    except Exception as e:
-        log.error("  Archive failed for %s: %s", fpath.name, e)
+    _archive_paths([fpath])
 
 
 def _parse_iso_utc(value: str | None):
@@ -478,14 +472,30 @@ def _archive_group(group_items: list[dict]):
         _archive_frame(item["path"])
 
 
+def _related_products(path: Path) -> list[Path]:
+    path = Path(path)
+    stem = path.stem
+    products = [path]
+    products.extend(path.with_suffix(suffix) for suffix in (
+        ".wcs",
+        ".axy",
+        ".corr",
+        ".match",
+        ".rdls",
+        ".solved",
+        ".new",
+    ))
+    products.append(path.with_name(f"{stem}-indx.xyls"))
+    return products
+
+
 def _archive_paths(paths: list[Path]):
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
     seen = set()
     for path in paths:
         if not path:
             continue
-        path = Path(path)
-        for candidate in (path, path.with_suffix(".wcs")):
+        for candidate in _related_products(Path(path)):
             key = str(candidate)
             if key in seen:
                 continue
@@ -511,7 +521,7 @@ def _purge_paths(paths: list[Path]):
         if not path:
             continue
         path = Path(path)
-        for candidate in (path, path.with_suffix(".wcs")):
+        for candidate in _related_products(path):
             key = str(candidate)
             if key in seen:
                 continue
