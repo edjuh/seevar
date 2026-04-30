@@ -62,6 +62,7 @@ logging.basicConfig(
         logging.StreamHandler(),
         logging.FileHandler(_LOG_FILE, mode="a"),
     ],
+    force=True,
 )
 log = logging.getLogger("seevar.orchestrator")
 
