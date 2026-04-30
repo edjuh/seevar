@@ -19,7 +19,9 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 import numpy as np
+from scipy import ndimage
 from scipy.ndimage import shift as ndi_shift
+from scipy.spatial import cKDTree
 from skimage.registration import phase_cross_correlation
 
 import sys
@@ -396,6 +398,84 @@ def _stack_subset(paths: list[Path], limit: int = MAX_STACK_FRAMES) -> list[Path
     return picks
 
 
+# Estimate a robust background level and sigma from finite image pixels.
+def _background_stats(data: np.ndarray) -> tuple[float, float]:
+    finite = np.isfinite(data)
+    vals = data[finite]
+    if vals.size == 0:
+        return 0.0, 1.0
+    med = float(np.median(vals))
+    mad = float(np.median(np.abs(vals - med)))
+    sigma = 1.4826 * mad if mad > 0 else float(np.std(vals))
+    return med, max(sigma, 1e-6)
+
+
+# Detect compact bright-source centroids for stack alignment.
+def _source_centroids(data: np.ndarray, max_sources: int = 200) -> np.ndarray:
+    med, sigma = _background_stats(data)
+    finite = np.isfinite(data)
+    vals = data[finite]
+    if vals.size == 0:
+        return np.empty((0, 2), dtype=np.float32)
+
+    threshold = max(med + 6.0 * sigma, float(np.percentile(vals, 99.85)))
+    maxima = ndimage.maximum_filter(data, size=9)
+    peaks = np.argwhere(finite & (data == maxima) & (data > threshold))
+    peaks = sorted(peaks, key=lambda yx: data[tuple(yx)], reverse=True)
+
+    height, width = data.shape
+    centroids: list[tuple[float, float]] = []
+    used: list[tuple[int, int]] = []
+
+    for y, x in peaks:
+        if y < 8 or x < 8 or y >= height - 8 or x >= width - 8:
+            continue
+        if any(abs(y - uy) < 10 and abs(x - ux) < 10 for uy, ux in used):
+            continue
+
+        cutout = np.clip(data[y - 4 : y + 5, x - 4 : x + 5] - med, 0.0, None)
+        flux = float(cutout.sum())
+        if flux <= 0:
+            continue
+
+        yy, xx = np.indices(cutout.shape)
+        cy = float((yy * cutout).sum() / flux + y - 4)
+        cx = float((xx * cutout).sum() / flux + x - 4)
+        centroids.append((cy, cx))
+        used.append((int(y), int(x)))
+
+        if len(centroids) >= max_sources:
+            break
+
+    return np.array(centroids, dtype=np.float32)
+
+
+# Estimate image shift from matched star centroids and reject noisy matches.
+def _star_shift(reference: np.ndarray, moving: np.ndarray, max_shift_px: float = 250.0) -> tuple[float, float] | None:
+    ref_points = _source_centroids(reference)
+    mov_points = _source_centroids(moving)
+    if len(ref_points) < 8 or len(mov_points) < 8:
+        return None
+
+    tree = cKDTree(ref_points)
+    distances, indices = tree.query(mov_points, distance_upper_bound=max_shift_px)
+    ok = np.isfinite(distances) & (indices < len(ref_points))
+    if int(np.count_nonzero(ok)) < 8:
+        return None
+
+    shifts = ref_points[indices[ok]] - mov_points[ok]
+    median_shift = np.median(shifts, axis=0)
+    residual = np.hypot(*(shifts - median_shift).T)
+    if float(np.median(residual)) > 2.0:
+        return None
+
+    shift_y, shift_x = float(median_shift[0]), float(median_shift[1])
+    if abs(shift_y) > max_shift_px or abs(shift_x) > max_shift_px:
+        return None
+
+    return shift_y, shift_x
+
+
 def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: datetime) -> Path | None:
     if len(calibrated_paths) < 2:
         return None
@@ -442,12 +522,28 @@ def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: dateti
 
     for arr, name in kept[1:]:
         work = arr - np.median(arr)
+        star_shift = _star_shift(reference, arr)
         try:
             shift_yx, _, _ = phase_cross_correlation(ref_work, work, upsample_factor=10)
             shift_y, shift_x = float(shift_yx[0]), float(shift_yx[1])
         except Exception as e:
-            log.warning("  stack align failed for %s: %s", name, e)
-            continue
+            if star_shift is None:
+                log.warning("  stack align failed for %s: %s", name, e)
+                continue
+            shift_y, shift_x = star_shift
+
+        if star_shift is not None:
+            star_y, star_x = star_shift
+            if max(abs(star_y - shift_y), abs(star_x - shift_x)) > 5.0:
+                log.warning(
+                    "  stack phase shift overridden for %s: phase dy=%.1f dx=%.1f, stars dy=%.1f dx=%.1f",
+                    name,
+                    shift_y,
+                    shift_x,
+                    star_y,
+                    star_x,
+                )
+            shift_y, shift_x = star_y, star_x
 
         if abs(shift_y) > 250 or abs(shift_x) > 250:
             log.warning("  stack align rejected for %s: excessive shift dy=%.1f dx=%.1f", name, shift_y, shift_x)
