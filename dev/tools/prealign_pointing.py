@@ -290,7 +290,10 @@ def main() -> int:
         out_path = save_pointing_model(model, scope_tag)
 
     print(f"Pointing model written: {out_path}")
-    print(f"  successes={len(successes)} ra_offset={model['offset_ra_arcmin']:.2f}' dec_offset={model['offset_dec_arcmin']:.2f}'")
+    if model.get("kind") == "affine_prealignment":
+        print(f"  successes={len(successes)} kind=affine median_error={model['median_error_arcmin']:.2f}'")
+    else:
+        print(f"  successes={len(successes)} ra_offset={model['offset_ra_arcmin']:.2f}' dec_offset={model['offset_dec_arcmin']:.2f}'")
     if len(successes) < args.points:
         print(f"  warning: requested {args.points} points, got {len(successes)}")
 
