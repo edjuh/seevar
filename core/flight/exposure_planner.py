@@ -82,7 +82,7 @@ def _empirical_frame_floor_sec(target_mag: float, mag_bright: float, mount_mode:
     the post-dark aperture noise floor. Use a conservative floor unless the
     target has a genuinely bright state where saturation is the dominant risk.
     """
-    if mag_bright <= 8.0:
+    if target_mag <= 8.0:
         return MIN_EXP_SEC
 
     if _is_eq_mount(mount_mode):
@@ -200,12 +200,12 @@ def plan_exposure(
     # Cap 1: SNR-optimal for faint state
     t_snr = _solve_exposure(source_faint, sky_e_s, n_pix, target_snr)
 
-    # Cap 2: Saturation of bright state.
-    # The analytic saturation model is intentionally only treated as a hard cap
-    # for genuinely bright variables; last-light data showed it is too
-    # pessimistic for 10-13 mag TG photometry.
+    # Cap 2: Saturation of the planned science state.
+    # VSX mag_max is a historical/possible bright state, not the expected
+    # brightness for tonight. Treating it as a hard cap made Mira-like targets
+    # collapse to 1s frames even when the planned faint-state magnitude is 14+.
     t_sat     = _saturation_time(source_bright)
-    bright_state_guard = mag_bright <= 8.0
+    bright_state_guard = target_mag <= 8.0
     saturates = bright_state_guard and t_sat < t_snr
     t_frame   = t_snr
 
