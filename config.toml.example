@@ -84,6 +84,8 @@ simulation_mode    = false
 # A7 pointing verification must fail fast. If it cannot solve a 2s verification
 # frame in roughly half a minute, the target is probably clouded, blocked, or
 # off-field; move on instead of burning the night.
+# For quick pre-alignment before a session, run:
+#   .venv/bin/python dev/tools/prealign_pointing.py --points 3 --exposure-sec 5
 # -----------------------------------------------------------------------------
 [flight]
 pointing_verify_exposure_sec       = 2.0
@@ -93,6 +95,8 @@ pointing_plate_solve_radius_deg    = 5.0
 pointing_plate_solve_downsample    = 1
 pointing_tolerance_arcmin          = 12.0
 pointing_max_retries               = 0
+pointing_model_enabled             = true
+pointing_model_max_age_hours       = 12.0
 frame_retry_limit                  = 0
 
 # -----------------------------------------------------------------------------

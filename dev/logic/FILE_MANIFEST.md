@@ -24,6 +24,7 @@
 | core/flight/neutralizer.py | 2.1.0 | Hardware reset via Alpaca REST — parks telescope and verifies idle state before handing control to the pilot. |
 | core/flight/orchestrator.py | 1.8.3 | Autonomous night daemon consuming tonights_plan.json as the canonical mission order, logging A1-A12, executing target... |
 | core/flight/pilot.py | 3.1.0 | Sovereign Alpaca acquisition engine for the Seestar S30-Pro, owning A4-A11 including slew, pointing verification, cor... |
+| core/flight/pointing_model.py | 1.0.0 | Store and apply a short-lived constant pointing correction measured from solved pre-alignment fields. |
 | core/flight/sim_runner.py | 1.0.0 | Execute a full realtime nightly simulation against tonights_plan.json with structured CLI output and live system_stat... |
 | core/flight/vault_manager.py | 1.4.1 | Secure metadata access with actual bi-directional tomli_w syncing. |
 | core/hardware/fleet_mapper.py | 2.0.0 | Read [[seestars]] from config.toml, load hardware constants from core/hardware/models/<model>.json, and produce data/... |
@@ -122,6 +123,7 @@
 | dev/tools/horizon_audit.py | 1.0.1 | Audit tonights_plan.json against the real camera-scanned horizon mask. Shows how many targets are observable tonight... |
 | dev/tools/install_horizon_mask.py | N/A | Install a candidate horizon_mask.json into the SeeVar runtime data dir with a timestamped backup of any existing mask. |
 | dev/tools/package_sector_panorama.py | N/A | Package a pre-stitched panorama sector plus a SeeVar horizon mask into the conservative Stellarium spherical landscap... |
+| dev/tools/prealign_pointing.py | 1.0.0 | Build a quick SeeVar software pointing model from 2-3 bright plate-solved alignment stars before starting a science s... |
 | dev/tools/rpc_client.py | 2.0.1 | Interactive JSON-RPC client for Seestar port 4700 using pre-built sovereign payloads. |
 | dev/tools/session_triage.py | N/A | Summarise the last SeeVar observing session from logs, ledger, plan, and data buffers without touching telescope state. |
 | dev/utils/comp_purger.py | 1.1.1 | Prunes orphaned comparison star charts in the SeeVar catalog. |

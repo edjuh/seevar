@@ -40,6 +40,7 @@ import astropy.units as u
 
 from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config, selected_scope, selected_scope_host, scope_file_tag
 from core.flight.field_rotation import max_exposure_s as rotation_limited_exposure
+from core.flight.pointing_model import apply_pointing_model, load_pointing_model, normalize_ra_hours
 
 # ---------------------------------------------------------------------------
 # Dynamic IP Resolution
@@ -66,6 +67,16 @@ def _cfg_int(key: str, default: int) -> int:
         return int(round(float(_flight_cfg().get(key, default))))
     except Exception:
         return default
+
+
+# Read boolean flight settings without trusting TOML/string spelling.
+def _cfg_bool(key: str, default: bool) -> bool:
+    value = _flight_cfg().get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +121,8 @@ VERIFY_EXPOSURE_SEC = max(0.5, _cfg_float("pointing_verify_exposure_sec", 2.0))
 VERIFY_EXPOSURE_RETRY_SEC = 2.0
 POINTING_TOLERANCE_ARCMIN = max(0.1, _cfg_float("pointing_tolerance_arcmin", 12.0))
 POINTING_MAX_RETRIES = max(0, _cfg_int("pointing_max_retries", 0))
+POINTING_MODEL_ENABLED = _cfg_bool("pointing_model_enabled", True)
+POINTING_MODEL_MAX_AGE_HOURS = max(0.1, _cfg_float("pointing_model_max_age_hours", 12.0))
 PLATESOLVE_RADIUS_DEG = max(0.1, _cfg_float("pointing_plate_solve_radius_deg", 5.0))
 PLATESOLVE_DOWNSAMPLE = max(1, _cfg_int("pointing_plate_solve_downsample", 1))
 PLATESOLVE_TIMEOUT = max(5, _cfg_int("pointing_plate_solve_timeout_sec", 35))
@@ -911,12 +924,20 @@ class DiamondSequence:
                 "error": str(e),
             }
 
-    def _corrective_nudge(self, command_ra_hours: float, command_dec_deg: float, solve_result: dict) -> tuple[float, float]:
+    # Correct the command point from a solved frame while preserving the true target coordinates.
+    def _corrective_nudge(
+        self,
+        command_ra_hours: float,
+        command_dec_deg: float,
+        expected_ra_hours: float,
+        expected_dec_deg: float,
+        solve_result: dict,
+    ) -> tuple[float, float]:
         solved_ra_hours = float(solve_result["solved_ra_deg"]) / 15.0
         solved_dec_deg = float(solve_result["solved_dec_deg"])
 
-        delta_ra_hours = command_ra_hours - solved_ra_hours
-        delta_dec_deg = command_dec_deg - solved_dec_deg
+        delta_ra_hours = normalize_ra_hours(expected_ra_hours - solved_ra_hours)
+        delta_dec_deg = expected_dec_deg - solved_dec_deg
 
         corrected_ra_hours = command_ra_hours + delta_ra_hours
         corrected_dec_deg = command_dec_deg + delta_dec_deg
@@ -1005,12 +1026,34 @@ class DiamondSequence:
 
         t_start = time.monotonic()
         ccd_temp = telemetry.temp_c if telemetry else None
-        command_ra_hours = float(target.ra_hours)
-        command_dec_deg = float(target.dec_deg)
+        science_ra_hours = float(target.ra_hours)
+        science_dec_deg = float(target.dec_deg)
+        command_ra_hours = science_ra_hours
+        command_dec_deg = science_dec_deg
         exp_sec = target.exp_ms / 1000.0
 
         try:
             if not skip_pointing:
+                pointing_model = None
+                if POINTING_MODEL_ENABLED:
+                    pointing_model = load_pointing_model(
+                        ACTIVE_SCOPE_TAG,
+                        max_age_hours=POINTING_MODEL_MAX_AGE_HOURS,
+                    )
+                if pointing_model:
+                    command_ra_hours, command_dec_deg = apply_pointing_model(
+                        science_ra_hours,
+                        science_dec_deg,
+                        pointing_model,
+                    )
+                    notify(
+                        "A4",
+                        "Prealignment model applied: "
+                        f"RA {float(pointing_model.get('offset_ra_arcmin', 0.0)):+.1f}' "
+                        f"DEC {float(pointing_model.get('offset_dec_arcmin', 0.0)):+.1f}' "
+                        f"from {int(pointing_model.get('n_samples', 0))} sample(s)",
+                    )
+
                 for attempt in range(POINTING_MAX_RETRIES + 1):
                     notify("A4", f"Slew command RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° ({target.name})")
                     self._telescope.slew_to_coordinates_async(command_ra_hours, command_dec_deg)
@@ -1024,8 +1067,8 @@ class DiamondSequence:
 
                     verify_target = AcquisitionTarget(
                         name=target.name,
-                        ra_hours=command_ra_hours,
-                        dec_deg=command_dec_deg,
+                        ra_hours=science_ra_hours,
+                        dec_deg=science_dec_deg,
                         auid=target.auid,
                         exp_ms=target.exp_ms,
                         observer_code=target.observer_code,
@@ -1051,7 +1094,13 @@ class DiamondSequence:
                     if attempt >= POINTING_MAX_RETRIES:
                         return FrameResult(success=False, error=f"Pointing error {error_arcmin:.2f} arcmin after retries")
 
-                    command_ra_hours, command_dec_deg = self._corrective_nudge(command_ra_hours, command_dec_deg, solve)
+                    command_ra_hours, command_dec_deg = self._corrective_nudge(
+                        command_ra_hours,
+                        command_dec_deg,
+                        science_ra_hours,
+                        science_dec_deg,
+                        solve,
+                    )
                     notify("A8", f"Corrective nudge -> RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° (retry {attempt + 1}/{POINTING_MAX_RETRIES})")
                 else:
                     return FrameResult(success=False, error="Pointing loop exhausted unexpectedly")
@@ -1107,8 +1156,8 @@ class DiamondSequence:
 
             science_target = AcquisitionTarget(
                 name=target.name,
-                ra_hours=command_ra_hours,
-                dec_deg=command_dec_deg,
+                ra_hours=science_ra_hours,
+                dec_deg=science_dec_deg,
                 auid=target.auid,
                 exp_ms=target.exp_ms,
                 observer_code=target.observer_code,
