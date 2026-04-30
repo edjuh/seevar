@@ -681,6 +681,7 @@ class Orchestrator:
             self._log_flight("[A12] Commit failure state")
             self._log_flight(f"❌ FSM Sequence failed for {name}")
 
+    # Count dark acquisition results for the postflight state message.
     def _summarize_dark_results(self, dark_results: dict) -> tuple[int, int, int]:
         ok = 0
         fail = 0
@@ -698,6 +699,35 @@ class Orchestrator:
 
         return ok, fail, frames
 
+    # Inspect staged science FITS and derive the dark sequences postflight must cover.
+    def _collect_buffer_dark_sequences(self) -> set[tuple[int, int]]:
+        sequences: set[tuple[int, int]] = set()
+        for path in DATA_DIR.joinpath("local_buffer").glob("*_Raw.fits"):
+            try:
+                header = fits.getheader(path)
+            except Exception as e:
+                self._log_flight(f"  dark-sequence scan skipped {path.name}: header unreadable ({e})")
+                continue
+
+            exp_ms = header.get("EXPMS")
+            if exp_ms is None:
+                exptime = header.get("EXPTIME")
+                if exptime is not None:
+                    exp_ms = int(round(float(exptime) * 1000.0))
+
+            gain = header.get("GAIN", GAIN)
+            if exp_ms is None:
+                self._log_flight(f"  dark-sequence scan skipped {path.name}: EXPMS/EXPTIME missing")
+                continue
+
+            try:
+                sequences.add((int(exp_ms), int(gain)))
+            except Exception as e:
+                self._log_flight(f"  dark-sequence scan skipped {path.name}: invalid exp/gain ({e})")
+
+        return sequences
+
+    # Close the flight by acquiring matching darks and handing frames to the accountant.
     def _run_postflight(self):
         self._log_flight("📊 Flight operations concluded.")
 
@@ -705,8 +735,14 @@ class Orchestrator:
         dark_fail = 0
         dark_frames = 0
 
-        if self._tonights_sequences and not self.simulation_mode:
-            seqs = sorted(self._tonights_sequences)
+        disk_sequences = self._collect_buffer_dark_sequences()
+        if disk_sequences - self._tonights_sequences:
+            self._log_flight(f"🌑 Dark sequence scan added {sorted(disk_sequences - self._tonights_sequences)} from local_buffer")
+
+        required_sequences = set(self._tonights_sequences) | disk_sequences
+
+        if required_sequences and not self.simulation_mode:
+            seqs = sorted(required_sequences)
             self._log_flight(f"🌑 Acquiring darks for {len(seqs)} sequence(s): {seqs}")
             self._write_state(
                 state="POSTFLIGHT",
