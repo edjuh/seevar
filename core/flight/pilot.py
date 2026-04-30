@@ -807,10 +807,23 @@ class DiamondSequence:
 
         return out_path
 
-    def _solve_verify_frame(self, fits_path: Path, target: AcquisitionTarget) -> dict:
+    def _solve_verify_frame(
+        self,
+        fits_path: Path,
+        target: AcquisitionTarget,
+        *,
+        radius_deg: float | None = None,
+        timeout_sec: int | None = None,
+        cpulimit_sec: int | None = None,
+        downsample: int | None = None,
+    ) -> dict:
         work_dir = fits_path.parent
         ra_deg = target.ra_hours * 15.0
         dec_deg = target.dec_deg
+        solve_radius = float(radius_deg if radius_deg is not None else PLATESOLVE_RADIUS_DEG)
+        solve_timeout = int(timeout_sec if timeout_sec is not None else PLATESOLVE_TIMEOUT)
+        solve_cpulimit = int(cpulimit_sec if cpulimit_sec is not None else PLATESOLVE_CPULIMIT)
+        solve_downsample = int(downsample if downsample is not None else PLATESOLVE_DOWNSAMPLE)
 
         cmd = [
             "solve-field",
@@ -818,15 +831,15 @@ class DiamondSequence:
             "--dir", str(work_dir),
             "--overwrite",
             "--no-plots",
-            "--downsample", str(PLATESOLVE_DOWNSAMPLE),
+            "--downsample", str(solve_downsample),
             "--ra", str(ra_deg),
             "--dec", str(dec_deg),
-            "--radius", str(PLATESOLVE_RADIUS_DEG),
+            "--radius", str(solve_radius),
             "--scale-units", "arcsecperpix",
             "--scale-low", "3.0",
             "--scale-high", "4.5",
             "--tweak-order", "1",
-            "--cpulimit", str(PLATESOLVE_CPULIMIT),
+            "--cpulimit", str(solve_cpulimit),
         ]
 
         logger.info(
@@ -834,8 +847,8 @@ class DiamondSequence:
             fits_path.name,
             ra_deg,
             dec_deg,
-            PLATESOLVE_RADIUS_DEG,
-            PLATESOLVE_TIMEOUT,
+            solve_radius,
+            solve_timeout,
         )
 
         try:
@@ -843,13 +856,13 @@ class DiamondSequence:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=PLATESOLVE_TIMEOUT,
+                timeout=solve_timeout,
             )
         except subprocess.TimeoutExpired:
-            logger.warning("A7 solve-field timeout after %ss for %s", PLATESOLVE_TIMEOUT, fits_path.name)
+            logger.warning("A7 solve-field timeout after %ss for %s", solve_timeout, fits_path.name)
             return {
                 "ok": False,
-                "error": f"solve-field timeout after {PLATESOLVE_TIMEOUT}s",
+                "error": f"solve-field timeout after {solve_timeout}s",
                 "stderr": "",
             }
 
@@ -1046,13 +1059,21 @@ class DiamondSequence:
                         science_dec_deg,
                         pointing_model,
                     )
-                    notify(
-                        "A4",
-                        "Prealignment model applied: "
-                        f"RA {float(pointing_model.get('offset_ra_arcmin', 0.0)):+.1f}' "
-                        f"DEC {float(pointing_model.get('offset_dec_arcmin', 0.0)):+.1f}' "
-                        f"from {int(pointing_model.get('n_samples', 0))} sample(s)",
-                    )
+                    if pointing_model.get("kind") == "affine_prealignment":
+                        notify(
+                            "A4",
+                            "Affine prealignment model applied: "
+                            f"command RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° "
+                            f"from {int(pointing_model.get('n_samples', 0))} sample(s)",
+                        )
+                    else:
+                        notify(
+                            "A4",
+                            "Prealignment model applied: "
+                            f"RA {float(pointing_model.get('offset_ra_arcmin', 0.0)):+.1f}' "
+                            f"DEC {float(pointing_model.get('offset_dec_arcmin', 0.0)):+.1f}' "
+                            f"from {int(pointing_model.get('n_samples', 0))} sample(s)",
+                        )
 
                 for attempt in range(POINTING_MAX_RETRIES + 1):
                     notify("A4", f"Slew command RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° ({target.name})")

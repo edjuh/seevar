@@ -27,7 +27,7 @@ from astropy.coordinates import AltAz, EarthLocation, SkyCoord
 from astropy.time import Time
 
 from core.flight.pilot import AcquisitionTarget, DiamondSequence
-from core.flight.pointing_model import build_constant_model, normalize_ra_hours, save_pointing_model
+from core.flight.pointing_model import build_pointing_model, normalize_ra_hours, save_pointing_model
 from core.preflight.horizon import required_altitude
 from core.utils.env_loader import load_config, selected_scope, scope_file_tag
 
@@ -69,6 +69,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-stars", type=int, default=8, help="Maximum candidate stars to attempt.")
     parser.add_argument("--max-age-hours", type=float, default=12.0, help="How long the generated pointing model remains valid.")
     parser.add_argument("--allow-partial", action="store_true", help="Write a model even when fewer than --points solves succeeded.")
+    parser.add_argument("--solve-radius-deg", type=float, default=20.0, help="Search radius for alignment solves.")
+    parser.add_argument("--solve-timeout-sec", type=int, default=90, help="Timeout for each alignment solve.")
+    parser.add_argument("--solve-downsample", type=int, default=2, help="Downsample factor for alignment solves.")
     parser.add_argument("--ip", default="", help="Override selected scope IP address.")
     parser.add_argument("--scope-tag", default="", help="Override output model scope tag, e.g. scope01 or scope02.")
     parser.add_argument("--dry-run", action="store_true", help="Only list selected candidates; do not move the telescope.")
@@ -166,13 +169,13 @@ def notify(step: str, msg: str) -> None:
 
 
 # Slew, capture, plate-solve, and return one alignment sample.
-def solve_alignment_star(sequence: DiamondSequence, item: dict, exposure_sec: float) -> dict:
+def solve_alignment_star(sequence: DiamondSequence, item: dict, args: argparse.Namespace) -> dict:
     star: AlignStar = item["star"]
     target = AcquisitionTarget(
         name=f"ALIGN_{star.name}",
         ra_hours=star.ra_hours,
         dec_deg=star.dec_deg,
-        exp_ms=int(round(exposure_sec * 1000.0)),
+        exp_ms=int(round(args.exposure_sec * 1000.0)),
         n_frames=1,
     )
 
@@ -182,8 +185,15 @@ def solve_alignment_star(sequence: DiamondSequence, item: dict, exposure_sec: fl
         return {"ok": False, "name": star.name, "error": "slew_timeout"}
 
     time.sleep(3.0)
-    fits_path = sequence._capture_temp_frame(target, exposure_sec, "ALIGN")
-    solve = sequence._solve_verify_frame(fits_path, target)
+    fits_path = sequence._capture_temp_frame(target, args.exposure_sec, "ALIGN")
+    solve = sequence._solve_verify_frame(
+        fits_path,
+        target,
+        radius_deg=args.solve_radius_deg,
+        timeout_sec=args.solve_timeout_sec,
+        cpulimit_sec=max(5, min(args.solve_timeout_sec, args.solve_timeout_sec - 5)),
+        downsample=args.solve_downsample,
+    )
 
     sample = {
         "ok": bool(solve.get("ok")),
@@ -244,7 +254,7 @@ def main() -> int:
     for item in candidates:
         if sum(1 for sample in samples if sample.get("ok")) >= args.points:
             break
-        sample = solve_alignment_star(sequence, item, args.exposure_sec)
+        sample = solve_alignment_star(sequence, item, args)
         samples.append(sample)
         if sample.get("ok"):
             print(
@@ -266,7 +276,7 @@ def main() -> int:
         )
         return 5
 
-    model = build_constant_model(
+    model = build_pointing_model(
         successes,
         scope_tag=scope_tag,
         scope_name=scope.get("scope_name"),
