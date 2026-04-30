@@ -18,7 +18,7 @@ import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.flight.dark_library import DarkLibrary, TEMP_BIN_SIZE, TEMP_BIN_TOLS
+from core.flight.dark_library import DarkLibrary, TEMP_BIN_SIZE, dark_temp_tolerance_c
 from core.flight.pilot import AlpacaCamera, AlpacaTelescope, TelemetryBlock
 from core.postflight.accountant import process_buffer
 
@@ -108,8 +108,9 @@ def read_live_telemetry() -> TelemetryBlock:
 
 
 # Keep only queued darks whose required temperature bin matches current conditions.
-def filter_thermally_compatible(requirements: list[dict], temp_c: float) -> tuple[list[dict], int]:
+def filter_thermally_compatible(requirements: list[dict], temp_c: float) -> tuple[list[dict], int, float]:
     current_bin = _temp_bin(temp_c)
+    tolerance_c = dark_temp_tolerance_c()
     compatible = []
 
     for req in requirements:
@@ -117,10 +118,10 @@ def filter_thermally_compatible(requirements: list[dict], temp_c: float) -> tupl
         if req_bin is None:
             compatible.append(req)
             continue
-        if abs(int(req_bin) - current_bin) <= TEMP_BIN_TOLS:
+        if abs(int(req_bin) - current_bin) <= tolerance_c:
             compatible.append(req)
 
-    return compatible, current_bin
+    return compatible, current_bin, tolerance_c
 
 
 # Extract successfully acquired exposure/gain pairs from DarkLibrary results.
@@ -181,18 +182,18 @@ def run_deferred_dark_recovery() -> int:
     telemetry = read_live_telemetry()
     log.info("Live telemetry for deferred darks: %s", telemetry.summary())
 
-    compatible, current_bin = filter_thermally_compatible(requirements, telemetry.temp_c)
+    compatible, current_bin, tolerance_c = filter_thermally_compatible(requirements, telemetry.temp_c)
     skipped = [req for req in requirements if req not in compatible]
 
     if skipped:
         for req in skipped:
             log.warning(
-                "Skipping queued dark e%s g%s: required temp bin %+dC, current bin %+dC exceeds tolerance %dC",
+                "Skipping queued dark e%s g%s: required temp bin %+dC, current bin %+dC exceeds tolerance %.1fC",
                 req.get("exp_ms"),
                 req.get("gain"),
                 int(req.get("temp_bin")),
                 current_bin,
-                TEMP_BIN_TOLS,
+                tolerance_c,
             )
 
     if not compatible:

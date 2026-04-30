@@ -134,6 +134,15 @@ plate_solve_timeout_sec    = 90
 plate_solve_cpulimit_sec   = 75
 
 # -----------------------------------------------------------------------------
+# CALIBRATION — optional
+# Darks are reusable across equivalent Seestar models, but only for matching
+# exposure/gain and a nearby camera temperature bin. Tighten this if dark current
+# mismatch becomes visible; loosen only for emergency beta recovery.
+# -----------------------------------------------------------------------------
+[calibration]
+dark_temp_tolerance_c = 4.0
+
+# -----------------------------------------------------------------------------
 # NOTIFICATIONS — optional
 # Create a Telegram bot via @BotFather to receive session alerts.
 # Leave both fields empty to disable notifications entirely.
