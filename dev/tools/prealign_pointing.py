@@ -63,10 +63,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--points", type=int, default=3, help="Number of successful alignment solves to collect.")
     parser.add_argument("--exposure-sec", type=float, default=5.0, help="Alignment frame exposure in seconds.")
     parser.add_argument("--min-alt", type=float, default=35.0, help="Minimum geometric altitude for alignment stars.")
+    parser.add_argument("--max-alt", type=float, default=82.0, help="Avoid stars above this altitude where mount geometry can be unstable.")
     parser.add_argument("--clearance-margin", type=float, default=8.0, help="Extra degrees above the SeeVar horizon mask.")
     parser.add_argument("--min-az-separation", type=float, default=45.0, help="Prefer stars separated by at least this azimuth.")
     parser.add_argument("--max-stars", type=int, default=8, help="Maximum candidate stars to attempt.")
     parser.add_argument("--max-age-hours", type=float, default=12.0, help="How long the generated pointing model remains valid.")
+    parser.add_argument("--allow-partial", action="store_true", help="Write a model even when fewer than --points solves succeeded.")
     parser.add_argument("--ip", default="", help="Override selected scope IP address.")
     parser.add_argument("--scope-tag", default="", help="Override output model scope tag, e.g. scope01 or scope02.")
     parser.add_argument("--dry-run", action="store_true", help="Only list selected candidates; do not move the telescope.")
@@ -126,6 +128,8 @@ def choose_alignment_stars(args: argparse.Namespace) -> list[dict]:
         alt_deg, az_deg = star_altaz(star, location, obstime)
         required = required_altitude(az_deg, clearance_margin_deg=args.clearance_margin)
         if alt_deg < max(args.min_alt, required):
+            continue
+        if alt_deg > args.max_alt:
             continue
         candidates.append(
             {
@@ -255,6 +259,12 @@ def main() -> int:
     if not successes:
         print("No alignment solve succeeded; no pointing model written.", file=sys.stderr)
         return 4
+    if len(successes) < args.points and not args.allow_partial:
+        print(
+            f"Only {len(successes)}/{args.points} alignment solves succeeded; no pointing model written.",
+            file=sys.stderr,
+        )
+        return 5
 
     model = build_constant_model(
         successes,
