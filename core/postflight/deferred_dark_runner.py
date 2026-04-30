@@ -36,10 +36,12 @@ ARCHIVE_DIR = DATA_DIR / "archive"
 LOCAL_BUFFER = DATA_DIR / "local_buffer"
 
 
+# Convert a live camera temperature to the rounded calibration-library bin.
 def _temp_bin(temp_c: float) -> int:
     return int(round(temp_c / TEMP_BIN_SIZE) * TEMP_BIN_SIZE)
 
 
+# Load and normalize queued dark requirements from the accountant sidecar file.
 def load_requirements() -> list[dict]:
     if not MISSING_DARKS_FILE.exists():
         return []
@@ -62,6 +64,7 @@ def load_requirements() -> list[dict]:
     return cleaned
 
 
+# Collapse per-target requirements into unique exposure/gain dark sequences.
 def collect_sequences(requirements: list[dict]) -> list[tuple[int, int]]:
     seen = set()
     sequences = []
@@ -74,15 +77,17 @@ def collect_sequences(requirements: list[dict]) -> list[tuple[int, int]]:
     return sequences
 
 
+# Read current telescope/camera telemetry before deciding which darks are safe.
 def read_live_telemetry() -> TelemetryBlock:
     telescope = AlpacaTelescope()
     camera = AlpacaCamera()
+    connect_errors = []
 
     for device in (telescope, camera):
         try:
             device.connect()
-        except Exception:
-            pass
+        except Exception as exc:
+            connect_errors.append(f"{device.base}: {exc}")
 
     telemetry = TelemetryBlock.from_alpaca(telescope, camera)
 
@@ -92,6 +97,8 @@ def read_live_telemetry() -> TelemetryBlock:
         except Exception:
             pass
 
+    if connect_errors:
+        raise RuntimeError("Alpaca connect failed: " + " | ".join(connect_errors))
     if telemetry.parse_error:
         raise RuntimeError(telemetry.parse_error)
     if telemetry.temp_c is None:
@@ -100,6 +107,7 @@ def read_live_telemetry() -> TelemetryBlock:
     return telemetry
 
 
+# Keep only queued darks whose required temperature bin matches current conditions.
 def filter_thermally_compatible(requirements: list[dict], temp_c: float) -> tuple[list[dict], int]:
     current_bin = _temp_bin(temp_c)
     compatible = []
@@ -115,6 +123,7 @@ def filter_thermally_compatible(requirements: list[dict], temp_c: float) -> tupl
     return compatible, current_bin
 
 
+# Extract successfully acquired exposure/gain pairs from DarkLibrary results.
 def _ok_sequences_from_results(dark_results: dict) -> set[tuple[int, int]]:
     ok_sequences = set()
     for key, result in dark_results.items():
@@ -134,6 +143,7 @@ def _ok_sequences_from_results(dark_results: dict) -> set[tuple[int, int]]:
     return ok_sequences
 
 
+# Restore archived raw frames that now have matching darks for accountant replay.
 def restore_capture_paths(requirements: list[dict], dark_results: dict) -> list[Path]:
     LOCAL_BUFFER.mkdir(parents=True, exist_ok=True)
     restored = []
@@ -161,6 +171,7 @@ def restore_capture_paths(requirements: list[dict], dark_results: dict) -> list[
     return restored
 
 
+# Acquire queued darks, restore matching raws, and rerun postflight accounting.
 def run_deferred_dark_recovery() -> int:
     requirements = load_requirements()
     if not requirements:
@@ -208,4 +219,8 @@ def run_deferred_dark_recovery() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(run_deferred_dark_recovery())
+    try:
+        raise SystemExit(run_deferred_dark_recovery())
+    except Exception as exc:
+        log.error("Deferred dark recovery failed: %s", exc)
+        raise SystemExit(1) from None
