@@ -266,7 +266,9 @@ by `[flight]` and should fail fast:
 [flight]
 pointing_plate_solve_timeout_sec  = 35
 pointing_plate_solve_cpulimit_sec = 30
-pointing_max_retries              = 0
+pointing_max_retries              = 2
+pointing_gross_error_arcmin       = 180
+pointing_gross_max_retries        = 1
 frame_retry_limit                 = 0
 ```
 

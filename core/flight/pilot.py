@@ -121,6 +121,11 @@ VERIFY_EXPOSURE_SEC = max(0.5, _cfg_float("pointing_verify_exposure_sec", 2.0))
 VERIFY_EXPOSURE_RETRY_SEC = 2.0
 POINTING_TOLERANCE_ARCMIN = max(0.1, _cfg_float("pointing_tolerance_arcmin", 12.0))
 POINTING_MAX_RETRIES = max(0, _cfg_int("pointing_max_retries", 0))
+POINTING_GROSS_ERROR_ARCMIN = max(
+    POINTING_TOLERANCE_ARCMIN,
+    _cfg_float("pointing_gross_error_arcmin", 180.0),
+)
+POINTING_GROSS_MAX_RETRIES = max(0, _cfg_int("pointing_gross_max_retries", 1))
 POINTING_MODEL_ENABLED = _cfg_bool("pointing_model_enabled", True)
 POINTING_MODEL_MAX_AGE_HOURS = max(0.1, _cfg_float("pointing_model_max_age_hours", 12.0))
 PLATESOLVE_RADIUS_DEG = max(0.1, _cfg_float("pointing_plate_solve_radius_deg", 5.0))
@@ -1112,6 +1117,23 @@ class DiamondSequence:
                         break
 
                     notify("A7", f"Pointing outside tolerance ({error_arcmin:.2f} arcmin > {POINTING_TOLERANCE_ARCMIN:.2f})")
+                    if error_arcmin >= POINTING_GROSS_ERROR_ARCMIN:
+                        gross_limit = min(POINTING_MAX_RETRIES, POINTING_GROSS_MAX_RETRIES)
+                        notify(
+                            "A7",
+                            f"Gross pointing miss ({error_arcmin:.2f} arcmin >= "
+                            f"{POINTING_GROSS_ERROR_ARCMIN:.2f}); "
+                            f"gross retry {attempt}/{gross_limit}",
+                        )
+                        if attempt >= gross_limit:
+                            return FrameResult(
+                                success=False,
+                                error=(
+                                    f"Gross pointing error {error_arcmin:.2f} arcmin "
+                                    f"after {attempt} gross retry attempt(s)"
+                                ),
+                            )
+
                     if attempt >= POINTING_MAX_RETRIES:
                         return FrameResult(success=False, error=f"Pointing error {error_arcmin:.2f} arcmin after retries")
 
