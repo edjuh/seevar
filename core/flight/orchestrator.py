@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 
@@ -53,6 +54,8 @@ _LOG_SCOPE = selected_scope(load_config(), selected_scope_id())
 _LOG_SCOPE_ID = _LOG_SCOPE.get("scope_id")
 _LOG_SCOPE_TAG = scope_file_tag(_LOG_SCOPE)
 _LOG_FILE = LOG_DIR / (f"orchestrator.{_LOG_SCOPE_ID}.log" if _LOG_SCOPE_ID else "orchestrator.log")
+_LOG_MAX_BYTES = 5 * 1024 * 1024
+_LOG_BACKUP_COUNT = 5
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,7 +63,12 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(_LOG_FILE, mode="a"),
+        RotatingFileHandler(
+            _LOG_FILE,
+            mode="a",
+            maxBytes=_LOG_MAX_BYTES,
+            backupCount=_LOG_BACKUP_COUNT,
+        ),
     ],
     force=True,
 )

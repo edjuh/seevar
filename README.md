@@ -271,6 +271,7 @@ pointing_gross_error_arcmin       = 180
 pointing_gross_max_retries        = 1
 pointing_accept_target_in_frame   = true
 pointing_edge_margin_px           = 250
+verify_retention_sets            = 40
 frame_retry_limit                 = 0
 ```
 
@@ -279,6 +280,11 @@ the target coordinate lands inside the image with the configured edge margin,
 even when the solved frame center is outside the nominal pointing tolerance.
 That avoids over-correcting Seestar EQ runs where the target is usable for
 photometry but not perfectly centered.
+
+`verify_retention_sets` caps how many recent A7 verification bundles are kept
+in `data/verify_buffer`. Each bundle includes the verify FITS plus its
+`solve-field` sidecars, which prevents that directory from growing without
+bound while still leaving recent frames available on the dashboard.
 
 The latest verification frame can be viewed through the dashboard endpoint
 `/preview/verify.jpg`.

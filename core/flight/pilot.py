@@ -79,6 +79,31 @@ def _cfg_bool(key: str, default: bool) -> bool:
     return bool(value)
 
 
+VERIFY_SUFFIXES = (
+    ".fits",
+    ".fit",
+    ".axy",
+    ".corr",
+    ".match",
+    ".rdls",
+    ".solved",
+    ".new",
+    ".wcs",
+    "-indx.xyls",
+)
+
+
+# Map a verify artifact back to the shared stem that ties the FITS frame to
+# all astrometry sidecars generated from that solve attempt.
+def _verify_root_name(path: Path) -> str | None:
+    name = path.name
+    for suffix in VERIFY_SUFFIXES:
+        if name.endswith(suffix):
+            root = name[: -len(suffix)]
+            return root if root.endswith("_VERIFY") else None
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Constants — single source of truth (S30-Pro / Alpaca v1.2.0-3)
 # ---------------------------------------------------------------------------
@@ -128,6 +153,7 @@ POINTING_GROSS_ERROR_ARCMIN = max(
 POINTING_GROSS_MAX_RETRIES = max(0, _cfg_int("pointing_gross_max_retries", 1))
 POINTING_ACCEPT_TARGET_IN_FRAME = _cfg_bool("pointing_accept_target_in_frame", True)
 POINTING_EDGE_MARGIN_PX = max(0, _cfg_int("pointing_edge_margin_px", 250))
+VERIFY_RETENTION_SETS = max(1, _cfg_int("verify_retention_sets", 40))
 POINTING_MODEL_ENABLED = _cfg_bool("pointing_model_enabled", True)
 POINTING_MODEL_MAX_AGE_HOURS = max(0.1, _cfg_float("pointing_model_max_age_hours", 12.0))
 PLATESOLVE_RADIUS_DEG = max(0.1, _cfg_float("pointing_plate_solve_radius_deg", 5.0))
@@ -140,6 +166,40 @@ VERIFY_BUFFER = DATA_DIR / "verify_buffer"
 ACTIVE_SCOPE = selected_scope(load_config())
 ACTIVE_SCOPE_TAG = scope_file_tag(ACTIVE_SCOPE)
 logger = logging.getLogger("seevar.pilot")
+
+
+# Keep only the newest verification bundles so dashboard previews remain
+# available without letting solve-field sidecars accumulate indefinitely.
+def _prune_verify_buffer(keep_sets: int = VERIFY_RETENTION_SETS) -> None:
+    if keep_sets < 1 or not VERIFY_BUFFER.exists():
+        return
+
+    verify_fits = sorted(
+        (
+            path
+            for path in VERIFY_BUFFER.glob("*_VERIFY.fit*")
+            if path.is_file()
+        ),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    keep_roots = {
+        root
+        for root in (_verify_root_name(path) for path in verify_fits[:keep_sets])
+        if root
+    }
+    if not keep_roots:
+        return
+
+    for path in VERIFY_BUFFER.iterdir():
+        if not path.is_file():
+            continue
+        root = _verify_root_name(path)
+        if root and root not in keep_roots:
+            try:
+                path.unlink()
+            except OSError as e:
+                logger.debug("A7 verify cleanup failed for %s: %s", path.name, e)
 
 
 # ---------------------------------------------------------------------------
@@ -974,6 +1034,8 @@ class DiamondSequence:
                 "error_arcmin": None,
                 "error": str(e),
             }
+        finally:
+            _prune_verify_buffer()
 
     # Correct the command point from a solved frame while preserving the true target coordinates.
     def _corrective_nudge(
