@@ -18,6 +18,12 @@ import astropy.units as u
 from astropy.coordinates import AltAz, EarthLocation, SkyCoord
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+GAIA_CACHE_DIR = PROJECT_ROOT / "data" / "gaia_cache"
+VSP_CACHE_DIRS = [
+    PROJECT_ROOT / "catalogs" / "reference_stars",
+    PROJECT_ROOT / "data" / "reference_stars",
+    PROJECT_ROOT / "data" / "comp_stars",
+]
 
 import sys
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -27,6 +33,7 @@ from core.postflight.aavso_reporter import (
     BAACCDReporter,
     BAAModifiedExtendedReporter,
 )
+from core.postflight.gaia_resolver import _cache_path
 from core.utils.env_loader import load_config
 
 
@@ -89,9 +96,102 @@ def _compute_airmass(row: dict) -> str:
         return "na"
 
 
+# Reuse the same target-name normalization as the chart fetcher cache.
+def _clean_target_name(name: str) -> str:
+    return str(name or "").lower().replace(" ", "_").replace("-", "_")
+
+
+# Load VSP chart metadata from local cache first, then the live API.
+def _load_vsp_chart(target_name: str) -> dict:
+    clean_name = _clean_target_name(target_name)
+    for base in VSP_CACHE_DIRS:
+        path = base / f"{clean_name}.json"
+        if path.exists():
+            data = json.loads(path.read_text())
+            if isinstance(data, dict) and data.get("chartid"):
+                return data
+
+    import requests
+
+    response = requests.get(
+        "https://apps.aavso.org/vsp/api/chart/",
+        params={"format": "json", "star": target_name, "fov": 180, "maglimit": 15.0},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+# Load the Gaia cache near the solved field center so source_id can be mapped
+# back to sky coordinates for VSP crossmatching.
+def _load_gaia_cache(row: dict) -> dict:
+    ra_deg = row.get("solved_ra_deg")
+    dec_deg = row.get("solved_dec_deg")
+    if ra_deg in (None, "") or dec_deg in (None, ""):
+        return {}
+    path = _cache_path(float(ra_deg), float(dec_deg))
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text())
+
+
+# Convert VSP and Gaia rows into a shared ICRS coordinate space.
+def _star_coord(ra_value, dec_value, *, hourangle: bool = False) -> SkyCoord:
+    if hourangle:
+        return SkyCoord(str(ra_value), str(dec_value), unit=(u.hourangle, u.deg), frame="icrs")
+    return SkyCoord(float(ra_value) * u.deg, float(dec_value) * u.deg, frame="icrs")
+
+
+# Recover chart id and a plausible check-star row by crossmatching retained
+# Gaia comparison stars back onto the VSP chart sequence.
+def _chart_context(row: dict) -> dict:
+    try:
+        chart = _load_vsp_chart(row["target_name"])
+        chart_id = str(chart.get("chartid", "na")).strip() or "na"
+        photometry = chart.get("photometry") or chart.get("comparison_stars") or []
+        gaia_cache = _load_gaia_cache(row)
+        gaia_rows = {str(star.get("source_id")): star for star in (gaia_cache.get("stars") or []) if isinstance(star, dict)}
+
+        matches = []
+        for comp in row.get("comp_rows") or []:
+            gaia_row = gaia_rows.get(str(comp.get("source_id")))
+            if not gaia_row:
+                continue
+            try:
+                gaia_coord = _star_coord(gaia_row.get("ra"), gaia_row.get("dec"))
+            except Exception:
+                continue
+
+            best = None
+            best_sep = None
+            for vsp_star in photometry:
+                try:
+                    vsp_coord = _star_coord(vsp_star.get("ra"), vsp_star.get("dec"), hourangle=True)
+                except Exception:
+                    continue
+                sep = gaia_coord.separation(vsp_coord).arcsec
+                if best_sep is None or sep < best_sep:
+                    best_sep = sep
+                    best = vsp_star
+
+            if best is not None and best_sep is not None and best_sep <= 5.0:
+                matches.append((float(comp.get("v_mag", 99.0)), comp, best, best_sep))
+
+        matches.sort(key=lambda item: item[0])
+        check = matches[0][2] if matches else None
+        return {
+            "chart_id": chart_id,
+            "check_name": (check.get("auid") or check.get("label")) if isinstance(check, dict) else "na",
+            "check_mag": next((band.get("mag") for band in (check.get("bands") or []) if band.get("band") == "V"), "na") if isinstance(check, dict) else "na",
+        }
+    except Exception:
+        return {"chart_id": "na", "check_name": "na", "check_mag": "na"}
+
+
 # Turn one accepted summary row into the normalized observation payload used by
 # the AAVSO and BAA report formatters.
 def _observation_from_summary(row: dict) -> dict:
+    chart_ctx = _chart_context(row)
     notes = [
         f"MODE={row.get('calibration_state', 'UNKNOWN')}",
         f"COMPS={row.get('n_comps', 0)}/{row.get('n_comps_raw', row.get('n_comps', 0))}",
@@ -110,11 +210,11 @@ def _observation_from_summary(row: dict) -> dict:
         "mtype": "STD",
         "comp": "ENSEMBLE",
         "cmag": "na",
-        "kname": "na",
-        "kmag": "na",
+        "kname": chart_ctx["check_name"],
+        "kmag": chart_ctx["check_mag"],
         "amass": _compute_airmass(row),
         "group": "na",
-        "chart": "na",
+        "chart": chart_ctx["chart_id"],
         "notes": " ".join(notes),
         "peak_adu": row.get("peak_adu"),
         "saturation_checked": True,
