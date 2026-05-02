@@ -135,6 +135,8 @@ Current reporting direction:
 
 - science channel: `G`
 - reporting code: `TG`
+- morning triage artifact: `data/reports/postflight_summary_*.txt` and `.json`
+- manual submission staging: `python3 dev/tools/stage_reports_from_summary.py`
 
 ### Astrometric and detector truth matter
 
@@ -372,13 +374,14 @@ What is already real:
 - raw FITS capture
 - split fleet planning and scoped execution
 - postflight scientific doctrine
+- deterministic postflight summary artifacts
 
 What is still under active hardening:
 
 - solved WCS as a hard postflight dependency
 - final flat / bias capture workflow and full application policy
 - ensemble sigma clipping
-- final reporting path
+- live AAVSO / BAA submission path
 
 That is the honest state of the project.
 

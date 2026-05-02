@@ -11,6 +11,7 @@ import json
 import logging
 import shutil
 import fcntl
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from contextlib import contextmanager
@@ -43,6 +44,7 @@ log = logging.getLogger("Accountant")
 
 DATA_DIR = PROJECT_ROOT / "data"
 LOG_DIR = PROJECT_ROOT / "logs"
+REPORT_DIR = DATA_DIR / "reports"
 LOCAL_BUFFER = DATA_DIR / "local_buffer"
 ARCHIVE_DIR = DATA_DIR / "archive"
 PROCESS_DIR = DATA_DIR / "process"
@@ -104,6 +106,132 @@ def _install_accountant_log_handler():
 
 
 _install_accountant_log_handler()
+
+
+# Collapse low-level calibration errors into stable morning-triage categories.
+def _classify_failure(error: str) -> str:
+    err_l = str(error or "").lower()
+    if "snr_too_low" in err_l:
+        return "LOW_SNR"
+    if "saturated" in err_l:
+        return "SATURATED"
+    if "target_flux_zero_or_negative" in err_l:
+        return "NEGATIVE_FLUX"
+    if "out_of_frame" in err_l:
+        return "OUT_OF_FRAME"
+    if "insufficient_valid_comps_after_clip" in err_l:
+        return "INSUFFICIENT_COMPS_AFTER_CLIP"
+    if "insufficient_valid_comps" in err_l or "insufficient_comp_stars" in err_l:
+        return "INSUFFICIENT_COMPS"
+    if "no_wcs" in err_l or "wcs" in err_l:
+        return "NO_WCS"
+    if "dark" in err_l:
+        return "NO_DARK"
+    if "failed_to_load_fits" in err_l:
+        return "FAILED_TO_LOAD_FITS"
+    if err_l:
+        return "QC_OTHER"
+    return "UNKNOWN"
+
+
+# Render a compact text report and matching JSON artifact for morning triage.
+def _write_postflight_report(
+    session_started_utc: str,
+    processed: int,
+    successes: int,
+    session_rows: list[dict],
+) -> tuple[Path, Path]:
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    base_name = f"postflight_summary_{stamp}"
+    json_path = REPORT_DIR / f"{base_name}.json"
+    txt_path = REPORT_DIR / f"{base_name}.txt"
+
+    status_counts = Counter(str(row.get("ledger_status", "UNKNOWN")) for row in session_rows)
+    failure_counts = Counter(
+        str(row.get("failure_category"))
+        for row in session_rows
+        if row.get("failure_category")
+    )
+    accepted_rows = [row for row in session_rows if row.get("observation_success")]
+    failed_rows = [row for row in session_rows if not row.get("observation_success")]
+
+    payload = {
+        "metadata": {
+            "generated_utc": datetime.now(timezone.utc).isoformat(),
+            "session_started_utc": session_started_utc,
+            "schema_version": "2026.7",
+        },
+        "counts": {
+            "raw_frames_processed": processed,
+            "successful_observations": successes,
+            "groups": len(session_rows),
+            "status": dict(sorted(status_counts.items())),
+            "failure_category": dict(sorted(failure_counts.items())),
+        },
+        "accepted_observations": accepted_rows,
+        "failed_groups": failed_rows,
+    }
+
+    with open(json_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2)
+
+    lines = [
+        "SeeVar Postflight Summary",
+        f"generated UTC : {payload['metadata']['generated_utc']}",
+        f"session UTC   : {session_started_utc}",
+        f"raw processed : {processed}",
+        f"accepted      : {successes}",
+        f"groups        : {len(session_rows)}",
+        "",
+        "Status counts",
+    ]
+    if status_counts:
+        for status, count in sorted(status_counts.items()):
+            lines.append(f"  {status:24} {count}")
+    else:
+        lines.append("  none")
+
+    lines.extend(["", "Failure categories"])
+    if failure_counts:
+        for category, count in sorted(failure_counts.items()):
+            lines.append(f"  {category:24} {count}")
+    else:
+        lines.append("  none")
+
+    lines.extend(["", "Accepted observations"])
+    if accepted_rows:
+        for row in accepted_rows:
+            lines.append(
+                "  {target:20} TG={mag:.3f} +/- {err:.3f} SNR={snr:.1f} comps={comps}/{comps_raw} "
+                "rej={rej} mode={mode}".format(
+                    target=row["target_name"],
+                    mag=float(row.get("mag", 0.0)),
+                    err=float(row.get("err", 0.0)),
+                    snr=float(row.get("target_snr", 0.0)),
+                    comps=int(row.get("n_comps", 0)),
+                    comps_raw=int(row.get("n_comps_raw", row.get("n_comps", 0))),
+                    rej=int(row.get("n_comps_rejected", 0)),
+                    mode=row.get("calibration_state", "UNKNOWN"),
+                )
+            )
+    else:
+        lines.append("  none")
+
+    lines.extend(["", "Failed groups"])
+    if failed_rows:
+        for row in failed_rows:
+            lines.append(
+                f"  {row['target_name']:20} status={row.get('ledger_status','UNKNOWN'):18} "
+                f"category={row.get('failure_category','UNKNOWN'):24} detail={row.get('failure_detail','')}"
+            )
+    else:
+        lines.append("  none")
+
+    txt_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    log.info("Postflight summary written: %s", txt_path.name)
+    log.info("Postflight summary written: %s", json_path.name)
+    return txt_path, json_path
 
 
 @contextmanager
@@ -673,6 +801,7 @@ def process_buffer():
             log.info("Accountant already running; skipping duplicate postflight sweep.")
             return
 
+        session_started_utc = datetime.now(timezone.utc).isoformat()
         log.info("Accountant: auditing local buffer...")
 
         if not LOCAL_BUFFER.exists():
@@ -691,6 +820,7 @@ def process_buffer():
             return
 
         processed = successes = 0
+        session_rows = []
         mag_lookup = {}
 
         if VSX_CATALOG_FILE.exists():
@@ -742,6 +872,14 @@ def process_buffer():
             items = group["items"]
             raw_count = len(items)
             log.info("Processing group: %s (%d raw frame(s))", key, raw_count)
+            row = {
+                "target_name": key,
+                "raw_frames": raw_count,
+                "group_started_utc": datetime.now(timezone.utc).isoformat(),
+                "observation_success": False,
+                "failure_category": None,
+                "failure_detail": None,
+            }
 
             if key not in ledger:
                 ledger[key] = _blank_entry()
@@ -767,6 +905,13 @@ def process_buffer():
             req_filter = str(ref_header.get("FILTER", "TG")).strip() or "TG"
             req_scope_id = str(ref_header.get("SCOPEID", "")).strip() or None
             req_scope_name = str(ref_header.get("SCOPENAM", "")).strip() or req_scope_id
+            row["exp_ms"] = req_exp_ms
+            row["gain"] = req_gain
+            row["ccd_temp_c"] = req_temp_c
+            row["filter"] = req_filter
+            row["scope_id"] = req_scope_id
+            row["scope_name"] = req_scope_name
+            row["capture_file"] = items[-1]["path"].name
 
             if date_obs and not str(date_obs).endswith("Z"):
                 date_obs = str(date_obs) + "Z"
@@ -785,6 +930,10 @@ def process_buffer():
                 if ledger[key].get("status") != "OBSERVED":
                     ledger[key]["status"] = "FAILED_NO_WCS"
                 _clear_unclosed_success(ledger[key])
+                row["failure_category"] = "NO_COORD_HINTS"
+                row["failure_detail"] = "group has no usable coordinate hints"
+                row["ledger_status"] = ledger[key].get("status")
+                session_rows.append(row)
                 _archive_group(items)
                 save_ledger(ledger)
                 save_missing_calibrations(ledger)
@@ -812,6 +961,13 @@ def process_buffer():
                 ledger[key]["required_dark_temp_c"] = req_temp_c
                 ledger[key]["last_calibration_state"] = "NO_USABLE_DARK"
                 _clear_unclosed_success(ledger[key])
+                row["failure_category"] = "NO_DARK"
+                row["failure_detail"] = "no dark-calibrated science frames in this group"
+                row["ledger_status"] = ledger[key].get("status")
+                row["required_dark_exp_ms"] = req_exp_ms
+                row["required_dark_gain"] = req_gain
+                row["required_dark_temp_c"] = req_temp_c
+                session_rows.append(row)
                 _archive_group(items)
                 save_ledger(ledger)
                 save_missing_calibrations(ledger)
@@ -853,6 +1009,11 @@ def process_buffer():
                     ledger[key]["status"] = "FAILED_NO_WCS"
                 ledger[key]["last_calibration_state"] = "STACK_FAILED_NO_WCS"
                 _clear_unclosed_success(ledger[key])
+                row["failure_category"] = "NO_WCS"
+                row["failure_detail"] = "solve failed for stacked/single candidates"
+                row["ledger_status"] = ledger[key].get("status")
+                row["calibration_state"] = ledger[key].get("last_calibration_state")
+                session_rows.append(row)
                 _archive_failed_group(items, calibrated_paths, stack_path)
                 save_ledger(ledger)
                 save_missing_calibrations(ledger)
@@ -938,12 +1099,37 @@ def process_buffer():
                     })
                     successes += 1
                     observation_success = True
+                    row.update({
+                        "observation_success": True,
+                        "ledger_status": ledger[key].get("status"),
+                        "calibration_state": cal_state,
+                        "mag": result.get("mag"),
+                        "err": result.get("err"),
+                        "target_snr": result.get("target_snr"),
+                        "n_comps": result.get("n_comps"),
+                        "n_comps_raw": result.get("n_comps_raw", result.get("n_comps")),
+                        "n_comps_rejected": result.get("n_comps_rejected", 0),
+                        "filter": result.get("filter"),
+                        "photometric_system": result.get("photometric_system", "TG"),
+                        "measurement_kind": result.get("measurement_kind", "raw_bayer_green_untransformed"),
+                        "target_inst_mag": result.get("target_inst_mag"),
+                        "target_inst_err": result.get("target_inst_err"),
+                        "zero_point": result.get("zero_point"),
+                        "zp_std": result.get("zp_std"),
+                        "peak_adu": result.get("peak_adu"),
+                        "last_obs_utc": date_obs,
+                        "comp_rows": result.get("comp_rows"),
+                        "solved_ra_deg": result.get("solved_ra_deg"),
+                        "solved_dec_deg": result.get("solved_dec_deg"),
+                    })
                 else:
                     log.warning("  %s poor SNR=%.1f (min %.1f)", key, snr, MIN_SNR)
                     if ledger[key].get("status") != "OBSERVED":
                         ledger[key]["status"] = "FAILED_QC_LOW_SNR"
                     ledger[key]["last_calibration_state"] = cal_state
                     _clear_unclosed_success(ledger[key])
+                    row["failure_category"] = "LOW_SNR"
+                    row["failure_detail"] = f"poor SNR={snr:.1f} (min {MIN_SNR:.1f})"
 
             elif status == "fail":
                 err_l = error.lower()
@@ -975,6 +1161,13 @@ def process_buffer():
                 ledger[key]["last_measurement_kind"] = result.get("measurement_kind", "raw_bayer_green_untransformed")
                 ledger[key]["last_calibration_state"] = cal_state
                 _clear_unclosed_success(ledger[key])
+                row["failure_category"] = _classify_failure(error)
+                row["failure_detail"] = error
+                row["target_snr"] = result.get("target_snr")
+                row["n_comps_raw"] = result.get("n_comps_raw")
+                row["n_comps_rejected"] = result.get("n_comps_rejected")
+                target_measurement = result.get("target_measurement") or {}
+                row["target_measurement"] = target_measurement or None
 
             else:
                 log.error("  %s calibration error: %s", key, error)
@@ -982,12 +1175,17 @@ def process_buffer():
                     ledger[key]["status"] = "ERROR"
                 ledger[key]["last_calibration_state"] = cal_state
                 _clear_unclosed_success(ledger[key])
+                row["failure_category"] = "CALIBRATION_ERROR"
+                row["failure_detail"] = error or "unknown calibration error"
 
             if observation_success:
                 _cleanup_completed_group(items, calibrated_paths, stack_path)
             else:
                 log.info("  Archiving failed reduction artifacts for %s", key)
                 _archive_failed_group(items, calibrated_paths, stack_path)
+            row["ledger_status"] = ledger[key].get("status")
+            row["calibration_state"] = ledger[key].get("last_calibration_state")
+            session_rows.append(row)
             save_ledger(ledger)
             save_missing_darks(ledger)
             save_missing_calibrations(ledger)
@@ -995,6 +1193,7 @@ def process_buffer():
 
         save_missing_darks(ledger)
         save_missing_calibrations(ledger)
+        _write_postflight_report(session_started_utc, processed, successes, session_rows)
 
         log.info(
             "Audit complete. %d raw frames processed, %d successful observations stamped.",
