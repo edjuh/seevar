@@ -137,6 +137,7 @@ Current reporting direction:
 - reporting code: `TG`
 - morning triage artifact: `data/reports/postflight_summary_*.txt` and `.json`
 - manual submission staging: `python3 dev/tools/stage_reports_from_summary.py`
+- WebObs submit probe/upload: `python3 dev/tools/submit_aavso_webobs.py --probe-only`
 
 ### Astrometric and detector truth matter
 
@@ -381,7 +382,7 @@ What is still under active hardening:
 - solved WCS as a hard postflight dependency
 - final flat / bias capture workflow and full application policy
 - ensemble sigma clipping
-- live AAVSO / BAA submission path
+- richer automatic publication policy and BAA transport
 
 That is the honest state of the project.
 

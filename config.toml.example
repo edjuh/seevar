@@ -48,12 +48,18 @@ safety_floor_deg = 15.0
 # -----------------------------------------------------------------------------
 # AAVSO — required
 # observer_code : your official AAVSO observer code (e.g. REDA)
-# webobs_token  : optional — needed for live AAVSO WebObs submission
+# webobs_session_cookie : optional — authenticated apps.aavso.org session cookie
+#                         for live WebObs submission automation.
+#                         Preferred format:
+#                         "app2_session=...; canary=false"
+# webobs_token  : optional legacy fallback — if set and webobs_session_cookie
+#                 is empty, SeeVar treats this as the raw app2_session value.
 # target_key    : optional — needed for live AAVSO TargetTool API access
 #                 The bundled seed catalog works without these keys.
 # -----------------------------------------------------------------------------
 [aavso]
 observer_code = "YOUR_CODE_HERE"
+webobs_session_cookie = ""
 webobs_token  = ""
 target_key    = ""
 

@@ -14,6 +14,8 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 from astropy.time import Time
+import astropy.units as u
+from astropy.coordinates import AltAz, EarthLocation, SkyCoord
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -25,6 +27,7 @@ from core.postflight.aavso_reporter import (
     BAACCDReporter,
     BAAModifiedExtendedReporter,
 )
+from core.utils.env_loader import load_config
 
 
 # Choose the newest postflight summary unless the caller pins one explicitly.
@@ -54,20 +57,41 @@ def _to_jd(obs_utc: str) -> float:
     return float(Time(obs_utc).jd)
 
 
-# Pick the brightest retained comparison star so the stock AAVSO extended file
-# has a concrete CNAME/CMAG pair instead of a blank placeholder.
-def _primary_comp(comp_rows: list[dict]) -> tuple[str, float]:
-    usable = [row for row in (comp_rows or []) if isinstance(row, dict) and row.get("source_id") and row.get("v_mag") is not None]
-    if not usable:
-        return "ENSEMBLE", 0.0
-    best = min(usable, key=lambda row: float(row.get("v_mag", 99.0)))
-    return str(best["source_id"]), float(best["v_mag"])
+# Compute target airmass from solved sky position and configured site location.
+def _compute_airmass(row: dict) -> str:
+    ra_deg = row.get("solved_ra_deg")
+    dec_deg = row.get("solved_dec_deg")
+    obs_utc = row.get("last_obs_utc")
+    if ra_deg in (None, "") or dec_deg in (None, "") or not obs_utc:
+        return "na"
+
+    cfg = load_config()
+    loc = cfg.get("location", {}) if isinstance(cfg, dict) else {}
+    lat = loc.get("lat")
+    lon = loc.get("lon")
+    elev = loc.get("elevation", 0.0)
+    if lat in (None, "") or lon in (None, ""):
+        return "na"
+
+    try:
+        location = EarthLocation(lat=float(lat) * u.deg, lon=float(lon) * u.deg, height=float(elev) * u.m)
+        when = Time(obs_utc)
+        target = SkyCoord(ra=float(ra_deg) * u.deg, dec=float(dec_deg) * u.deg, frame="icrs")
+        altaz = target.transform_to(AltAz(obstime=when, location=location))
+        secz = getattr(altaz, "secz", None)
+        if secz is None:
+            return "na"
+        value = float(secz.value if hasattr(secz, "value") else secz)
+        if not (1.0 <= value <= 40.0):
+            return "na"
+        return round(value, 3)
+    except Exception:
+        return "na"
 
 
 # Turn one accepted summary row into the normalized observation payload used by
 # the AAVSO and BAA report formatters.
 def _observation_from_summary(row: dict) -> dict:
-    comp_name, comp_mag = _primary_comp(row.get("comp_rows") or [])
     notes = [
         f"MODE={row.get('calibration_state', 'UNKNOWN')}",
         f"COMPS={row.get('n_comps', 0)}/{row.get('n_comps_raw', row.get('n_comps', 0))}",
@@ -84,12 +108,12 @@ def _observation_from_summary(row: dict) -> dict:
         "filter": row.get("filter", "TG"),
         "trans": "NO",
         "mtype": "STD",
-        "comp": comp_name,
-        "cmag": comp_mag,
+        "comp": "ENSEMBLE",
+        "cmag": "na",
         "kname": "na",
         "kmag": "na",
-        "amass": "na",
-        "group": row.get("scope_name") or "na",
+        "amass": _compute_airmass(row),
+        "group": "na",
         "chart": "na",
         "notes": " ".join(notes),
         "peak_adu": row.get("peak_adu"),
@@ -147,6 +171,8 @@ def _accepted_from_ledger(ledger_path: Path) -> list[dict]:
             "comp_rows": entry.get("last_comp_rows") or [],
             "photometric_system": entry.get("last_photometric_system", "TG"),
             "measurement_kind": entry.get("last_measurement_kind", "raw_bayer_green_untransformed"),
+            "solved_ra_deg": entry.get("last_solved_ra"),
+            "solved_dec_deg": entry.get("last_solved_dec"),
         })
     return rows
 

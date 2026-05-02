@@ -26,7 +26,7 @@ from core.utils.env_loader import load_config
 
 log = logging.getLogger("AAVSOReporter")
 
-DEFAULT_OBSTYPE = "CMOS"
+DEFAULT_OBSTYPE = "CCD"
 DEFAULT_FILTER = "TG"
 VALID_FLAGS = {"YES", "NO"}
 VALID_MTYPES = {"STD", "DIF"}
@@ -43,6 +43,7 @@ DEFAULT_BAA_TELESCOPE = "ZWO Seestar S30-Pro"
 DEFAULT_BAA_CAMERA = "Integrated CMOS"
 DEFAULT_BAA_ANALYSIS = "SeeVar"
 DEFAULT_SATURATION_CEILING = 60000
+DEFAULT_BAA_OBSTYPE = "CMOS"
 
 
 def _default_software_name() -> str:
@@ -237,7 +238,7 @@ class AAVSOReporter:
             "trans": self._normalize_flag(obs.get("trans", "NO"), f"{target}.trans", VALID_FLAGS),
             "mtype": self._normalize_flag(obs.get("mtype", "STD"), f"{target}.mtype", VALID_MTYPES),
             "comp": self._normalize_text(obs.get("comp"), f"{target}.comp"),
-            "cmag": self._fmt_num(obs.get("cmag"), 3, f"{target}.cmag"),
+            "cmag": self._fmt_num(obs.get("cmag"), 3, f"{target}.cmag", allow_na=True),
             "kname": self._normalize_text(obs.get("kname"), f"{target}.kname", default="na"),
             "kmag": self._fmt_num(obs.get("kmag", "na"), 3, f"{target}.kmag", allow_na=True),
             "amass": self._fmt_num(obs.get("amass", "na"), 3, f"{target}.amass", allow_na=True),
@@ -321,7 +322,7 @@ class BAAModifiedExtendedReporter(AAVSOReporter):
         self,
         observer_code: str | None = None,
         software_name: str | None = None,
-        obstype: str = DEFAULT_OBSTYPE,
+        obstype: str = DEFAULT_BAA_OBSTYPE,
         location: str | None = None,
         telescope: str | None = None,
         camera: str | None = None,
@@ -389,7 +390,7 @@ class BAACCDReporter(AAVSOReporter):
         self,
         observer_code: str | None = None,
         software_name: str | None = None,
-        obstype: str = DEFAULT_OBSTYPE,
+        obstype: str = DEFAULT_BAA_OBSTYPE,
         location: str | None = None,
         telescope: str | None = None,
         camera: str | None = None,
