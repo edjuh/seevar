@@ -126,6 +126,8 @@ POINTING_GROSS_ERROR_ARCMIN = max(
     _cfg_float("pointing_gross_error_arcmin", 180.0),
 )
 POINTING_GROSS_MAX_RETRIES = max(0, _cfg_int("pointing_gross_max_retries", 1))
+POINTING_ACCEPT_TARGET_IN_FRAME = _cfg_bool("pointing_accept_target_in_frame", True)
+POINTING_EDGE_MARGIN_PX = max(0, _cfg_int("pointing_edge_margin_px", 250))
 POINTING_MODEL_ENABLED = _cfg_bool("pointing_model_enabled", True)
 POINTING_MODEL_MAX_AGE_HOURS = max(0.1, _cfg_float("pointing_model_max_age_hours", 12.0))
 PLATESOLVE_RADIUS_DEG = max(0.1, _cfg_float("pointing_plate_solve_radius_deg", 5.0))
@@ -892,11 +894,36 @@ class DiamondSequence:
         target_coord = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame="icrs")
         solved_coord = SkyCoord(ra=solved_ra_deg * u.deg, dec=solved_dec_deg * u.deg, frame="icrs")
         error_arcmin = float(target_coord.separation(solved_coord).arcminute)
+        target_x = None
+        target_y = None
+        target_in_frame = False
+        frame_width = None
+        frame_height = None
+        margin_px = POINTING_EDGE_MARGIN_PX
+
+        try:
+            image_hdr = fits.getheader(fits_path, 0)
+            frame_width = int(image_hdr.get("NAXIS1", 0))
+            frame_height = int(image_hdr.get("NAXIS2", 0))
+            if frame_width > 0 and frame_height > 0:
+                wcs = WCS(str(wcs_path))
+                target_x, target_y = [float(v) for v in wcs.all_world2pix([[ra_deg, dec_deg]], 0)[0]]
+                max_margin = max(0, min(frame_width, frame_height) // 2 - 1)
+                margin_px = min(POINTING_EDGE_MARGIN_PX, max_margin)
+                target_in_frame = (
+                    margin_px <= target_x < frame_width - margin_px
+                    and margin_px <= target_y < frame_height - margin_px
+                )
+        except Exception as e:
+            logger.debug("A7 target-in-frame check failed for %s: %s", fits_path.name, e)
 
         logger.info(
-            "A7 solve-field success: file=%s err=%.2f arcmin",
+            "A7 solve-field success: file=%s err=%.2f arcmin target_px=%s,%s in_frame=%s",
             fits_path.name,
             error_arcmin,
+            f"{target_x:.1f}" if target_x is not None else "?",
+            f"{target_y:.1f}" if target_y is not None else "?",
+            target_in_frame,
         )
 
         return {
@@ -905,6 +932,12 @@ class DiamondSequence:
             "solved_ra_deg": solved_ra_deg,
             "solved_dec_deg": solved_dec_deg,
             "error_arcmin": error_arcmin,
+            "target_x": target_x,
+            "target_y": target_y,
+            "target_in_frame": target_in_frame,
+            "frame_width": frame_width,
+            "frame_height": frame_height,
+            "edge_margin_px": margin_px,
         }
 
     def _pointing_verify(self, target: AcquisitionTarget, notify, ccd_temp=None) -> dict:
@@ -1114,6 +1147,23 @@ class DiamondSequence:
                     error_arcmin = float(solve["error_arcmin"])
                     if error_arcmin <= POINTING_TOLERANCE_ARCMIN:
                         notify("A7", f"Pointing accepted ({error_arcmin:.2f} arcmin <= {POINTING_TOLERANCE_ARCMIN:.2f})")
+                        break
+
+                    target_in_frame = bool(solve.get("target_in_frame"))
+                    if (
+                        POINTING_ACCEPT_TARGET_IN_FRAME
+                        and target_in_frame
+                        and error_arcmin < POINTING_GROSS_ERROR_ARCMIN
+                    ):
+                        target_x = float(solve["target_x"])
+                        target_y = float(solve["target_y"])
+                        notify(
+                            "A7",
+                            "Pointing accepted: target is inside solved frame "
+                            f"x={target_x:.0f} y={target_y:.0f} "
+                            f"margin={int(solve.get('edge_margin_px', POINTING_EDGE_MARGIN_PX))}px "
+                            f"(center error {error_arcmin:.2f} arcmin)",
+                        )
                         break
 
                     notify("A7", f"Pointing outside tolerance ({error_arcmin:.2f} arcmin > {POINTING_TOLERANCE_ARCMIN:.2f})")

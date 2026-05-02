@@ -269,8 +269,16 @@ pointing_plate_solve_cpulimit_sec = 30
 pointing_max_retries              = 2
 pointing_gross_error_arcmin       = 180
 pointing_gross_max_retries        = 1
+pointing_accept_target_in_frame   = true
+pointing_edge_margin_px           = 250
 frame_retry_limit                 = 0
 ```
+
+When `pointing_accept_target_in_frame` is enabled, A7 accepts a solved frame if
+the target coordinate lands inside the image with the configured edge margin,
+even when the solved frame center is outside the nominal pointing tolerance.
+That avoids over-correcting Seestar EQ runs where the target is usable for
+photometry but not perfectly centered.
 
 The latest verification frame can be viewed through the dashboard endpoint
 `/preview/verify.jpg`.
