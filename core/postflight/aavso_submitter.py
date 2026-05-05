@@ -125,14 +125,23 @@ def _classify_response_lines(lines: list[str]) -> tuple[list[str], list[str], li
     success = []
     warnings = []
     errors = []
+    success_patterns = [
+        r"\bsuccess\b",
+        r"\bsuccessfully submitted\b",
+        r"\bsubmission complete\b",
+        r"\bobservations?\s+(?:were\s+)?submitted\b",
+        r"\baccepted\b",
+    ]
     for line in lines:
         low = line.lower()
-        if any(token in low for token in ("successfully submitted", "submission complete", "observations submitted", "accepted")):
+        if any(re.search(pattern, low) for pattern in success_patterns):
             success.append(line)
         if any(token in low for token in ("warning", "out of limit", "out-of-limit", "outside limit", "outside limits", "outside range", "duplicate", "non-fatal")):
             warnings.append(line)
         if any(token in low for token in ("error", "failed", "invalid", "rejected", "must", "required", "unable")):
             errors.append(line)
+    if success:
+        errors = [line for line in errors if "login session" in line.lower()]
     return success, warnings, errors
 
 
