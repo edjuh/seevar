@@ -10,6 +10,9 @@ import json
 from pathlib import Path
 
 import sys
+import numpy as np
+from astropy.io import fits
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -65,7 +68,7 @@ def main():
     bias_path = BIAS_LIBRARY_DIR / "bias_g80_master.fits"
     flat_path = FLAT_LIBRARY_DIR / "flat_scope01_TG_master.fits"
     bias_path.write_bytes(b"bias")
-    flat_path.write_bytes(b"flat")
+    fits.PrimaryHDU(data=np.ones((4, 4), dtype=np.float32)).writeto(flat_path, overwrite=True)
 
     upsert_calibration_asset("bias", "bias_g80", {
         "gain": 80,
