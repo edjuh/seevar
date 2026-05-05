@@ -66,9 +66,11 @@ target_key    = ""
 # -----------------------------------------------------------------------------
 # BAA — optional
 # Used only for the BAA-modified AAVSO Extended export variant.
+# observer_code can differ from your AAVSO observer code.
 # Leave empty to let SeeVar derive sane defaults from [location] and [[seestars]].
 # -----------------------------------------------------------------------------
 [baa]
+observer_code = ""
 telescope = ""
 camera    = ""
 

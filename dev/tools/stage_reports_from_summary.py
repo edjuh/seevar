@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import shutil
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -26,6 +27,8 @@ VSP_CACHE_DIRS = [
     PROJECT_ROOT / "data" / "comp_stars",
 ]
 INSTRUMENTAL_MAG_ZEROPOINT = 25.0
+DEFAULT_MIRROR_DIR = Path("/mnt/astronas/reports")
+AAVSO_MAX_MAG_ERROR = 0.5
 
 import sys
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -254,6 +257,26 @@ def _compute_check_mag(comp_rows: list[dict], source_id: str | None) -> str | fl
     return round(calc_mag, 3) if math.isfinite(calc_mag) else "na"
 
 
+def _aavso_ready_observations(observations: list[dict]) -> list[dict]:
+    ready = []
+    for obs in observations:
+        target = obs.get("target", "UNKNOWN")
+        try:
+            merr = float(obs.get("err"))
+        except (TypeError, ValueError):
+            print(f"Warning: AAVSO skipped {target}: MERR is missing or non-numeric")
+            continue
+
+        if not math.isfinite(merr) or merr < 0.0 or merr > AAVSO_MAX_MAG_ERROR:
+            print(f"Warning: AAVSO skipped {target}: MERR {merr:.3f} outside 0.000-{AAVSO_MAX_MAG_ERROR:.3f}")
+            continue
+        ready.append(obs)
+
+    if not ready:
+        raise ValueError("No AAVSO-ready observations after local validation")
+    return ready
+
+
 # Turn one accepted summary row into the normalized observation payload used by
 # the AAVSO and BAA report formatters.
 def _observation_from_summary(row: dict) -> dict:
@@ -349,6 +372,7 @@ def stage_reports(
     summary_path: Path | None,
     include_baa_ccd: bool = True,
     observer_code: str | None = None,
+    baa_observer_code: str | None = None,
 ) -> list[Path]:
     ledger_fallback = False
     if summary_path is not None:
@@ -361,18 +385,44 @@ def stage_reports(
         ledger_fallback = True
 
     observations = [_observation_from_summary(row) for row in accepted]
+    effective_baa_observer_code = baa_observer_code
+    if effective_baa_observer_code is None and observer_code:
+        try:
+            cfg = load_config()
+            if not str((cfg.get("baa", {}) or {}).get("observer_code", "")).strip():
+                effective_baa_observer_code = observer_code
+        except Exception:
+            effective_baa_observer_code = observer_code
+
     aavso = AAVSOReporter(observer_code=observer_code)
-    baa_ext = BAAModifiedExtendedReporter(observer_code=observer_code)
+    baa_ext = BAAModifiedExtendedReporter(observer_code=effective_baa_observer_code)
     outputs = [
-        aavso.finalize_report(observations),
+        aavso.finalize_report(_aavso_ready_observations(observations)),
         baa_ext.finalize_report(observations),
     ]
 
     if include_baa_ccd and not ledger_fallback:
         for obs in observations:
-            outputs.append(BAACCDReporter(observer_code=observer_code).finalize_report([obs]))
+            outputs.append(BAACCDReporter(observer_code=effective_baa_observer_code).finalize_report([obs]))
 
     return outputs
+
+
+def _mirror_outputs(outputs: list[Path], mirror_dir: Path | None) -> list[Path]:
+    if mirror_dir is None:
+        return []
+
+    mirror_dir = mirror_dir.expanduser()
+    if not mirror_dir.parent.exists():
+        return []
+
+    mirror_dir.mkdir(parents=True, exist_ok=True)
+    mirrored = []
+    for path in outputs:
+        dest = mirror_dir / path.name
+        shutil.copy2(path, dest)
+        mirrored.append(dest)
+    return mirrored
 
 
 # Parse CLI arguments for a read-mostly staging command.
@@ -392,6 +442,21 @@ def parse_args() -> argparse.Namespace:
         "--observer-code",
         help="Override observer code when local config.toml is absent or incomplete.",
     )
+    parser.add_argument(
+        "--baa-observer-code",
+        help="Override the BAA observer code. Defaults to [baa].observer_code, then the AAVSO code.",
+    )
+    parser.add_argument(
+        "--mirror-dir",
+        type=Path,
+        default=DEFAULT_MIRROR_DIR,
+        help="Copy generated reports to this directory when its parent mount exists.",
+    )
+    parser.add_argument(
+        "--no-mirror",
+        action="store_true",
+        help="Do not copy generated reports to the NAS mirror directory.",
+    )
     return parser.parse_args()
 
 
@@ -409,6 +474,7 @@ def main() -> None:
         summary_path,
         include_baa_ccd=not args.no_baa_ccd,
         observer_code=args.observer_code,
+        baa_observer_code=args.baa_observer_code,
     )
     if summary_path is not None:
         print(f"Summary: {summary_path}")
@@ -418,6 +484,9 @@ def main() -> None:
             print("Note: BAA CCD/CMOS export skipped in ledger fallback mode (exp_len not retained in ledger).")
     for path in outputs:
         print(path)
+    mirrored = _mirror_outputs(outputs, None if args.no_mirror else args.mirror_dir)
+    for path in mirrored:
+        print(f"Mirrored: {path}")
 
 
 if __name__ == "__main__":

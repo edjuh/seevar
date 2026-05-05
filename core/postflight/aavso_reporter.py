@@ -332,6 +332,16 @@ class BAAModifiedExtendedReporter(AAVSOReporter):
         self.telescope = self._normalize_text(telescope or self._build_telescope_string(), "baa.telescope")
         self.camera = self._normalize_text(camera or self._build_camera_string(), "baa.camera")
 
+    def _load_observer_code(self) -> str:
+        try:
+            cfg = load_config()
+            code = str(cfg.get("baa", {}).get("observer_code", "")).strip()
+            if code:
+                return code
+        except Exception as e:
+            log.warning("BAA observer lookup failed: %s", e)
+        return super()._load_observer_code()
+
     def _header_lines(self) -> list[str]:
         return [
             "#TYPE=AAVSO EXT BAA V1.00",
@@ -405,6 +415,16 @@ class BAACCDReporter(AAVSOReporter):
         self.analysis_software = self._normalize_text(analysis_software or DEFAULT_BAA_ANALYSIS, "baa.analysis_software")
         self.magnitude_type = self._normalize_text(magnitude_type, "baa.magnitude_type")
         self.comment = self._normalize_text(comment or "", "baa.comment", default="")
+
+    def _load_observer_code(self) -> str:
+        try:
+            cfg = load_config()
+            code = str(cfg.get("baa", {}).get("observer_code", "")).strip()
+            if code:
+                return code
+        except Exception as e:
+            log.warning("BAA observer lookup failed: %s", e)
+        return super()._load_observer_code()
 
     def _normalize_baa_observation(self, obs: dict, idx: int) -> dict:
         target = self._normalize_text(obs.get("target"), f"observations[{idx}].target")
