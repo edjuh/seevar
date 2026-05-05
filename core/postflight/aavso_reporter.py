@@ -382,7 +382,7 @@ class BAAModifiedExtendedReporter(AAVSOReporter):
     def finalize_report(self, observations: list[dict], validate: bool = True) -> Path:
         text = self.render_report_text(observations, validate=validate)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-        filename = f"BAA_AAVSO_EXT_{self.obs_code}_{timestamp}.txt"
+        filename = f"BAA_{self.obs_code}_{timestamp}.txt"
         save_path = self.report_dir / filename
         with open(save_path, "w", encoding="utf-8") as f:
             f.write(text)
