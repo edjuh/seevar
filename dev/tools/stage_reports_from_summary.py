@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -24,6 +25,7 @@ VSP_CACHE_DIRS = [
     PROJECT_ROOT / "data" / "reference_stars",
     PROJECT_ROOT / "data" / "comp_stars",
 ]
+INSTRUMENTAL_MAG_ZEROPOINT = 25.0
 
 import sys
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -142,6 +144,14 @@ def _star_coord(ra_value, dec_value, *, hourangle: bool = False) -> SkyCoord:
     return SkyCoord(float(ra_value) * u.deg, float(dec_value) * u.deg, frame="icrs")
 
 
+def _safe_float(value, default: float) -> float:
+    try:
+        out = float(value)
+        return out if math.isfinite(out) else default
+    except (TypeError, ValueError):
+        return default
+
+
 # Recover chart id and a plausible check-star row by crossmatching retained
 # Gaia comparison stars back onto the VSP chart sequence.
 def _chart_context(row: dict) -> dict:
@@ -175,23 +185,80 @@ def _chart_context(row: dict) -> dict:
                     best = vsp_star
 
             if best is not None and best_sep is not None and best_sep <= 5.0:
-                matches.append((float(comp.get("v_mag", 99.0)), comp, best, best_sep))
+                matches.append({
+                    "comp_row": comp,
+                    "vsp_star": best,
+                    "sep_arcsec": best_sep,
+                    "inst_err": _safe_float(comp.get("inst_err"), 9.99),
+                    "snr": _safe_float(comp.get("snr"), 0.0),
+                    "v_mag": _safe_float(comp.get("v_mag"), 99.0),
+                })
 
-        matches.sort(key=lambda item: item[0])
-        check = matches[0][2] if matches else None
+        matches.sort(key=lambda item: (item["inst_err"], -item["snr"], item["v_mag"], item["sep_arcsec"]))
+        check = matches[0]["vsp_star"] if matches else None
+        check_comp = matches[0]["comp_row"] if matches else None
         return {
             "chart_id": chart_id,
+            "check_source_id": str(check_comp.get("source_id")) if isinstance(check_comp, dict) else None,
             "check_name": (check.get("auid") or check.get("label")) if isinstance(check, dict) else "na",
-            "check_mag": next((band.get("mag") for band in (check.get("bands") or []) if band.get("band") == "V"), "na") if isinstance(check, dict) else "na",
+            "check_ref_mag": next((band.get("mag") for band in (check.get("bands") or []) if band.get("band") == "V"), "na") if isinstance(check, dict) else "na",
         }
     except Exception:
-        return {"chart_id": "na", "check_name": "na", "check_mag": "na"}
+        return {"chart_id": "na", "check_source_id": None, "check_name": "na", "check_ref_mag": "na"}
+
+
+# Compute the reported check-star magnitude against the ensemble excluding the
+# check star itself, so KMAG is a real calculated check and not circular.
+def _compute_check_mag(comp_rows: list[dict], source_id: str | None) -> str | float:
+    if not source_id:
+        return "na"
+
+    target_row = None
+    others = []
+    for row in comp_rows or []:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("source_id")) == str(source_id):
+            target_row = row
+        else:
+            others.append(row)
+
+    if target_row is None or len(others) < 2:
+        return "na"
+
+    weighted = []
+    for row in others:
+        try:
+            zp = float(row.get("zp"))
+            weight = float(row.get("weight"))
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(zp) or not math.isfinite(weight) or weight <= 0:
+            continue
+        weighted.append((zp, weight))
+
+    if len(weighted) < 2:
+        return "na"
+
+    try:
+        inst_mag = float(target_row.get("inst_mag"))
+    except (TypeError, ValueError):
+        return "na"
+
+    weight_sum = sum(weight for _, weight in weighted)
+    if weight_sum <= 0:
+        return "na"
+
+    avg_zp = sum(zp * weight for zp, weight in weighted) / weight_sum
+    calc_mag = avg_zp + inst_mag - INSTRUMENTAL_MAG_ZEROPOINT
+    return round(calc_mag, 3) if math.isfinite(calc_mag) else "na"
 
 
 # Turn one accepted summary row into the normalized observation payload used by
 # the AAVSO and BAA report formatters.
 def _observation_from_summary(row: dict) -> dict:
     chart_ctx = _chart_context(row)
+    check_mag = _compute_check_mag(row.get("comp_rows") or [], chart_ctx.get("check_source_id"))
     notes = [
         f"MODE={row.get('calibration_state', 'UNKNOWN')}",
         f"COMPS={row.get('n_comps', 0)}/{row.get('n_comps_raw', row.get('n_comps', 0))}",
@@ -211,7 +278,7 @@ def _observation_from_summary(row: dict) -> dict:
         "comp": "ENSEMBLE",
         "cmag": "na",
         "kname": chart_ctx["check_name"],
-        "kmag": chart_ctx["check_mag"],
+        "kmag": check_mag,
         "amass": _compute_airmass(row),
         "group": "na",
         "chart": chart_ctx["chart_id"],
