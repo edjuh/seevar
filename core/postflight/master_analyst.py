@@ -22,10 +22,36 @@ logger = logging.getLogger("MasterAnalyst")
 
 warnings.filterwarnings("ignore", category=AstropyWarning, append=True)
 
-SOLVE_RADIUS_DEG = 5.0
-SOLVE_CPULIMIT_SEC = 120
-SOLVE_TIMEOUT_SEC = 150
-SOLVE_SCALE_FUZZ = 0.25
+try:
+    from core.utils.env_loader import load_config
+except Exception:
+    def load_config() -> dict:
+        return {}
+
+
+def _postflight_cfg() -> dict:
+    cfg = load_config()
+    return cfg.get("postflight", {}) if isinstance(cfg, dict) else {}
+
+
+def _cfg_float(key: str, default: float) -> float:
+    try:
+        return float(_postflight_cfg().get(key, default))
+    except Exception:
+        return default
+
+
+def _cfg_int(key: str, default: int) -> int:
+    try:
+        return int(round(float(_postflight_cfg().get(key, default))))
+    except Exception:
+        return default
+
+
+SOLVE_RADIUS_DEG = _cfg_float("plate_solve_radius_deg", 5.0)
+SOLVE_CPULIMIT_SEC = max(10, _cfg_int("plate_solve_cpulimit_sec", 75))
+SOLVE_TIMEOUT_SEC = max(SOLVE_CPULIMIT_SEC + 5, _cfg_int("plate_solve_timeout_sec", 90))
+SOLVE_SCALE_FUZZ = _cfg_float("plate_solve_scale_fuzz", 0.25)
 
 
 class MasterAnalyst:

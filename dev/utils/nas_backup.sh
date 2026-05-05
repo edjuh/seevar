@@ -10,8 +10,9 @@ TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Extract the NAS primary_dir dynamically from config.toml
-NAS_DIR=$(grep 'primary_dir' "$SOURCE_DIR/config.toml" | cut -d '"' -f 2 || echo "/mnt/astronas/")
-BASE_DEST="${NAS_DIR}backup"
+NAS_DIR=$(awk -F '"' '/^[[:space:]]*primary_dir[[:space:]]*=/{print $2; exit}' "$SOURCE_DIR/config.toml" 2>/dev/null)
+[ -n "$NAS_DIR" ] || NAS_DIR="/mnt/astronas/"
+BASE_DEST="${NAS_DIR%/}/backup"
 SNAPSHOT_DEST="$BASE_DEST/seevar_$TIMESTAMP"
 
 # Explicitly mapping to the exact symlink target
@@ -32,9 +33,16 @@ rsync -rtv --delete \
 echo "📦 Initiating Data Snapshot from $RAID_DATA_DIR..."
 mkdir -p "$SNAPSHOT_DEST/data"
 
-# Explicitly backup the RAID1 data directory contents into the snapshot's data folder
+# Explicitly backup durable RAID1 data only.
+# Raw/cached FITS and WCS products are transient and should not flood NAS snapshots.
 if [ -d "$RAID_DATA_DIR" ]; then
-  rsync -rtv --delete "$RAID_DATA_DIR/" "$SNAPSHOT_DEST/data/"
+  rsync -rtv --delete \
+    --exclude='local_buffer/' \
+    --exclude='verify_buffer/' \
+    --exclude='calibrated_buffer/' \
+    --exclude='process/' \
+    --exclude='archive/' \
+    "$RAID_DATA_DIR/" "$SNAPSHOT_DEST/data/"
 else
   echo "⚠️ Warning: RAID data directory $RAID_DATA_DIR not found. Skipping data backup."
 fi

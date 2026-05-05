@@ -42,17 +42,21 @@ As of April 2026, the project has already confirmed:
 - sovereign flight execution with a canonical `A1-A12` sequence
 - Bayer-aware raw FITS capture
 - simulator support for end-to-end workflow testing
+- split-fleet planning and scoped execution for multiple Seestars
+- dashboard ABORT / RESET controls
 - a postflight architecture now frozen around a canonical `P1-P8` chain
 
-The current chapter is **v1.9.x: postflight scientific hardening**.
+The current chapter is **v1.9.x: scientific hardening and fleet execution**.
 
 That means the next priority is not discovering more hardware control.
-It is making the science chain more defensible:
+It is making the science chain more defensible and operationally safer:
 
-- real solved WCS in postflight
-- dark-calibrated working frames
+- solved WCS and honest photometric rejection in postflight
+- dark-calibrated working frames, with bias / flat plumbing added
 - sigma-clipped comparison-star ensembles
 - deterministic AAVSO report staging
+- BAA-modified AAVSO Extended and richer CCD/CMOS test-file export
+- multi-scope execution without shared-file collisions
 
 ---
 
@@ -131,6 +135,9 @@ Current reporting direction:
 
 - science channel: `G`
 - reporting code: `TG`
+- morning triage artifact: `data/reports/postflight_summary_*.txt` and `.json`
+- manual submission staging: `python3 dev/tools/stage_reports_from_summary.py`
+- WebObs submit probe/upload: `python3 dev/tools/submit_aavso_webobs.py --probe-only`
 
 ### Astrometric and detector truth matter
 
@@ -166,14 +173,17 @@ Install on a fresh Raspberry Pi OS Lite 64-bit system:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/edjuh/seevar/main/bootstrap.sh)
+```
+
 The bootstrap process is intended to:
 
-install dependencies
-create the Python environment
-collect site and telescope configuration
-prepare system services
-bring the observatory into a runnable state
-For full instructions, see INSTALL.md.
+- install dependencies
+- create the Python environment
+- collect site and telescope configuration
+- prepare system services
+- bring the observatory into a runnable state
+
+For full instructions, see `INSTALL.md`.
 
 For upgrading an existing checkout, see `UPGRADE.MD` or run:
 
@@ -182,67 +192,220 @@ cd ~/seevar
 curl -fsSL https://raw.githubusercontent.com/edjuh/seevar/main/upgrade.sh | bash
 ```
 
+## Practical Notes
 
-Documentation
-Project doctrine and architecture live in the logic documents under dev/logic/.
+### Starter Catalog
+
+SeeVar ships with a starter `catalogs/campaign_targets.json` so a new install has a usable target set immediately.
+
+Runtime-generated catalog products remain local:
+
+- `catalogs/federation_catalog.json`
+- `catalogs/reference_stars/`
+
+### Fleet Mode
+
+`fleet_mode` lives in `[planner]`:
+
+- `single` = one shared queue
+- `split` = divide work across active scopes
+- `auto` = choose based on live scope availability
+
+Split planning writes both combined and per-scope artifacts under `data/fleet_plans/` and `data/fleet_payloads/`.
+
+### Dashboard Controls
+
+The dashboard now exposes operator controls for:
+
+- `ABORT`
+- `RESET`
+
+`ABORTED` is treated as a hard stop. `RESET` returns the orchestrator to `IDLE` so the system can be re-armed cleanly.
+
+### Horizon Scanning
+
+The active scanner is `core/preflight/horizon_scanner_v2.py`.
+It produces:
+
+- `data/horizon_mask.json`
+- `data/horizon_mask.csv`
+- `data/horizon_mask.png`
+- `data/horizon_frames/` debug artifacts
+
+The scanned profile is advisory geometry, not the last word. SeeVar always
+applies `[location].horizon_limit` and manual obstruction boxes as hard safety
+floors on top of `data/horizon_mask.json`. Use manual boxes for known roofs,
+trees, balcony rails, or any sector where a scanner result is questionable:
+
+```toml
+[[location.obstructions]]
+label    = "west_house_roof"
+az_start = 225.0
+az_end   = 355.0
+min_alt  = 70.0
+```
+
+Wrap-around sectors are supported, for example `az_start = 330` and
+`az_end = 20`.
+
+If postflight appears stuck on a bad field, check `logs/accountant.log`.
+Plate solving is capped by `[postflight]`:
+
+```toml
+[postflight]
+max_plate_solve_candidates = 3
+plate_solve_timeout_sec    = 90
+plate_solve_cpulimit_sec   = 75
+```
+
+The accountant tries the aligned stack first, then the newest calibrated single
+frames. When the cap is reached, the target fails honestly and processing moves
+on.
+
+A7 in-flight pointing verification is separate from postflight. It is governed
+by `[flight]` and should fail fast:
+
+```toml
+[flight]
+pointing_plate_solve_timeout_sec  = 35
+pointing_plate_solve_cpulimit_sec = 30
+pointing_max_retries              = 2
+pointing_gross_error_arcmin       = 180
+pointing_gross_max_retries        = 1
+pointing_accept_target_in_frame   = true
+pointing_edge_margin_px           = 250
+verify_retention_sets            = 40
+frame_retry_limit                 = 0
+```
+
+When `pointing_accept_target_in_frame` is enabled, A7 accepts a solved frame if
+the target coordinate lands inside the image with the configured edge margin,
+even when the solved frame center is outside the nominal pointing tolerance.
+That avoids over-correcting Seestar EQ runs where the target is usable for
+photometry but not perfectly centered.
+
+`verify_retention_sets` caps how many recent A7 verification bundles are kept
+in `data/verify_buffer`. Each bundle includes the verify FITS plus its
+`solve-field` sidecars, which prevents that directory from growing without
+bound while still leaving recent frames available on the dashboard.
+
+The latest verification frame can be viewed through the dashboard endpoint
+`/preview/verify.jpg`.
+
+It can export two different Stellarium artifacts:
+
+- a polygonal horizon package for mathematically correct obstruction geometry
+- a spherical panorama package for visual context
+
+The polygonal package contains:
+
+- `horizon.txt`
+- `landscape.ini`
+- `location.json`
+- `readme.txt`
+
+The spherical panorama package contains:
+
+- `panorama.png`
+- `horizon.txt`
+- `landscape.ini`
+- `location.json`
+- `readme.txt`
+
+For the visual package, prefer real RGB photos or videos over scanner luma frames.
+See `core/preflight/stellarium_panorama_from_media.py` for building a panorama zip
+from normal JPEG/MP4 inputs, or `core/preflight/stellarium_panorama_capture.py`
+for a guided capture flow that can switch the Seestar into `scenery` mode and
+pull newly saved JPEGs from a mounted Seestar media share (default mount:
+`~/seevar/s30_storage`) or directly from an `smb://...` Seestar share URI.
+The capture flow now watches for a newly written scenery file by default and
+supports a fixed azimuth correction for mounts whose reported headings are offset.
+
+Example:
+
+```bash
+cd ~/seevar
+/home/ed/seevar/.venv/bin/python core/preflight/horizon_scanner_v2.py \
+  --ip 192.168.8.11 \
+  --output /home/ed/seevar/data/horizon_mask.json \
+  --stellarium-zip /home/ed/seevar/data/stellarium/SeeVar_JO22hj.zip \
+  --stellarium-name "SeeVar JO22hj Polygon" \
+  --stellarium-panorama-zip /home/ed/seevar/data/stellarium/SeeVar_JO22hj_panorama.zip \
+  --stellarium-panorama-name "SeeVar JO22hj Panorama"
+```
+
+## Documentation
+
+Project doctrine and architecture live in `dev/logic/`.
 
 Good starting points:
 
-CORE.MD
-ARCHITECTURE_OVERVIEW.MD
-STATE_MACHINE.MD
-FLIGHT.MD
-POSTFLIGHT.MD
-PHOTOMETRICS.MD
-ROADMAP.md
-Astropy
+- `CORE.MD`
+- `ARCHITECTURE_OVERVIEW.MD`
+- `STATE_MACHINE.MD`
+- `FLIGHT.MD`
+- `POSTFLIGHT.MD`
+- `PHOTOMETRICS.MD`
+- `ROADMAP.md`
+
+## Astropy
+
 SeeVar contains some custom implementations that grew out of the project's early phases, before the full breadth of Astropy was properly appreciated.
 
 Current direction:
 
-use Astropy more where it improves correctness, maintainability, and scientific trust
-keep custom code where the problem is genuinely SeeVar-specific:
-Bayer-aware photometry
-Seestar-specific hardware behavior
-mission-state orchestration
-custody and observatory workflow
+- use Astropy more where it improves correctness, maintainability, and scientific trust
+- keep custom code where the problem is genuinely SeeVar-specific, especially:
+- Bayer-aware photometry
+- Seestar-specific hardware behavior
+- mission-state orchestration
+- custody and observatory workflow
+
 This is an area of active review, not a philosophical rejection of Astropy.
 
-Beta Expectations
+## Beta Expectations
+
 SeeVar is not pretending to be finished.
 
 What is already real:
 
-Alpaca control
-nightly planning
-simulator-supported mission flow
-raw FITS capture
-postflight scientific doctrine
+- Alpaca control
+- nightly planning
+- simulator-supported mission flow
+- raw FITS capture
+- split fleet planning and scoped execution
+- postflight scientific doctrine
+- deterministic postflight summary artifacts
+
 What is still under active hardening:
 
-real solved WCS as a hard postflight dependency
-dark-calibrated science frames
-ensemble sigma clipping
-final reporting path
+- solved WCS as a hard postflight dependency
+- final flat / bias capture workflow and full application policy
+- ensemble sigma clipping
+- richer automatic publication policy and BAA transport
+
 That is the honest state of the project.
 
-Contributing
+## Contributing
+
 Testers and technically minded contributors are welcome.
 
 Please open an issue first if the change affects:
 
-mission sequencing
-protocol assumptions
-scientific validity
-ledger semantics
-observatory doctrine
-For contribution standards, see CONTRIBUTING.md.
+- mission sequencing
+- protocol assumptions
+- scientific validity
+- ledger semantics
+- observatory doctrine
 
-Philosophy
+For contribution standards, see `CONTRIBUTING.md`.
+
+## Philosophy
+
 Good hardware deserves serious use.
 
 A small telescope, careful automation, and scientific discipline can produce real observations night after night. SeeVar exists to make that possible without pretending that autonomy is the same thing as trust.
 
-The project’s rule is simple:
+The project's rule is simple:
 
 If a frame is not proven, it is not accepted.

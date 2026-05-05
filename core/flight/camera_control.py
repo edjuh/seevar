@@ -11,7 +11,8 @@ import logging
 import requests
 from typing import Optional
 
-from core.flight.pilot import SEESTAR_HOST, ALPACA_PORT
+from core.flight.pilot import ALPACA_PORT
+from core.utils.env_loader import load_config, selected_scope_host
 
 log = logging.getLogger("seevar.camera_control")
 
@@ -22,12 +23,12 @@ class CameraControl:
     Replaces TCP ControlSocket with HTTP management API ping.
     """
 
-    def __init__(self, host: str = SEESTAR_HOST, port: int = ALPACA_PORT,
+    def __init__(self, host: str | None = None, port: int = ALPACA_PORT,
                  timeout: float = 10.0):
-        self.host    = host
+        self.host    = host or selected_scope_host(load_config())[0]
         self.port    = port
         self.timeout = timeout
-        self._base   = f"http://{host}:{port}"
+        self._base   = f"http://{self.host}:{port}"
 
     def get_view_status(self) -> bool:
         """

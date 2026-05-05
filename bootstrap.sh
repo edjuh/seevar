@@ -217,6 +217,9 @@ function create_directory_structure {
 
   mkdir -p "$SEEVAR_DIR/data/local_buffer"
   mkdir -p "$SEEVAR_DIR/data/archive"
+  mkdir -p "$SEEVAR_DIR/data/dark_library"
+  mkdir -p "$SEEVAR_DIR/data/bias_library"
+  mkdir -p "$SEEVAR_DIR/data/flat_library"
   mkdir -p "$SEEVAR_DIR/data/sequences"
   mkdir -p "$SEEVAR_DIR/data/comp_stars"
   mkdir -p "$SEEVAR_DIR/data/reports"
@@ -528,21 +531,47 @@ RestartSec=10
 StandardOutput=append:${SEEVAR_DIR}/logs/dashboard.log
 StandardError=append:${SEEVAR_DIR}/logs/dashboard.err
 
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=yes
-PrivateDevices=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-CapabilityBoundingSet=
-ReadWritePaths=${SEEVAR_DIR}/data ${SEEVAR_DIR}/logs
 TimeoutStartSec=30s
 TimeoutStopSec=10s
 
 [Install]
 WantedBy=default.target
+SVCEOF
+
+  cat > "$SYSTEMD_DIR/seevar-planner.service" <<SVCEOF
+[Unit]
+Description=SeeVar Nightly Planner
+After=network-online.target seevar-weather.service seevar-gps.service
+Wants=network-online.target seevar-weather.service seevar-gps.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=${SEEVAR_DIR}
+Environment=PYTHONPATH=${SEEVAR_DIR}
+ExecStart=${PYBIN} core/preflight/nightly_planner.py
+ExecStart=${PYBIN} core/preflight/schedule_compiler.py
+StandardOutput=append:${SEEVAR_DIR}/logs/planner.log
+StandardError=append:${SEEVAR_DIR}/logs/planner.log
+
+TimeoutStartSec=180s
+TimeoutStopSec=10s
+
+[Install]
+WantedBy=default.target
+SVCEOF
+
+  cat > "$SYSTEMD_DIR/seevar-planner.timer" <<SVCEOF
+[Unit]
+Description=Run SeeVar Nightly Planner Daily
+
+[Timer]
+OnBootSec=3min
+OnCalendar=*-*-* 15:00:00
+Persistent=true
+Unit=seevar-planner.service
+
+[Install]
+WantedBy=timers.target
 SVCEOF
 
   cat > "$SYSTEMD_DIR/seevar-orchestrator.service" <<SVCEOF
@@ -561,18 +590,8 @@ ExecStart=${PYBIN} core/flight/orchestrator.py
 Restart=always
 RestartSec=15
 StandardOutput=append:${SEEVAR_DIR}/logs/orchestrator.log
-StandardError=append:${SEEVAR_DIR}/logs/orchestrator.err
+StandardError=append:${SEEVAR_DIR}/logs/orchestrator.log
 
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=yes
-PrivateDevices=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-CapabilityBoundingSet=
-ReadWritePaths=${SEEVAR_DIR}/data ${SEEVAR_DIR}/logs
 TimeoutStartSec=30s
 TimeoutStopSec=10s
 
@@ -598,16 +617,6 @@ RestartSec=30
 StandardOutput=append:${SEEVAR_DIR}/logs/weather.log
 StandardError=append:${SEEVAR_DIR}/logs/weather.err
 
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=yes
-PrivateDevices=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-CapabilityBoundingSet=
-ReadWritePaths=${SEEVAR_DIR}/data ${SEEVAR_DIR}/logs
 TimeoutStartSec=30s
 TimeoutStopSec=10s
 
@@ -633,16 +642,6 @@ RestartSec=10
 StandardOutput=append:${SEEVAR_DIR}/logs/gps.log
 StandardError=append:${SEEVAR_DIR}/logs/gps.err
 
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-PrivateTmp=yes
-PrivateDevices=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-CapabilityBoundingSet=
-ReadWritePaths=${SEEVAR_DIR}/data ${SEEVAR_DIR}/logs
 TimeoutStartSec=30s
 TimeoutStopSec=10s
 
@@ -650,7 +649,7 @@ TimeoutStopSec=10s
 WantedBy=default.target
 SVCEOF
 
-  chmod 644 "$SYSTEMD_DIR"/*.service
+  chmod 644 "$SYSTEMD_DIR"/*.service "$SYSTEMD_DIR"/*.timer
 
   sudo loginctl enable-linger "$(whoami)"
   systemctl --user daemon-reload
@@ -659,6 +658,8 @@ SVCEOF
     systemctl --user enable "$service"
     info "Enabled ${service}"
   done
+  systemctl --user enable seevar-planner.timer
+  info "Enabled seevar-planner.timer"
 
   section "Starting services"
   for service in seevar-weather seevar-orchestrator seevar-dashboard seevar-gps; do
@@ -666,6 +667,12 @@ SVCEOF
       && info "Started ${service}" \
       || warn "${service} did not start cleanly — check: systemctl --user status ${service}"
   done
+  systemctl --user start seevar-planner.service \
+    && info "Ran initial seevar-planner.service" \
+    || warn "seevar-planner.service did not start cleanly — check: systemctl --user status seevar-planner.service"
+  systemctl --user start seevar-planner.timer \
+    && info "Started seevar-planner.timer" \
+    || warn "seevar-planner.timer did not start cleanly — check: systemctl --user status seevar-planner.timer"
 
   info "User services running."
 }

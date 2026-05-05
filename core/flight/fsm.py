@@ -17,12 +17,26 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.flight.pilot import AcquisitionTarget, DiamondSequence, TelemetryBlock
-from core.utils.env_loader import DATA_DIR
+from core.utils.env_loader import DATA_DIR, load_config
 
 logger = logging.getLogger("seevar.fsm")
 
 STATE_FILE = DATA_DIR / "system_state.json"
-FRAME_RETRY_LIMIT = 1
+
+
+def _flight_cfg() -> dict:
+    cfg = load_config()
+    return cfg.get("flight", {}) if isinstance(cfg, dict) else {}
+
+
+def _cfg_int(key: str, default: int) -> int:
+    try:
+        return int(round(float(_flight_cfg().get(key, default))))
+    except Exception:
+        return default
+
+
+FRAME_RETRY_LIMIT = max(0, _cfg_int("frame_retry_limit", 0))
 
 
 class SovereignFSM:
@@ -140,7 +154,7 @@ class SovereignFSM:
                         target=target,
                         status_cb=bridge,
                         telemetry=self.telemetry,
-                        skip_pointing=(successful_frames > 0 or i > 0),
+                        skip_pointing=(successful_frames > 0),
                     )
 
                     if result.success:

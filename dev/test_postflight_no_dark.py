@@ -24,6 +24,7 @@ LOCAL_BUFFER = DATA_DIR / "local_buffer"
 ARCHIVE_DIR = DATA_DIR / "archive"
 DARK_DIR = DATA_DIR / "dark_library"
 CAL_DIR = DATA_DIR / "calibrated_buffer"
+PROCESS_DIR = DATA_DIR / "process"
 LEDGER_FILE = DATA_DIR / "ledger.json"
 
 TARGET_NAME = "NO_DARK_SYNTH"
@@ -32,10 +33,10 @@ HEIGHT = 3840
 
 
 def reset_test_artifacts():
-    for path in (LOCAL_BUFFER, ARCHIVE_DIR, DARK_DIR, CAL_DIR):
+    for path in (LOCAL_BUFFER, ARCHIVE_DIR, DARK_DIR, CAL_DIR, PROCESS_DIR):
         path.mkdir(parents=True, exist_ok=True)
 
-    for directory in (LOCAL_BUFFER, ARCHIVE_DIR, DARK_DIR, CAL_DIR):
+    for directory in (LOCAL_BUFFER, ARCHIVE_DIR, DARK_DIR, CAL_DIR, PROCESS_DIR):
         for p in directory.iterdir():
             if p.is_file():
                 p.unlink()

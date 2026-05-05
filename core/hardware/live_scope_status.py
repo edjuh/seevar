@@ -88,11 +88,27 @@ def poll_scope_status(ip: str, port: int = 32323) -> dict:
     return result
 
 
+def has_live_device_data(status: dict) -> bool:
+    """Treat successful live telemetry as presence, even if Connected=false."""
+    if not status:
+        return False
+
+    if status.get("device_count", 0):
+        return True
+
+    for key in ("ra", "dec", "altitude", "azimuth", "temp_c", "battery", "battery_pct"):
+        value = status.get(key)
+        if value not in (None, "", "N/A"):
+            return True
+
+    return False
+
+
 def derive_operational_state(status: dict) -> str:
     if not status:
         return "OFFLINE"
-    if not status.get("telescope_connected", False):
-        return "DISCONNECTED"
+    if status.get("link_status") != "ONLINE":
+        return "OFFLINE"
     if status.get("at_park"):
         return "PARKED"
     if status.get("slewing"):
@@ -101,5 +117,8 @@ def derive_operational_state(status: dict) -> str:
         return "IMAGING"
     if status.get("tracking"):
         return "TRACKING"
+    if has_live_device_data(status):
+        return "IDLE"
+    if not status.get("telescope_connected", False):
+        return "DISCONNECTED"
     return "IDLE"
-

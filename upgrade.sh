@@ -38,6 +38,13 @@ git pull --ff-only origin "$BRANCH"
 echo "[upgrade] ensuring local data directory exists"
 mkdir -p "$TARGET_DIR/data"
 
+if [[ -d "$TARGET_DIR/systemd" ]]; then
+  echo "[upgrade] refreshing systemd user units"
+  mkdir -p "$HOME/.config/systemd/user"
+  cp "$TARGET_DIR"/systemd/*.service "$TARGET_DIR"/systemd/*.timer "$HOME/.config/systemd/user/" 2>/dev/null || true
+  systemctl --user daemon-reload || echo "[upgrade] warning: systemd user daemon-reload failed"
+fi
+
 if [[ -x "$VENV_PY" ]]; then
   echo "[upgrade] refreshing pip and requirements"
   "$VENV_PY" -m pip install --upgrade pip

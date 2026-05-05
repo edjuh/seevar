@@ -25,17 +25,54 @@ bortle         = 7        # 1 = pristine dark sky, 9 = city centre
 horizon_limit  = 30.0     # minimum target altitude in degrees
 moon_avoidance = 30.0     # minimum angular distance from moon in degrees
 
+# Manual obstruction boxes are always applied as safety floors, even when a
+# scanned data/horizon_mask.json profile exists. Use these for houses, roofs,
+# trees, balconies, or any sector where an experimental scan is not trustworthy.
+#
+# [[location.obstructions]]
+# label    = "west_house_roof"
+# az_start = 225.0
+# az_end   = 355.0     # wrap-around sectors are allowed, e.g. 330 -> 20
+# min_alt  = 70.0
+
+# -----------------------------------------------------------------------------
+# HORIZON — optional
+# profile_enabled : true uses data/horizon_mask.json when present.
+# safety_floor_deg: hard minimum altitude before manual obstructions are applied.
+#                  [location].horizon_limit is also honored as a safety floor.
+# -----------------------------------------------------------------------------
+[horizon]
+profile_enabled = true
+safety_floor_deg = 15.0
+
 # -----------------------------------------------------------------------------
 # AAVSO — required
 # observer_code : your official AAVSO observer code (e.g. REDA)
-# webobs_token  : optional — needed for live AAVSO WebObs submission
+# webobs_session_cookie : optional — authenticated apps.aavso.org session cookie
+#                         for live WebObs submission automation.
+#                         Preferred format:
+#                         "app2_session=...; canary=false"
+# webobs_token  : optional legacy fallback — if set and webobs_session_cookie
+#                 is empty, SeeVar treats this as the raw app2_session value.
 # target_key    : optional — needed for live AAVSO TargetTool API access
 #                 The bundled seed catalog works without these keys.
 # -----------------------------------------------------------------------------
 [aavso]
 observer_code = "YOUR_CODE_HERE"
+webobs_session_cookie = ""
 webobs_token  = ""
 target_key    = ""
+
+# -----------------------------------------------------------------------------
+# BAA — optional
+# Used only for the BAA-modified AAVSO Extended export variant.
+# observer_code can differ from your AAVSO observer code.
+# Leave empty to let SeeVar derive sane defaults from [location] and [[seestars]].
+# -----------------------------------------------------------------------------
+[baa]
+observer_code = ""
+telescope = ""
+camera    = ""
 
 # -----------------------------------------------------------------------------
 # PLANNER — required
@@ -47,7 +84,33 @@ target_key    = ""
 sun_altitude_limit = -18.0
 cadence_divisor      = 20    # period / cadence_divisor = observation interval (1/20th rule)
 cadence_fallback_days = 3.0   # fallback cadence (days) for targets without a known period
+fleet_mode         = "single" # single = one shared queue, split = divide when 2+ scopes are active, auto = choose by active scope count
 simulation_mode    = false
+
+# -----------------------------------------------------------------------------
+# FLIGHT — optional
+# A7 pointing verification must fail fast. If it cannot solve a 2s verification
+# frame in roughly half a minute, the target is probably clouded, blocked, or
+# off-field; move on instead of burning the night.
+# For quick pre-alignment before a session, run:
+#   .venv/bin/python dev/tools/prealign_pointing.py --points 3 --exposure-sec 5
+# -----------------------------------------------------------------------------
+[flight]
+pointing_verify_exposure_sec       = 2.0
+pointing_plate_solve_timeout_sec   = 35
+pointing_plate_solve_cpulimit_sec  = 30
+pointing_plate_solve_radius_deg    = 5.0
+pointing_plate_solve_downsample    = 1
+pointing_tolerance_arcmin          = 12.0
+pointing_max_retries               = 2
+pointing_gross_error_arcmin        = 180.0
+pointing_gross_max_retries         = 1
+pointing_accept_target_in_frame    = true
+pointing_edge_margin_px            = 250
+verify_retention_sets             = 40
+pointing_model_enabled             = true
+pointing_model_max_age_hours       = 12.0
+frame_retry_limit                  = 0
 
 # -----------------------------------------------------------------------------
 # STORAGE — required
@@ -76,6 +139,25 @@ max_cloud_mid_pct  = 50.0   # %       — mid cloud abort
 max_cloud_high_pct = 70.0   # %       — high cloud warning only (HAZY)
 max_humidity_pct   = 90.0   # %       — humidity warning only (HUMID) — dew heater cue
 fog_abort          = true   # bool    — any fog reading aborts the session
+
+# -----------------------------------------------------------------------------
+# POSTFLIGHT — optional
+# Caps plate solving so a bad roof/cloud frame cannot pin the accountant for
+# hours. Candidate order is stack first, then newest calibrated single frames.
+# -----------------------------------------------------------------------------
+[postflight]
+max_plate_solve_candidates = 3
+plate_solve_timeout_sec    = 90
+plate_solve_cpulimit_sec   = 75
+
+# -----------------------------------------------------------------------------
+# CALIBRATION — optional
+# Darks are reusable across equivalent Seestar models, but only for matching
+# exposure/gain and a nearby camera temperature bin. Tighten this if dark current
+# mismatch becomes visible; loosen only for emergency beta recovery.
+# -----------------------------------------------------------------------------
+[calibration]
+dark_temp_tolerance_c = 4.0
 
 # -----------------------------------------------------------------------------
 # NOTIFICATIONS — optional

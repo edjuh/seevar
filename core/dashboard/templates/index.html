@@ -21,20 +21,29 @@
         .top-bar { display: flex; justify-content: space-between; color: var(--led-green); font-weight: bold; font-size: 0.9em; margin-bottom: 20px; padding: 5px 0; border-bottom: 1px solid #333; }
         .swipe-hint { display: none; text-align: center; color: var(--led-orange); font-size: 0.8em; margin-bottom: 10px; font-weight: bold; }
 
-        .container { display: flex; gap: 20px; justify-content: space-between; width: 100%; flex: 1;}
-        .panel { flex: 1; background-color: var(--panel-bg); border: 1px solid #333; padding: 20px; min-height: 400px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+        .container { display: flex; gap: 20px; justify-content: space-between; align-items: stretch; width: 100%; flex: 1;}
+        .panel { flex: 1 1 0; min-width: 0; background-color: var(--panel-bg); border: 1px solid #333; padding: 20px; min-height: 400px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); overflow: hidden; }
         .panel h2 { color: var(--text-muted); font-size: 0.85em; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 10px; margin-top: 0; margin-bottom: 20px; }
         
         .flight-window-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #333; font-size: 0.9em; font-weight: bold; }
         .fw-val { color: #88ccff; letter-spacing: 1px; }
 
-        .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.85em; font-weight: bold; }
-        .label { color: var(--text-muted); width: 45%; }
-        .val { color: var(--text-bright); text-align: left; flex: 1; }
+        .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; font-size: 0.85em; font-weight: bold; }
+        .label { color: var(--text-muted); width: 38%; flex: 0 0 38%; }
+        .val { color: var(--text-bright); text-align: left; flex: 1; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+        .val-wrap { white-space: normal; }
         
         .target-card { border-top: 1px dashed #333; padding-top: 15px; margin-top: 15px; } 
-        .target-card .row { margin-bottom: 8px; }
-        .target-card .label { width: 30%; color: #aaa; }
+        .target-card .row { margin-bottom: 8px; align-items: flex-start; }
+        .target-card .label { width: 24%; flex: 0 0 24%; color: #aaa; }
+        .fleet-row { align-items: flex-start; }
+        .fleet-list { display: flex; flex-direction: column; gap: 3px; line-height: 1.15; }
+        .fleet-item { display: flex; align-items: baseline; gap: 8px; }
+        .fleet-icon { width: 1ch; flex: 0 0 1ch; text-align: center; }
+        .fleet-text { flex: 1; }
+        .batt-good { color: var(--led-green); }
+        .batt-warn-inline { color: var(--led-orange); }
+        .batt-crit-inline { color: var(--alert-red); }
         
         .led { width: 20px; height: 20px; border-radius: 4px; margin-left: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color: #000; }
         .green { background-color: var(--led-green); box-shadow: 0 0 8px var(--led-green); }
@@ -53,12 +62,16 @@
         
         .status-main { color: var(--text-bright); font-size: 2em; letter-spacing: 5px; font-weight: 900; margin-bottom: 10px; transition: color 0.5s ease;}
         .status-sub { color: var(--text-bright); font-size: 0.9em; font-weight: bold; margin-bottom: 30px; letter-spacing: 1px; }
-        .status-msg { color: var(--text-muted); font-size: 0.8em; font-style: italic; }
-        .preview-strip { display:flex; gap:10px; width:100%; margin-top:18px; }
-        .preview-card { flex:1; border:1px solid #333; background:#121212; padding:8px; }
-        .preview-title { color:#777; font-size:0.65em; letter-spacing:1.5px; margin-bottom:6px; text-transform:uppercase; }
-        .preview-frame { width:100%; aspect-ratio:16/9; object-fit:cover; display:block; background:#050505; border:1px solid #222; }
-
+        .status-msg { color: var(--text-muted); font-size: 0.8em; font-style: italic; max-width: 100%; overflow-wrap: anywhere; }
+        .control-bar { display: flex; gap: 10px; margin-top: 18px; }
+        .control-btn { border: 1px solid #333; background: #131313; color: var(--text-bright); padding: 8px 14px; font: inherit; letter-spacing: 1px; cursor: pointer; }
+        .control-btn:hover:not(:disabled) { border-color: #666; }
+        .control-btn:disabled { opacity: 0.35; cursor: default; }
+        .control-btn.abort { color: var(--alert-red); border-color: #4f1d1d; }
+        .control-btn.reset { color: #88ccff; border-color: #234154; }
+        .preview-card { width: 100%; max-width: 260px; margin-top: 18px; border-top: 1px dashed #333; padding-top: 12px; }
+        .preview-title { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.65em; letter-spacing: 1.5px; margin-bottom: 8px; }
+        .preview-image { width: 100%; height: 120px; object-fit: cover; border: 1px solid #2a2a2a; background: #050505; }
         @keyframes pulse-green { 0% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } 50% { box-shadow: 0 0 30px rgba(57,255,20,0.8); } 100% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } }
         @keyframes pulse-blue { 0% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } 50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(93,173,226,0.8); } 100% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } }
         @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -69,8 +82,8 @@
         .batt-crit { color: var(--alert-red) !important; animation: pulse-red 1.5s infinite; }
         @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        .flight-log-container { display: flex; flex-direction: column; gap: 4px; border-top: 1px dashed #333; padding-top: 15px; margin-top: 15px; height: 100px; overflow: hidden; justify-content: flex-end;}
-        .log-line { color: var(--text-muted); font-size: 0.9em; white-space: nowrap; }
+        .flight-log-container { display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed #333; padding-top: 15px; margin-top: 15px; min-height: 110px; max-height: 180px; overflow-y: auto; justify-content: flex-start;}
+        .log-line { color: var(--text-muted); font-size: 0.9em; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
         .log-line.latest { color: var(--text-bright); font-weight: bold; }
 
         @media (max-width: 900px) {
@@ -135,21 +148,21 @@
             <div class="row"><span class="label">WEATHER (PRED)</span> <span id="weather-val" class="val">CLEAR</span> <div id="weather-icon-led" class="led weather-icon">⭐</div></div>
             <div class="row"><span class="label">FOG (VIS)</span> <span class="val">DISCONNECTED</span> <div class="led blue-grey"></div></div>
             
-            <div class="row"><span class="label">BATTERY</span> <span id="bb-batt" class="val stat-val">--%</span></div>
+            <div class="row fleet-row"><span class="label">BATTERIES</span> <span id="bb-batt" class="val stat-val val-wrap">--</span></div>
             <div class="row"><span class="label">MOUNT POS</span> <span id="bb-mount" class="val stat-val">--</span></div>
-            <div class="row"><span class="label">FLEET</span> <span id="bb-fleet" class="val stat-val">--</span></div>
+            <div class="row fleet-row"><span class="label">FLEET</span> <span id="bb-fleet" class="val stat-val val-wrap">--</span></div>
             
             <div class="target-card">
                 <div class="row" style="padding-bottom: 5px;">
-                    <span class="label" style="width: auto;">TARGET TELEMETRY</span>
+                    <span class="label" style="width: auto;">PLAN TICKER</span>
                     <div id="target-count-led" class="led orange">00</div>
                 </div>
                 <div class="row"><span class="label">NAME</span> <span id="t-name" class="val">FETCHING...</span></div>
                 <div class="row"><span class="label">TYPE</span> <span id="t-type" class="val">-</span></div>
-                <div class="row"><span class="label">LOC</span> <span id="t-loc" class="val" style="font-size: 0.9em;">-</span></div>
+                <div class="row"><span class="label">SKY POS</span> <span id="t-loc" class="val" style="font-size: 0.9em;">-</span></div>
                 <div class="row"><span class="label">MAG</span> <span id="t-mag" class="val">-</span></div>
-                <div class="row"><span class="label">CAT / VIS</span> <span id="t-funnel-1" class="val">- / -</span></div>
-                <div class="row"><span class="label">DUE / CMP</span> <span id="t-funnel-2" class="val">- / -</span></div>
+                <div class="row"><span class="label">CAT / VISIBLE</span> <span id="t-funnel-1" class="val">- / -</span></div>
+                <div class="row"><span class="label">DUE / COMPILED</span> <span id="t-funnel-2" class="val">- / -</span></div>
             </div>
         </div>
 
@@ -160,15 +173,17 @@
                 <div id="orch-sub" class="status-sub">OFF-DUTY</div>
                 <div id="orch-progress" class="status-sub" style="font-size:0.8em;color:#888;">0 done · 0 left</div>
                 <div id="orch-msg" class="status-msg">Waiting for orchestrator...</div>
-                <div class="preview-strip">
-                    <div class="preview-card">
-                        <div class="preview-title">Latest Science</div>
-                        <img id="preview-science" class="preview-frame" src="/preview/science.jpg" alt="Latest science preview">
-                    </div>
-                    <div class="preview-card">
-                        <div class="preview-title">Latest Verify</div>
-                        <img id="preview-verify" class="preview-frame" src="/preview/verify.jpg" alt="Latest verify preview">
-                    </div>
+                <div class="control-bar">
+                    <button id="abort-btn" class="control-btn abort" type="button">ABORT</button>
+                    <button id="reset-btn" class="control-btn reset" type="button">RESET</button>
+                </div>
+                <div class="preview-card">
+                    <div class="preview-title"><span>A7 VERIFY VIEW</span><span>LATEST</span></div>
+                    <img id="verify-preview" class="preview-image" src="/preview/verify.jpg" alt="Latest pointing verification frame">
+                </div>
+                <div class="preview-card">
+                    <div class="preview-title"><span>WIDE FIELD VIEW</span><span>LIVE</span></div>
+                    <img id="wide-preview" class="preview-image" src="/preview/wide.jpg" alt="Wide-field live preview">
                 </div>
             </div>
         </div>
@@ -268,10 +283,22 @@
             tickerIndex = (tickerIndex + 1) % targetData.length;
         }
 
+        let lastWidePreviewRefresh = 0;
+
         function fetchTelemetry() {
             fetch('/telemetry?ts=' + Date.now(), { cache: 'no-store' })
                 .then(res => res.json())
                 .then(data => {
+                    const verifyPreview = document.getElementById('verify-preview');
+                    if (verifyPreview) {
+                        verifyPreview.src = '/preview/verify.jpg?ts=' + Date.now();
+                    }
+                    const widePreview = document.getElementById('wide-preview');
+                    if (widePreview && (Date.now() - lastWidePreviewRefresh > 15000)) {
+                        widePreview.src = '/preview/wide.jpg?ts=' + Date.now();
+                        lastWidePreviewRefresh = Date.now();
+                    }
+
                     if(data.maidenhead) document.getElementById('telemetry-mh').innerText = data.maidenhead;
 
                     if(data.gps_status) {
@@ -383,6 +410,13 @@
                             icon.style.background = 'linear-gradient(135deg, #ff3333, #8b0000)';
                         }
 
+                        const abortBtn = document.getElementById('abort-btn');
+                        const resetBtn = document.getElementById('reset-btn');
+                        if (abortBtn && resetBtn) {
+                            abortBtn.disabled = ['ABORTED', 'PARKED'].includes(state);
+                            resetBtn.disabled = state !== 'ABORTED';
+                        }
+
                         if(data.orchestrator.flight_log && Array.isArray(data.orchestrator.flight_log)) {
                             let logHtml = '';
                             const logs = data.orchestrator.flight_log.slice(-5);
@@ -415,15 +449,35 @@
                             linkLed.className = "led red";
                         }
 
-                        const batt = data.hardware.battery;
-                        if (batt !== "N/A" && batt !== undefined && batt !== null && batt !== "") {
-                            battTxt.innerText = batt + "%";
-                            if (parseInt(batt) > 30) battTxt.className = "val stat-val";
-                            else if (parseInt(batt) > 15) battTxt.className = "val stat-val batt-warn";
-                            else battTxt.className = "val stat-val batt-crit";
+                        if (data.fleet && data.fleet.length > 0) {
+                            const battSummary = data.fleet.map(f => {
+                                const raw = f.battery;
+                                const value = raw !== undefined && raw !== null && raw !== "" && raw !== "N/A"
+                                    ? parseInt(raw, 10)
+                                    : null;
+                                const suffix = f.charge_online ? " ⚡" : "";
+                                let cls = "batt-good";
+                                let text = "UNKNOWN";
+                                if (value !== null && !Number.isNaN(value)) {
+                                    text = `${value}%${suffix}`;
+                                    if (value <= 15) cls = "batt-crit-inline";
+                                    else if (value <= 30) cls = "batt-warn-inline";
+                                }
+                                return `<span class="fleet-item"><span class="fleet-icon">·</span><span class="fleet-text">${f.name} <span class="${cls}">${text}</span></span></span>`;
+                            }).join("");
+                            battTxt.className = "val stat-val val-wrap";
+                            battTxt.innerHTML = `<span class="fleet-list">${battSummary}</span>`;
                         } else {
-                            battTxt.innerText = "UNKNOWN";
-                            battTxt.className = "val";
+                            const batt = data.hardware.battery;
+                            if (batt !== "N/A" && batt !== undefined && batt !== null && batt !== "") {
+                                battTxt.innerText = batt + "%";
+                                if (parseInt(batt) > 30) battTxt.className = "val stat-val";
+                                else if (parseInt(batt) > 15) battTxt.className = "val stat-val batt-warn";
+                                else battTxt.className = "val stat-val batt-crit";
+                            } else {
+                                battTxt.innerText = "UNKNOWN";
+                                battTxt.className = "val";
+                            }
                         }
                         // New Live Mount Coordinate handling
                         if (data.hardware.ra !== undefined && data.hardware.dec !== undefined && data.hardware.ra !== "N/A") {
@@ -441,9 +495,9 @@
                                 const summary = data.fleet.map(f => {
                                     const st = f.operational_state || f.link_status || "OFFLINE";
                                     const icon = ["IMAGING", "TRACKING"].includes(st) ? "●" : (["SLEWING", "IDLE", "ONLINE"].includes(st) ? "◐" : "○");
-                                    return icon + " " + f.name + "(" + st + ")";
-                                }).join("  ");
-                                fleetTxt.innerText = summary;
+                                    return `<span class="fleet-item"><span class="fleet-icon">${icon}</span><span class="fleet-text">${f.name} (${st})</span></span>`;
+                                }).join("");
+                                fleetTxt.innerHTML = `<span class="fleet-list">${summary}</span>`;
                             }
                         }
                     }
@@ -521,12 +575,12 @@
                 .catch(err => console.error("Telemetry error:", err));
         }
 
-        function refreshPreviews() {
-            const ts = Date.now();
-            const science = document.getElementById('preview-science');
-            const verify = document.getElementById('preview-verify');
-            if (science) science.src = '/preview/science.jpg?ts=' + ts;
-            if (verify) verify.src = '/preview/verify.jpg?ts=' + ts;
+        function sendCommand(action) {
+            if (action === 'abort' && !window.confirm('Abort the current session?')) return;
+            fetch('/command/' + action, { method: 'POST' })
+                .then(res => res.json())
+                .then(() => fetchTelemetry())
+                .catch(err => console.error('Command error:', err));
         }
 
         function updateJDate() {
@@ -535,11 +589,13 @@
             document.getElementById('live-jdate').innerText = jd.toFixed(4);
         }
 
+        document.getElementById('abort-btn').addEventListener('click', () => sendCommand('abort'));
+        document.getElementById('reset-btn').addEventListener('click', () => sendCommand('reset'));
+
         setInterval(updateTicker, 4000);
         setInterval(fetchTelemetry, 2000);
-        setInterval(refreshPreviews, 4000);
         setInterval(updateJDate, 1000);
-        updateTicker(); fetchTelemetry(); refreshPreviews(); updateJDate();
+        updateTicker(); fetchTelemetry(); updateJDate();
     </script>
 </body>
 </html>

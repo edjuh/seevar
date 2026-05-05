@@ -55,6 +55,7 @@ DEFAULT_BORTLE  = 7
 MIN_EXP_SEC     = 1.0
 MAX_EXP_SEC     = 300.0
 MAX_FRAME_SEC   = 20.0
+MAX_FRAME_SEC_EQ = 60.0
 TARGET_SNR      = 50.0
 MIN_SNR         = 10.0
 MAX_TOTAL_SEC   = 300.0
@@ -62,6 +63,44 @@ MAX_TOTAL_SEC   = 300.0
 TYPICAL_FWHM_PIX    = 4.0
 APERTURE_RADIUS_PIX = 1.7 * TYPICAL_FWHM_PIX
 N_PIX_APERTURE      = math.pi * APERTURE_RADIUS_PIX ** 2
+
+
+def _is_eq_mount(mount_mode: Optional[str]) -> bool:
+    return str(mount_mode or "").strip().lower() in {"eq", "equatorial"}
+
+
+def _max_frame_sec(mount_mode: Optional[str]) -> float:
+    return MAX_FRAME_SEC_EQ if _is_eq_mount(mount_mode) else MAX_FRAME_SEC
+
+
+def _empirical_frame_floor_sec(target_mag: float, mag_bright: float, mount_mode: Optional[str] = None) -> float:
+    """
+    Practical S30-Pro lower bound for TG photometry.
+
+    The analytic CCD equation is optimistic for the Seestar wide/OSC path. The
+    2026-04-29 flight showed 1s frames can leave 10.5-12 mag targets at or below
+    the post-dark aperture noise floor. Use a conservative floor unless the
+    target has a genuinely bright state where saturation is the dominant risk.
+    """
+    if target_mag <= 8.0:
+        return MIN_EXP_SEC
+
+    if _is_eq_mount(mount_mode):
+        if target_mag >= 12.0:
+            return 60.0
+        if target_mag >= 10.0:
+            return 30.0
+        if target_mag >= 9.0:
+            return 15.0
+        return MIN_EXP_SEC
+
+    if target_mag >= 12.0:
+        return 20.0
+    if target_mag >= 10.0:
+        return 10.0
+    if target_mag >= 9.0:
+        return 5.0
+    return MIN_EXP_SEC
 
 
 # ---------------------------------------------------------------------------
@@ -148,6 +187,7 @@ def plan_exposure(
     alt_deg:         Optional[float] = None,
     lat_deg:         Optional[float] = None,
     pixscale_arcsec: float = PIXEL_SCALE,
+    mount_mode:      Optional[str] = "altaz",
 ) -> ExposurePlan:
     if mag_bright is None:
         mag_bright = target_mag
@@ -160,24 +200,35 @@ def plan_exposure(
     # Cap 1: SNR-optimal for faint state
     t_snr = _solve_exposure(source_faint, sky_e_s, n_pix, target_snr)
 
-    # Cap 2: Saturation of bright state
+    # Cap 2: Saturation of the planned science state.
+    # VSX mag_max is a historical/possible bright state, not the expected
+    # brightness for tonight. Treating it as a hard cap made Mira-like targets
+    # collapse to 1s frames even when the planned faint-state magnitude is 14+.
     t_sat     = _saturation_time(source_bright)
-    saturates = t_sat < t_snr
-    t_frame   = min(t_snr, t_sat * 0.5 if saturates else t_snr)
+    bright_state_guard = target_mag <= 8.0
+    saturates = bright_state_guard and t_sat < t_snr
+    t_frame   = t_snr
 
     # Cap 3: Field rotation
     rotation_note = ""
+    rotation_cap = None
     if az_deg is not None and alt_deg is not None and lat_deg is not None:
         try:
             from core.flight.field_rotation import max_exposure_s as _rot_max
             rot = _rot_max(az_deg, alt_deg, lat_deg, pixscale_arcsec)
-            if rot.max_exp_integ_s < t_frame:
-                t_frame = max(MIN_EXP_SEC, rot.max_exp_integ_s)
+            rotation_cap = float(rot.max_exp_integ_s)
+            if rotation_cap < t_frame:
                 rotation_note = f" | ROT {rot.max_exp_integ_s:.0f}s"
         except ImportError:
             pass
 
-    t_frame = min(max(t_frame, MIN_EXP_SEC), MAX_FRAME_SEC)
+    t_frame = max(t_frame, _empirical_frame_floor_sec(target_mag, mag_bright, mount_mode))
+    t_frame = min(t_frame, _max_frame_sec(mount_mode))
+
+    if bright_state_guard:
+        t_frame = min(t_frame, max(MIN_EXP_SEC, t_sat * 0.5))
+    if not _is_eq_mount(mount_mode) and rotation_cap is not None:
+        t_frame = min(t_frame, max(MIN_EXP_SEC, rotation_cap))
 
     # Chunking
     bortle_penalty = 1.0 + max(0, (sky_bortle - 4) * 0.15)

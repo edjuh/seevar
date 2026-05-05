@@ -28,6 +28,7 @@ CONFIG_PATH = PROJECT_ROOT / "config.toml"
 DATA_DIR = PROJECT_ROOT / "data"
 TONIGHTS_PLAN = DATA_DIR / "tonights_plan.json"
 OUTPUT_PAYLOAD = DATA_DIR / "ssc_payload.json"
+FLEET_PAYLOAD_DIR = DATA_DIR / "fleet_payloads"
 
 
 def convert_to_seestar_coords(ra_deg, dec_deg):
@@ -42,8 +43,33 @@ def _load_config():
         return tomllib.load(f)
 
 
-def _select_exp_time(planner_cfg):
-    mount_mode = planner_cfg.get("mount_mode", "ALT/AZ").upper()
+def _normalize_mount_mode(value):
+    raw = str(value or "ALT/AZ").strip().lower()
+    if raw in {"eq", "equatorial"}:
+        return "EQ"
+    if raw in {"altaz", "alt/az", "alt-az", "az"}:
+        return "ALT/AZ"
+    return raw.upper()
+
+
+def _scope_mount_mode(cfg, scope_name=None):
+    scopes = cfg.get("seestars", []) or []
+    if scope_name:
+        for scope in scopes:
+            if str(scope.get("name", "")).strip() == str(scope_name).strip():
+                return _normalize_mount_mode(scope.get("mount", "ALT/AZ"))
+    if scopes:
+        return _normalize_mount_mode(scopes[0].get("mount", "ALT/AZ"))
+    return "ALT/AZ"
+
+
+def _select_exp_time(cfg, scope_name=None):
+    planner_cfg = cfg.get("planner", {})
+    # Legacy [planner].mount_mode remains supported, but scope-level mount is
+    # authoritative because mixed fleets can contain both ALT/AZ and EQ units.
+    mount_mode = _scope_mount_mode(cfg, scope_name)
+    if planner_cfg.get("mount_mode"):
+        mount_mode = _normalize_mount_mode(planner_cfg.get("mount_mode"))
     dithering = bool(planner_cfg.get("dithering", False))
 
     logger.info("Compiling for Intended State: %s | Dithering: %s", mount_mode, dithering)
@@ -112,6 +138,9 @@ def _build_target_item(target, exp_time):
 
     compiler_notes = {
         "recommended_order": target.get("recommended_order"),
+        "assigned_scope": target.get("assigned_scope"),
+        "assigned_scope_id": target.get("assigned_scope_id"),
+        "assigned_scope_order": target.get("assigned_scope_order"),
         "best_start_utc": target.get("best_start_utc"),
         "best_end_utc": target.get("best_end_utc"),
         "window_minutes": target.get("window_minutes"),
@@ -156,18 +185,7 @@ def _build_target_item(target, exp_time):
     }
 
 
-def compile_schedule():
-    cfg = _load_config()
-    planner_cfg = cfg.get("planner", {})
-    mount_mode, dithering, exp_time = _select_exp_time(planner_cfg)
-
-    plan_objective, plan_metadata, targets = _load_plan()
-    targets = _sorted_targets(targets)
-
-    if not targets:
-        logger.warning("No targets in plan. Aborting compilation.")
-        return
-
+def _build_payload(plan_objective, plan_metadata, targets, mount_mode, dithering, exp_time, scope_name=None):
     payload = {
         "#objective": "Compiled native SSC JSON payload for Seestar execution.",
         "version": 1.1,
@@ -178,6 +196,7 @@ def compile_schedule():
             "objective": plan_objective,
             "metadata": plan_metadata,
             "target_count": len(targets),
+            "scope_name": scope_name,
         },
         "compiler_settings": {
             "mount_mode": mount_mode,
@@ -188,10 +207,8 @@ def compile_schedule():
     }
 
     payload["list"].append(_build_startup_item(mount_mode))
-
     for target in targets:
         payload["list"].append(_build_target_item(target, exp_time))
-
     payload["list"].append({
         "action": "scope_park",
         "params": {},
@@ -202,14 +219,64 @@ def compile_schedule():
         "params": {},
         "schedule_item_id": str(uuid.uuid4()),
     })
+    return payload
+
+
+def compile_schedule():
+    cfg = _load_config()
+    planner_cfg = cfg.get("planner", {})
+    mount_mode, dithering, exp_time = _select_exp_time(cfg)
+
+    plan_objective, plan_metadata, targets = _load_plan()
+    targets = _sorted_targets(targets)
+
+    if not targets:
+        logger.warning("No targets in plan. Aborting compilation.")
+        return
+
+    payload = _build_payload(plan_objective, plan_metadata, targets, mount_mode, dithering, exp_time)
 
     with open(OUTPUT_PAYLOAD, "w") as f:
         json.dump(payload, f, indent=4)
 
     logger.info("Compilation Complete. Generated %d targets into %s", len(targets), OUTPUT_PAYLOAD.name)
 
+    FLEET_PAYLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    for old in FLEET_PAYLOAD_DIR.glob("*.json"):
+        old.unlink()
+
+    fleet_mode = str(plan_metadata.get("fleet_mode", "single")).strip().lower()
+    if fleet_mode == "split":
+        scoped_targets = {}
+        for target in targets:
+            scope_name = target.get("assigned_scope")
+            if scope_name:
+                scoped_targets.setdefault(scope_name, []).append(target)
+
+        for scope_name, scope_targets in scoped_targets.items():
+            scope_id = scope_targets[0].get("assigned_scope_id", "scope00")
+            scope_mount_mode, scope_dithering, scope_exp_time = _select_exp_time(cfg, scope_name=scope_name)
+            scope_payload = _build_payload(
+                plan_objective,
+                plan_metadata,
+                scope_targets,
+                scope_mount_mode,
+                scope_dithering,
+                scope_exp_time,
+                scope_name=scope_name,
+            )
+            out_path = FLEET_PAYLOAD_DIR / f"ssc_payload.{scope_id}.json"
+            with open(out_path, "w") as f:
+                json.dump(scope_payload, f, indent=4)
+            logger.info(
+                "Scoped payload ready: %s (%d targets for %s)",
+                out_path.name,
+                len(scope_targets),
+                scope_name,
+            )
+
     preview = targets[:10]
-    if preview:
+    if preview and bool(planner_cfg.get("compiler_preview", False)):
         logger.info("First compiled targets:")
         for t in preview:
             logger.info(

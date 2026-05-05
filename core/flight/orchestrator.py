@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 
@@ -27,9 +28,10 @@ from astropy.time import Time
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.utils.env_loader import DATA_DIR, load_config
+from core.utils.env_loader import DATA_DIR, effective_fleet_mode, load_config, selected_scope, selected_scope_id, scope_file_tag
 from core.flight.pilot import (
     AcquisitionTarget,
+    DiamondSequence,
     SEESTAR_HOST,
     GAIN,
     TelemetryBlock,
@@ -48,6 +50,12 @@ from core.hardware.live_battery import poll_battery_snapshot
 
 LOG_DIR = PROJECT_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+_LOG_SCOPE = selected_scope(load_config(), selected_scope_id())
+_LOG_SCOPE_ID = _LOG_SCOPE.get("scope_id")
+_LOG_SCOPE_TAG = scope_file_tag(_LOG_SCOPE)
+_LOG_FILE = LOG_DIR / (f"orchestrator.{_LOG_SCOPE_ID}.log" if _LOG_SCOPE_ID else "orchestrator.log")
+_LOG_MAX_BYTES = 5 * 1024 * 1024
+_LOG_BACKUP_COUNT = 5
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,8 +63,14 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(LOG_DIR / "orchestrator.log", mode="a"),
+        RotatingFileHandler(
+            _LOG_FILE,
+            mode="a",
+            maxBytes=_LOG_MAX_BYTES,
+            backupCount=_LOG_BACKUP_COUNT,
+        ),
     ],
+    force=True,
 )
 log = logging.getLogger("seevar.orchestrator")
 
@@ -64,6 +78,8 @@ PLAN_FILE = DATA_DIR / "tonights_plan.json"
 STATE_FILE = DATA_DIR / "system_state.json"
 WEATHER_FILE = DATA_DIR / "weather_state.json"
 MISSION_FILE = DATA_DIR / "tonights_plan.json"
+FLEET_PLAN_DIR = DATA_DIR / "fleet_plans"
+COMMAND_FILE = DATA_DIR / "operator_command.json"
 
 
 def _safe_load_json(path: Path, default):
@@ -214,7 +230,7 @@ class MockDiamondSequence:
 
         safe_name = target.name.replace(" ", "_").replace("/", "-")
         timestamp = utc_obs.strftime("%Y%m%dT%H%M%S")
-        out_path = local_buffer / f"SIM_{safe_name}_{timestamp}_Raw.fits"
+        out_path = local_buffer / f"SIM_{safe_name}_{_LOG_SCOPE_TAG}_{timestamp}_Raw.fits"
 
         step("A4", f"Slew command to {target.name}")
         time.sleep(0.2)
@@ -277,6 +293,21 @@ class Orchestrator:
         loc = cfg.get("location", {})
         aavso = cfg.get("aavso", {})
         self._cfg = cfg
+        self._fleet_mode = effective_fleet_mode(cfg)
+        self._scope_id = selected_scope_id()
+        self._scope = selected_scope(cfg, self._scope_id)
+        self._scope_name = self._scope.get("scope_name") or self._scope.get("name") or self._scope_id or "primary"
+        self._scope_host = str(self._scope.get("host") or self._scope.get("ip") or SEESTAR_HOST).strip() or SEESTAR_HOST
+        self._mission_file = MISSION_FILE
+        self._state_file = STATE_FILE
+        self._plan_file = PLAN_FILE
+
+        if self._fleet_mode == "split" and self._scope_id:
+            scoped_mission = FLEET_PLAN_DIR / f"tonights_plan.{self._scope_id}.json"
+            if scoped_mission.exists():
+                self._mission_file = scoped_mission
+            self._state_file = DATA_DIR / f"system_state.{self._scope_id}.json"
+            self._plan_file = FLEET_PLAN_DIR / f"flight_plan.{self._scope_id}.json"
 
         self._obs = {
             "observer_id": aavso.get("observer_code", "MISSING_ID"),
@@ -301,15 +332,18 @@ class Orchestrator:
             "exposures_total": 0,
         }
 
-        self._dark_library = DarkLibrary(host=SEESTAR_HOST)
+        self._dark_library = DarkLibrary(host=self._scope_host)
         self._tonights_sequences = set()
         self._last_telemetry = None
         self._planned_target_count = 0
+        self._last_command_utc = ""
         self._battery_park_pct = int(self._cfg.get("power", {}).get("battery_park_pct", VETO_BATTERY))
+        self._sun_limit_deg = self._configured_sun_limit_deg()
 
         self.simulation_mode = "--simulate" in sys.argv
 
         self.fsm = SovereignFSM()
+        self.fsm.sequence = DiamondSequence(host=self._scope_host)
 
         if self.simulation_mode:
             self.fsm.sequence = MockDiamondSequence()
@@ -317,7 +351,11 @@ class Orchestrator:
             log.info("🚀 SIMULATION MODE ENGAGED - Hardware checks disabled.")
 
     def run(self):
-        log.info("🔭 Orchestrator starting — SeeVar Federation v2.0.0 (FSM-Governed)")
+        log.info(
+            "🔭 Orchestrator starting — SeeVar Federation v2.0.0 (FSM-Governed) | scope=%s | mission=%s",
+            self._scope_name,
+            self._mission_file.name,
+        )
         self._write_state(sub="Daemon starting", msg="Federation online.")
         while True:
             try:
@@ -334,7 +372,15 @@ class Orchestrator:
                 time.sleep(max(1, self.LOOP_SLEEP_SEC * 4))
 
     def _tick(self):
-        if not self.simulation_mode and self._state not in (PipelineState.PARKED, PipelineState.ABORTED):
+        if self._handle_operator_command():
+            return
+
+        battery_guard_active = (
+            not self.simulation_mode
+            and self._state not in (PipelineState.PARKED, PipelineState.ABORTED)
+            and (self._state != PipelineState.IDLE or self._sun_altitude() < self._sun_limit_deg)
+        )
+        if battery_guard_active:
             if self._enforce_battery_guard():
                 return
 
@@ -390,10 +436,10 @@ class Orchestrator:
 
     def _run_idle(self):
         sun_alt = self._sun_altitude()
-        msg = f"Sun at {sun_alt:.1f}°. Waiting for night (<{self.SUN_LIMIT_DEG}°)."
+        msg = f"Sun at {sun_alt:.1f}°. Waiting for night (<{self._sun_limit_deg}°)."
         self._write_state(sub="Standing by", msg=msg)
 
-        if self.simulation_mode or sun_alt < self.SUN_LIMIT_DEG:
+        if self.simulation_mode or sun_alt < self._sun_limit_deg:
             if not self.simulation_mode:
                 go, reason = self._check_weather_veto()
                 if not go:
@@ -408,9 +454,16 @@ class Orchestrator:
     def _run_preflight(self):
         self._log_flight("🛫 PREFLIGHT sequence initiated.")
 
+        now_utc = datetime.now(timezone.utc)
+        payload = _safe_load_json(self._mission_file, {})
+        if not payload or self._plan_is_stale(payload, now_utc):
+            why = "missing" if not payload else "stale"
+            self._log_flight(f"♻️ Nightly plan {why} before hardware init — refreshing")
+            self._refresh_mission_plan()
+
         if not self.simulation_mode:
             self._log_flight("[A2] Safety gate — securing zero-state")
-            zero = enforce_zero_state()
+            zero = enforce_zero_state(host=self._scope_host)
             if not zero:
                 self._log_flight("[A2] ⚠️ zero-state unconfirmed — continuing to session init")
             else:
@@ -434,24 +487,6 @@ class Orchestrator:
         self._transition(PipelineState.PLANNING, msg="Preflight complete.")
 
     def _run_planning(self):
-        def _extract_targets(payload):
-            return payload if isinstance(payload, list) else payload.get("targets", [])
-
-        def _plan_is_stale(payload, now_utc):
-            if not isinstance(payload, dict):
-                return False
-            meta = payload.get("metadata", {})
-            planning_end = _parse_plan_dt(meta.get("planning_end_utc"))
-            generated = _parse_plan_dt(meta.get("generated"))
-
-            if planning_end and planning_end <= now_utc:
-                return True
-
-            if generated and generated.date() != now_utc.date():
-                return True
-
-            return False
-
         def _order_and_filter(mission, now_utc):
             if any("recommended_order" in t for t in mission):
                 ordered = sorted(
@@ -486,17 +521,17 @@ class Orchestrator:
 
         self._log_flight("📋 Loading mission targets...")
         now_utc = datetime.now(timezone.utc)
-        payload = _safe_load_json(MISSION_FILE, {})
+        payload = _safe_load_json(self._mission_file, {})
         refreshed = False
 
-        if not payload or _plan_is_stale(payload, now_utc):
+        if not payload or self._plan_is_stale(payload, now_utc):
             why = "missing" if not payload else "stale"
             self._log_flight(f"♻️ Nightly plan {why} — attempting refresh")
             refreshed = self._refresh_mission_plan()
             if refreshed:
-                payload = _safe_load_json(MISSION_FILE, {})
+                payload = _safe_load_json(self._mission_file, {})
 
-        mission = _extract_targets(payload)
+        mission = self._extract_targets(payload)
         if not mission:
             self._transition(PipelineState.PARKED, msg="No mission targets available for current night.")
             return
@@ -516,8 +551,8 @@ class Orchestrator:
         if not final and not refreshed:
             self._log_flight("♻️ All current target windows expired — refreshing nightly plan once")
             if self._refresh_mission_plan():
-                payload = _safe_load_json(MISSION_FILE, {})
-                mission = _extract_targets(payload)
+                payload = _safe_load_json(self._mission_file, {})
+                mission = self._extract_targets(payload)
                 now_utc = datetime.now(timezone.utc)
                 final, expired = _order_and_filter(mission, now_utc)
 
@@ -529,7 +564,7 @@ class Orchestrator:
         self._targets = final
         self._planned_target_count = len(final)
         self._write_plan(final)
-        self._log_flight(f"✅ Flight plan locked from tonights_plan.json: {len(final)} target(s)")
+        self._log_flight(f"✅ Flight plan locked from {self._mission_file.name}: {len(final)} target(s)")
         if expired:
             self._log_flight(f"⏭️ Skipped {expired} expired target window(s)")
         self._transition(PipelineState.FLIGHT, sub=final[0].get("name", "UNKNOWN"), msg="Flight plan locked.")
@@ -590,7 +625,11 @@ class Orchestrator:
             n_frames = max(1, int(planned_n_frames or 1))
         else:
             try:
-                exp_plan = plan_exposure(get_target_mag(name), sky_bortle=self._sky_bortle())
+                exp_plan = plan_exposure(
+                    get_target_mag(name),
+                    sky_bortle=self._sky_bortle(),
+                    mount_mode=self._mount_mode(),
+                )
                 exp_ms = int(exp_plan.exp_ms)
                 n_frames = max(1, int(planned_n_frames or getattr(exp_plan, "n_frames", 1)))
             except Exception:
@@ -650,6 +689,7 @@ class Orchestrator:
             self._log_flight("[A12] Commit failure state")
             self._log_flight(f"❌ FSM Sequence failed for {name}")
 
+    # Count dark acquisition results for the postflight state message.
     def _summarize_dark_results(self, dark_results: dict) -> tuple[int, int, int]:
         ok = 0
         fail = 0
@@ -667,6 +707,35 @@ class Orchestrator:
 
         return ok, fail, frames
 
+    # Inspect staged science FITS and derive the dark sequences postflight must cover.
+    def _collect_buffer_dark_sequences(self) -> set[tuple[int, int]]:
+        sequences: set[tuple[int, int]] = set()
+        for path in DATA_DIR.joinpath("local_buffer").glob("*_Raw.fits"):
+            try:
+                header = fits.getheader(path)
+            except Exception as e:
+                self._log_flight(f"  dark-sequence scan skipped {path.name}: header unreadable ({e})")
+                continue
+
+            exp_ms = header.get("EXPMS")
+            if exp_ms is None:
+                exptime = header.get("EXPTIME")
+                if exptime is not None:
+                    exp_ms = int(round(float(exptime) * 1000.0))
+
+            gain = header.get("GAIN", GAIN)
+            if exp_ms is None:
+                self._log_flight(f"  dark-sequence scan skipped {path.name}: EXPMS/EXPTIME missing")
+                continue
+
+            try:
+                sequences.add((int(exp_ms), int(gain)))
+            except Exception as e:
+                self._log_flight(f"  dark-sequence scan skipped {path.name}: invalid exp/gain ({e})")
+
+        return sequences
+
+    # Close the flight by acquiring matching darks and handing frames to the accountant.
     def _run_postflight(self):
         self._log_flight("📊 Flight operations concluded.")
 
@@ -674,8 +743,14 @@ class Orchestrator:
         dark_fail = 0
         dark_frames = 0
 
-        if self._tonights_sequences and not self.simulation_mode:
-            seqs = sorted(self._tonights_sequences)
+        disk_sequences = self._collect_buffer_dark_sequences()
+        if disk_sequences - self._tonights_sequences:
+            self._log_flight(f"🌑 Dark sequence scan added {sorted(disk_sequences - self._tonights_sequences)} from local_buffer")
+
+        required_sequences = set(self._tonights_sequences) | disk_sequences
+
+        if required_sequences and not self.simulation_mode:
+            seqs = sorted(required_sequences)
             self._log_flight(f"🌑 Acquiring darks for {len(seqs)} sequence(s): {seqs}")
             self._write_state(
                 state="POSTFLIGHT",
@@ -750,11 +825,102 @@ class Orchestrator:
 
     def _run_parked(self):
         self._current_target = None
+        sun_alt = self._sun_altitude()
+        if not self.simulation_mode and sun_alt >= self._sun_limit_deg:
+            self._targets = []
+            self._planned_target_count = 0
+            self._tonights_sequences.clear()
+            self._session_stats = {
+                "targets_attempted": 0,
+                "targets_completed": 0,
+                "exposures_total": 0,
+            }
+            self._flight_log = []
+            self._transition(
+                PipelineState.IDLE,
+                sub="Standing by",
+                msg=f"Daylight reset after parked mission (Sun at {sun_alt:.1f}°).",
+            )
+            return
+
+        self._write_state(
+            state=PipelineState.PARKED,
+            sub="Parked",
+            msg="Mission complete. Parked until daylight reset.",
+        )
         time.sleep(max(1, self.LOOP_SLEEP_SEC))
 
     def _run_aborted(self):
         self._current_target = None
         time.sleep(max(1, self.LOOP_SLEEP_SEC))
+
+    def _extract_targets(self, payload):
+        return payload if isinstance(payload, list) else payload.get("targets", [])
+
+    def _plan_is_stale(self, payload, now_utc):
+        if not isinstance(payload, dict):
+            return False
+        meta = payload.get("metadata", {})
+        planning_end = _parse_plan_dt(meta.get("planning_end_utc"))
+        generated = _parse_plan_dt(meta.get("generated"))
+
+        if planning_end and planning_end <= now_utc:
+            return True
+
+        if generated and generated.date() != now_utc.date():
+            return True
+
+        return False
+
+    def _read_operator_command(self) -> dict:
+        if not COMMAND_FILE.exists():
+            return {}
+        try:
+            payload = json.loads(COMMAND_FILE.read_text())
+        except Exception:
+            payload = {}
+        return payload if isinstance(payload, dict) else {}
+
+    def _handle_operator_command(self) -> bool:
+        payload = self._read_operator_command()
+        command = str(payload.get("command", "")).strip().lower()
+        requested_utc = str(payload.get("requested_utc", "")).strip()
+        requested_dt = _parse_plan_dt(requested_utc) if requested_utc else None
+
+        if not command:
+            return False
+        if requested_utc and requested_utc == self._last_command_utc:
+            return False
+        if requested_dt is not None:
+            age_s = (datetime.now(timezone.utc) - requested_dt).total_seconds()
+            if age_s > 300:
+                self._last_command_utc = requested_utc
+                return False
+        if requested_utc:
+            self._last_command_utc = requested_utc
+
+        if command == "abort":
+            self._log_flight("🛑 Operator abort requested from dashboard.")
+            self._targets = []
+            self._current_target = None
+            try:
+                self.fsm.sequence.park()
+                self._log_flight("🛑 Abort requested telescope park.")
+            except Exception as e:
+                self._log_flight(f"⚠️ Abort park request failed: {e}")
+            self._transition(PipelineState.ABORTED, msg="Operator abort requested.")
+            return True
+
+        if command == "reset":
+            self._log_flight("♻️ Operator reset requested from dashboard.")
+            self._targets = []
+            self._current_target = None
+            self._planned_target_count = 0
+            self._transition(PipelineState.IDLE, sub="Standing by", msg="Operator reset. Awaiting next cycle.")
+            return True
+
+        self._log_flight(f"⚠️ Ignoring unknown operator command: {command}")
+        return False
 
     def _sun_altitude(self) -> float:
         try:
@@ -765,7 +931,7 @@ class Orchestrator:
             return 0.0
 
     def _load_mission_targets(self) -> list:
-        data = _safe_load_json(MISSION_FILE, [])
+        data = _safe_load_json(self._mission_file, [])
         return data if isinstance(data, list) else data.get("targets", [])
 
     def _refresh_mission_plan(self) -> bool:
@@ -776,12 +942,21 @@ class Orchestrator:
             self._log_flight("♻️ Regenerating tonights_plan.json")
             subprocess.run([sys.executable, str(planner)], cwd=str(PROJECT_ROOT), check=True)
             subprocess.run([sys.executable, str(compiler)], cwd=str(PROJECT_ROOT), check=True)
+            if self._fleet_mode == "split" and self._scope_id:
+                scoped_mission = FLEET_PLAN_DIR / f"tonights_plan.{self._scope_id}.json"
+                if scoped_mission.exists():
+                    self._mission_file = scoped_mission
             return True
         except Exception as e:
             self._log_flight(f"⚠️ Nightly plan refresh failed: {e}")
             return False
 
     def _current_battery_snapshot(self) -> dict:
+        if self._scope:
+            snapshot = poll_battery_snapshot(self._scope.get("ip"))
+            if snapshot:
+                return snapshot
+
         for scope in self._cfg.get("seestars", []):
             snapshot = poll_battery_snapshot(scope.get("ip"))
             if snapshot:
@@ -845,6 +1020,18 @@ class Orchestrator:
         except Exception:
             return 6.0
 
+    def _configured_sun_limit_deg(self) -> float:
+        try:
+            return float(self._cfg.get("planner", {}).get("sun_altitude_limit", self.SUN_LIMIT_DEG))
+        except Exception:
+            return float(self.SUN_LIMIT_DEG)
+
+    def _mount_mode(self) -> str:
+        try:
+            return str(self._scope.get("mount", "altaz")).strip().lower()
+        except Exception:
+            return "altaz"
+
     def _log_flight(self, message: str):
         stamp = datetime.now(timezone.utc).strftime("%H:%M:%S")
         line = f"{stamp} {message}"
@@ -858,17 +1045,21 @@ class Orchestrator:
             "metadata": {
                 "generated": datetime.now(timezone.utc).isoformat(),
                 "count": len(targets),
+                "scope_name": self._scope_name,
+                "scope_id": self._scope_id,
             },
             "targets": targets,
         }
-        PLAN_FILE.write_text(json.dumps(payload, indent=2))
+        self._plan_file.write_text(json.dumps(payload, indent=2))
 
     def _write_state(self, state=None, sub="", msg=""):
         now_utc = datetime.now(timezone.utc).isoformat()
         done, remaining, planned = self._progress_counts()
-        payload = _safe_load_json(STATE_FILE, {})
+        payload = _safe_load_json(self._state_file, {})
         payload.update({
             "state": state or self._state,
+            "scope_name": self._scope_name,
+            "scope_id": self._scope_id,
             "sub": sub,
             "substate": sub,
             "msg": msg,
@@ -882,7 +1073,7 @@ class Orchestrator:
             "remaining_count": remaining,
             "planned_count": planned,
         })
-        STATE_FILE.write_text(json.dumps(payload, indent=2))
+        self._state_file.write_text(json.dumps(payload, indent=2))
 
     def _transition(self, new_state, sub="", msg=""):
         self._state = new_state

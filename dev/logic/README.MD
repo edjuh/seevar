@@ -36,6 +36,7 @@ postflight, oversight, and science rules.
 | `PREFLIGHT.MD` | Go/No-Go pillars and nightly planning doctrine |
 | `CADENCE.MD` | Scientific cadence policy |
 | `AAVSO_LOGIC.MD` | AAVSO targeting, identifiers, reporting conventions |
+| `BAA_LOGIC.MD` | BAA VSS export conventions and Seestar-specific reporting defaults |
 | `API_PROTOCOL.MD` | Confirmed hardware/API behavior and protocol detail |
 | `ALPACA_BRIDGE.MD` | Alpaca role, device map, and transport notes |
 | `SIMULATORLOGIC.MD` | Simulation obligations and flight mirroring rules |

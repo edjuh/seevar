@@ -18,7 +18,7 @@ import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.flight.dark_library import DarkLibrary, TEMP_BIN_SIZE, TEMP_BIN_TOLS
+from core.flight.dark_library import DarkLibrary, TEMP_BIN_SIZE, dark_temp_tolerance_c
 from core.flight.pilot import AlpacaCamera, AlpacaTelescope, TelemetryBlock
 from core.postflight.accountant import process_buffer
 
@@ -36,10 +36,12 @@ ARCHIVE_DIR = DATA_DIR / "archive"
 LOCAL_BUFFER = DATA_DIR / "local_buffer"
 
 
+# Convert a live camera temperature to the rounded calibration-library bin.
 def _temp_bin(temp_c: float) -> int:
     return int(round(temp_c / TEMP_BIN_SIZE) * TEMP_BIN_SIZE)
 
 
+# Load and normalize queued dark requirements from the accountant sidecar file.
 def load_requirements() -> list[dict]:
     if not MISSING_DARKS_FILE.exists():
         return []
@@ -62,6 +64,7 @@ def load_requirements() -> list[dict]:
     return cleaned
 
 
+# Collapse per-target requirements into unique exposure/gain dark sequences.
 def collect_sequences(requirements: list[dict]) -> list[tuple[int, int]]:
     seen = set()
     sequences = []
@@ -74,15 +77,17 @@ def collect_sequences(requirements: list[dict]) -> list[tuple[int, int]]:
     return sequences
 
 
+# Read current telescope/camera telemetry before deciding which darks are safe.
 def read_live_telemetry() -> TelemetryBlock:
     telescope = AlpacaTelescope()
     camera = AlpacaCamera()
+    connect_errors = []
 
     for device in (telescope, camera):
         try:
             device.connect()
-        except Exception:
-            pass
+        except Exception as exc:
+            connect_errors.append(f"{device.base}: {exc}")
 
     telemetry = TelemetryBlock.from_alpaca(telescope, camera)
 
@@ -92,6 +97,8 @@ def read_live_telemetry() -> TelemetryBlock:
         except Exception:
             pass
 
+    if connect_errors:
+        raise RuntimeError("Alpaca connect failed: " + " | ".join(connect_errors))
     if telemetry.parse_error:
         raise RuntimeError(telemetry.parse_error)
     if telemetry.temp_c is None:
@@ -100,8 +107,10 @@ def read_live_telemetry() -> TelemetryBlock:
     return telemetry
 
 
-def filter_thermally_compatible(requirements: list[dict], temp_c: float) -> tuple[list[dict], int]:
+# Keep only queued darks whose required temperature bin matches current conditions.
+def filter_thermally_compatible(requirements: list[dict], temp_c: float) -> tuple[list[dict], int, float]:
     current_bin = _temp_bin(temp_c)
+    tolerance_c = dark_temp_tolerance_c()
     compatible = []
 
     for req in requirements:
@@ -109,12 +118,13 @@ def filter_thermally_compatible(requirements: list[dict], temp_c: float) -> tupl
         if req_bin is None:
             compatible.append(req)
             continue
-        if abs(int(req_bin) - current_bin) <= TEMP_BIN_TOLS:
+        if abs(int(req_bin) - current_bin) <= tolerance_c:
             compatible.append(req)
 
-    return compatible, current_bin
+    return compatible, current_bin, tolerance_c
 
 
+# Extract successfully acquired exposure/gain pairs from DarkLibrary results.
 def _ok_sequences_from_results(dark_results: dict) -> set[tuple[int, int]]:
     ok_sequences = set()
     for key, result in dark_results.items():
@@ -134,6 +144,7 @@ def _ok_sequences_from_results(dark_results: dict) -> set[tuple[int, int]]:
     return ok_sequences
 
 
+# Restore archived raw frames that now have matching darks for accountant replay.
 def restore_capture_paths(requirements: list[dict], dark_results: dict) -> list[Path]:
     LOCAL_BUFFER.mkdir(parents=True, exist_ok=True)
     restored = []
@@ -161,6 +172,7 @@ def restore_capture_paths(requirements: list[dict], dark_results: dict) -> list[
     return restored
 
 
+# Acquire queued darks, restore matching raws, and rerun postflight accounting.
 def run_deferred_dark_recovery() -> int:
     requirements = load_requirements()
     if not requirements:
@@ -170,18 +182,18 @@ def run_deferred_dark_recovery() -> int:
     telemetry = read_live_telemetry()
     log.info("Live telemetry for deferred darks: %s", telemetry.summary())
 
-    compatible, current_bin = filter_thermally_compatible(requirements, telemetry.temp_c)
+    compatible, current_bin, tolerance_c = filter_thermally_compatible(requirements, telemetry.temp_c)
     skipped = [req for req in requirements if req not in compatible]
 
     if skipped:
         for req in skipped:
             log.warning(
-                "Skipping queued dark e%s g%s: required temp bin %+dC, current bin %+dC exceeds tolerance %dC",
+                "Skipping queued dark e%s g%s: required temp bin %+dC, current bin %+dC exceeds tolerance %.1fC",
                 req.get("exp_ms"),
                 req.get("gain"),
                 int(req.get("temp_bin")),
                 current_bin,
-                TEMP_BIN_TOLS,
+                tolerance_c,
             )
 
     if not compatible:
@@ -208,4 +220,8 @@ def run_deferred_dark_recovery() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(run_deferred_dark_recovery())
+    try:
+        raise SystemExit(run_deferred_dark_recovery())
+    except Exception as exc:
+        log.error("Deferred dark recovery failed: %s", exc)
+        raise SystemExit(1) from None

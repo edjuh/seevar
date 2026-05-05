@@ -20,11 +20,12 @@ import astropy.units as u
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(PROJECT_ROOT))
 
-from core.utils.env_loader import load_config
+from core.utils.env_loader import effective_fleet_mode, live_available_scopes, load_config
+from core.ledger_manager import calculate_cadence, load_ledger
 from core.flight.exposure_planner import plan_exposure, DEFAULT_BORTLE
 
 try:
-    from core.preflight.horizon import required_altitude, clearance_margin, horizon_altitude
+    from core.preflight.horizon import required_altitude, clearance_margin, horizon_altitude, horizon_summary
 except ImportError:
     from core.preflight.horizon import horizon_altitude
 
@@ -34,10 +35,14 @@ except ImportError:
     def clearance_margin(az: float, alt: float, clearance_margin_deg: float = 0.0) -> float:
         return float(alt) - required_altitude(az, clearance_margin_deg=clearance_margin_deg)
 
+    def horizon_summary() -> dict:
+        return {"uses_profile": False, "science_floor_deg": 15.0, "obstruction_count": 0}
+
 DATA_DIR = PROJECT_ROOT / "data"
 CATALOG_DIR = PROJECT_ROOT / "catalogs"
 FEDERATION_CATALOG = CATALOG_DIR / "federation_catalog.json"
 TONIGHTS_PLAN = DATA_DIR / "tonights_plan.json"
+FLEET_PLAN_DIR = DATA_DIR / "fleet_plans"
 
 LOOKAHEAD_HOURS = 36
 SAMPLE_MINUTES = 10
@@ -45,6 +50,56 @@ CLEARANCE_MARGIN_DEG = 5.0
 DEFAULT_START_AZ = 220.0
 DEFAULT_BLOCK_OVERHEAD_MIN = 5
 ZENITH_SOFT_LIMIT_DEG = 75.0
+
+
+def _parse_utc_dt(value):
+    if not value:
+        return None
+    try:
+        text = str(value).replace("Z", "+00:00")
+        dt = datetime.fromisoformat(text)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def _ledger_entry_for_target(entries: dict, target_name: str) -> dict:
+    if not isinstance(entries, dict):
+        return {}
+
+    if target_name in entries and isinstance(entries[target_name], dict):
+        return entries[target_name]
+
+    safe_name = str(target_name).replace(" ", "_").upper()
+    if safe_name in entries and isinstance(entries[safe_name], dict):
+        return entries[safe_name]
+
+    return {}
+
+
+def _target_due_from_ledger(target: dict, ledger_entries: dict, now_utc: datetime, planning_start_utc: datetime) -> tuple[bool, str]:
+    name = str(target.get("name", "")).strip()
+    if not name:
+        return True, "missing_name"
+
+    entry = _ledger_entry_for_target(ledger_entries, name)
+    if not entry:
+        return True, "new_target"
+
+    last_success = _parse_utc_dt(entry.get("last_success"))
+    if last_success is not None:
+        cadence_days = float(calculate_cadence(target))
+        if now_utc - last_success < timedelta(days=cadence_days):
+            return False, "cadence_not_due"
+
+    last_capture = _parse_utc_dt(entry.get("last_capture_utc"))
+    status = str(entry.get("status", "")).strip().upper()
+    if last_capture is not None and last_capture >= planning_start_utc and status in {"CAPTURED_RAW", "OBSERVED"}:
+        return False, "already_captured_this_night"
+
+    return True, "due"
 
 
 def az_distance(a, b):
@@ -78,7 +133,21 @@ def astronomical_dark_mask(times, location, sun_limit_deg):
     return np.array(sun_alt <= sun_limit_deg, dtype=bool)
 
 
-def _science_exposure_hint(target, sky_bortle=DEFAULT_BORTLE):
+def _normalize_mount_mode(value):
+    raw = str(value or "altaz").strip().lower()
+    if raw in {"eq", "equatorial"}:
+        return "eq"
+    return "altaz"
+
+
+def _primary_mount_mode(cfg: dict, active_scopes: list[dict] | None = None) -> str:
+    scopes = active_scopes or cfg.get("seestars", []) or []
+    if scopes:
+        return _normalize_mount_mode(scopes[0].get("mount", "altaz"))
+    return "altaz"
+
+
+def _science_exposure_hint(target, sky_bortle=DEFAULT_BORTLE, mount_mode="altaz"):
     bright_mag = target.get("mag_max")
     faint_mag = target.get("min_mag")
 
@@ -98,13 +167,18 @@ def _science_exposure_hint(target, sky_bortle=DEFAULT_BORTLE):
         bright_mag = target_mag
 
     try:
-        return plan_exposure(target_mag=target_mag, mag_bright=bright_mag, sky_bortle=int(sky_bortle))
+        return plan_exposure(
+            target_mag=target_mag,
+            mag_bright=bright_mag,
+            sky_bortle=int(sky_bortle),
+            mount_mode=mount_mode,
+        )
     except Exception:
         return None
 
 
-def estimate_required_block_minutes(target, sky_bortle=DEFAULT_BORTLE):
-    hint = _science_exposure_hint(target, sky_bortle=sky_bortle)
+def estimate_required_block_minutes(target, sky_bortle=DEFAULT_BORTLE, mount_mode="altaz"):
+    hint = _science_exposure_hint(target, sky_bortle=sky_bortle, mount_mode=mount_mode)
     if hint is not None:
         integration_min = math.ceil(float(hint.total_sec) / 60.0)
         settle_min = 1 if float(hint.exp_sec) <= 5.0 else 2
@@ -196,7 +270,7 @@ def score_window(start_idx, end_idx, times, alt_arr, az_arr, req_arr, block_minu
     }
 
 
-def analyze_target(target, times, altaz_frame, dark_mask, sky_bortle=DEFAULT_BORTLE):
+def analyze_target(target, times, altaz_frame, dark_mask, sky_bortle=DEFAULT_BORTLE, mount_mode="altaz"):
     coord = SkyCoord(
         ra=float(target.get("ra", 0.0)) * u.deg,
         dec=float(target.get("dec", 0.0)) * u.deg,
@@ -216,7 +290,7 @@ def analyze_target(target, times, altaz_frame, dark_mask, sky_bortle=DEFAULT_BOR
     any_above_horizon = bool(np.any(dark_mask & (alt_arr >= horizon_arr)))
     any_above_margin = bool(np.any(dark_mask & (alt_arr >= req_arr)))
 
-    block_minutes = estimate_required_block_minutes(target, sky_bortle=sky_bortle)
+    block_minutes = estimate_required_block_minutes(target, sky_bortle=sky_bortle, mount_mode=mount_mode)
     min_samples = max(1, math.ceil(block_minutes / SAMPLE_MINUTES))
 
     usable = dark_mask & (alt_arr >= req_arr)
@@ -248,7 +322,7 @@ def analyze_target(target, times, altaz_frame, dark_mask, sky_bortle=DEFAULT_BOR
     current_margin = float(clearance_margin(current_az, current_alt, clearance_margin_deg=CLEARANCE_MARGIN_DEG))
 
     out = dict(target)
-    exposure_hint = _science_exposure_hint(target, sky_bortle=sky_bortle)
+    exposure_hint = _science_exposure_hint(target, sky_bortle=sky_bortle, mount_mode=mount_mode)
 
     out["current_alt"] = round(current_alt, 2)
     out["current_az"] = round(current_az, 2)
@@ -325,6 +399,113 @@ def greedy_order(candidates, planning_start_utc, start_az=DEFAULT_START_AZ):
     return ordered
 
 
+def renumber_recommended_order(targets: list[dict]) -> list[dict]:
+    renumbered = []
+    for idx, target in enumerate(targets, start=1):
+        item = dict(target)
+        item["recommended_order"] = idx
+        renumbered.append(item)
+    return renumbered
+
+
+def _active_scopes(cfg: dict) -> list[dict]:
+    scopes = []
+    for idx, scope in enumerate(live_available_scopes(cfg)):
+        scopes.append({
+            "index": idx,
+            "name": scope["scope_name"],
+            "ip": scope["ip"],
+            "scope_id": scope["scope_id"],
+            "mount": scope.get("mount", "altaz"),
+        })
+    return scopes
+
+
+def assign_targets_to_scopes(ordered, scopes, fleet_mode, start_az=DEFAULT_START_AZ):
+    if fleet_mode != "split" or len(scopes) < 2:
+        return ordered, {}
+
+    scope_state = {
+        scope["name"]: {
+            "count": 0,
+            "block_minutes": 0,
+            "current_az": float(start_az),
+        }
+        for scope in scopes
+    }
+    scope_index = {scope["name"]: scope for scope in scopes}
+
+    assigned = []
+    for target in ordered:
+        best_scope = None
+        best_cost = None
+
+        for scope in scopes:
+            state = scope_state[scope["name"]]
+            slew_deg = az_distance(state["current_az"], float(target["best_az_deg"]))
+            block_minutes = int(target.get("required_block_minutes", 0))
+            cost = (
+                state["block_minutes"] + block_minutes,
+                round(slew_deg, 2),
+                state["count"],
+                scope["index"],
+            )
+            if best_cost is None or cost < best_cost:
+                best_scope = scope
+                best_cost = cost
+
+        enriched = dict(target)
+        name = best_scope["name"]
+        state = scope_state[name]
+        state["count"] += 1
+        state["block_minutes"] += int(target.get("required_block_minutes", 0))
+        state["current_az"] = float(target["best_az_deg"])
+
+        enriched["assigned_scope"] = name
+        enriched["assigned_scope_ip"] = best_scope["ip"]
+        enriched["assigned_scope_id"] = best_scope["scope_id"]
+        enriched["assigned_scope_order"] = state["count"]
+        assigned.append(enriched)
+
+    summary = {
+        name: {
+            "target_count": state["count"],
+            "block_minutes": state["block_minutes"],
+            "ip": scope_index[name]["ip"],
+            "scope_id": scope_index[name]["scope_id"],
+        }
+        for name, state in scope_state.items()
+    }
+    return assigned, summary
+
+
+def write_scope_plans(plan_out: dict, scopes: list[dict], fleet_mode: str):
+    FLEET_PLAN_DIR.mkdir(parents=True, exist_ok=True)
+    for old in FLEET_PLAN_DIR.glob("*.json"):
+        old.unlink()
+
+    if fleet_mode != "split" or len(scopes) < 2:
+        return
+
+    targets = plan_out.get("targets", [])
+    for scope in scopes:
+        scoped_targets = [t for t in targets if t.get("assigned_scope") == scope["name"]]
+        scoped_plan = {
+            "#objective": f"Nightly split plan for {scope['name']}.",
+            "metadata": {
+                **plan_out.get("metadata", {}),
+                "scope_name": scope["name"],
+                "scope_ip": scope["ip"],
+                "scope_id": scope["scope_id"],
+                "scope_target_count": len(scoped_targets),
+            },
+            "targets": scoped_targets,
+        }
+        out_path = FLEET_PLAN_DIR / f"tonights_plan.{scope['scope_id']}.json"
+        with open(out_path, "w") as f:
+            json.dump(scoped_plan, f, indent=4)
+
+
 def run_funnel():
     print("--- INITIATING NIGHTLY TRIAGE ---")
 
@@ -335,6 +516,10 @@ def run_funnel():
     cfg = load_config()
     location_cfg = cfg.get("location", {})
     planner_cfg = cfg.get("planner", {})
+    horizon_info = horizon_summary()
+    fleet_mode = effective_fleet_mode(cfg)
+    active_scopes = _active_scopes(cfg)
+    mount_mode = _primary_mount_mode(cfg, active_scopes)
 
     lat = float(location_cfg.get("lat", 0.0))
     lon = float(location_cfg.get("lon", 0.0))
@@ -380,7 +565,14 @@ def run_funnel():
             gate_counts["cadence_skipped"] += 1
             continue
 
-        analyzed_target, diag = analyze_target(t, trimmed_times, altaz_frame, trimmed_dark_mask, sky_bortle=sky_bortle)
+        analyzed_target, diag = analyze_target(
+            t,
+            trimmed_times,
+            altaz_frame,
+            trimmed_dark_mask,
+            sky_bortle=sky_bortle,
+            mount_mode=mount_mode,
+        )
 
         if diag["dark"]:
             gate_counts["survive_dark"] += 1
@@ -396,6 +588,31 @@ def run_funnel():
             analyzed.append(analyzed_target)
 
     ordered = greedy_order(analyzed, planning_start_utc, start_az=DEFAULT_START_AZ)
+    ledger_entries = load_ledger()
+    ledger_skip_reasons = {
+        "cadence_not_due": 0,
+        "already_captured_this_night": 0,
+    }
+    due_ordered = []
+
+    for target in ordered:
+        due, reason = _target_due_from_ledger(target, ledger_entries, now_utc, planning_start_utc)
+        if due:
+            due_ordered.append(target)
+            continue
+
+        gate_counts["cadence_skipped"] += 1
+        if reason in ledger_skip_reasons:
+            ledger_skip_reasons[reason] += 1
+
+    ordered = renumber_recommended_order(due_ordered)
+    ordered, scope_plan_summary = assign_targets_to_scopes(
+        ordered,
+        active_scopes,
+        fleet_mode=fleet_mode,
+        start_az=DEFAULT_START_AZ,
+    )
+    ordered = renumber_recommended_order(ordered)
 
     print(f"[+] Catalog total                : {gate_counts['catalog_total']}")
     print(f"[-] Deferred by cadence audit   : {gate_counts['cadence_skipped']}")
@@ -404,6 +621,19 @@ def run_funnel():
     print(f"[+] Survive +{CLEARANCE_MARGIN_DEG:.0f}° margin      : {gate_counts['survive_margin']}")
     print(f"[+] Survive required block       : {gate_counts['survive_block']}")
     print(f"[=] Final tonight-plan count    : {len(ordered)}")
+    print(
+        "[=] Horizon model               : "
+        f"{'profile+safety' if horizon_info.get('uses_profile') else 'safety'} "
+        f"floor={float(horizon_info.get('science_floor_deg', 0.0)):.1f}° "
+        f"boxes={int(horizon_info.get('obstruction_count', 0))}"
+    )
+    if gate_counts["cadence_skipped"]:
+        print(
+            "[=] Ledger deferred              : "
+            f"{gate_counts['cadence_skipped']} "
+            f"(cadence={ledger_skip_reasons['cadence_not_due']} "
+            f"night-hold={ledger_skip_reasons['already_captured_this_night']})"
+        )
     print(f"[=] Sector survivors            : N={sector_counts['N']} E={sector_counts['E']} S={sector_counts['S']} W={sector_counts['W']}")
 
     plan_out = {
@@ -411,8 +641,10 @@ def run_funnel():
         "metadata": {
             "generated": datetime.now(timezone.utc).isoformat(),
             "schema_version": "2026.2",
-            "planner_version": "2.7.8",
+            "planner_version": "2.8.0",
             "planning_mode": "astronomical_dark",
+            "fleet_mode": fleet_mode,
+            "active_scope_count": len(active_scopes),
             "planning_start_utc": planning_start_utc.isoformat(),
             "planning_end_utc": planning_end_utc.isoformat(),
             "sample_minutes": SAMPLE_MINUTES,
@@ -423,7 +655,10 @@ def run_funnel():
             "visible_target_count": len(ordered),
             "planned_target_count": len(ordered),
             "gate_counts": gate_counts,
+            "ledger_skip_reasons": ledger_skip_reasons,
             "sector_counts": sector_counts,
+            "scope_plan_summary": scope_plan_summary,
+            "horizon_model": horizon_info,
         },
         "targets": ordered,
     }
@@ -431,7 +666,16 @@ def run_funnel():
     with open(TONIGHTS_PLAN, "w") as f:
         json.dump(plan_out, f, indent=4)
 
+    write_scope_plans(plan_out, active_scopes, fleet_mode)
+
     print(f"Tonight plan secured: {TONIGHTS_PLAN.name}")
+    if fleet_mode == "split" and scope_plan_summary:
+        print("Split mode assignments:")
+        for scope_name, summary in scope_plan_summary.items():
+            print(
+                f"  {scope_name}: {summary['target_count']} target(s), "
+                f"{summary['block_minutes']} planned block-minute(s)"
+            )
 
     if ordered:
         print("\nTop 10 tonight-plan targets:")

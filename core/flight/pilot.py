@@ -38,29 +38,70 @@ from astropy.time import Time
 from astropy.wcs import WCS
 import astropy.units as u
 
-from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config
+from core.utils.env_loader import DATA_DIR, ENV_STATUS, load_config, selected_scope, selected_scope_host, scope_file_tag
 from core.flight.field_rotation import max_exposure_s as rotation_limited_exposure
+from core.flight.pointing_model import apply_pointing_model, load_pointing_model, normalize_ra_hours
 
 # ---------------------------------------------------------------------------
 # Dynamic IP Resolution
 # ---------------------------------------------------------------------------
 
 def _resolve_seestar_host() -> tuple[str, str]:
+    return selected_scope_host(load_config())
+
+
+def _flight_cfg() -> dict:
     cfg = load_config()
+    return cfg.get("flight", {}) if isinstance(cfg, dict) else {}
 
-    alpaca_cfg = cfg.get("alpaca", {}) if isinstance(cfg, dict) else {}
-    alpaca_host = str(alpaca_cfg.get("host", "")).strip()
-    if alpaca_host and alpaca_host != "TBD":
-        return alpaca_host, "config.alpaca.host"
 
-    seestars = cfg.get("seestars", [{}]) if isinstance(cfg, dict) else [{}]
-    if seestars and isinstance(seestars[0], dict):
-        for key in ("host", "ip"):
-            value = str(seestars[0].get(key, "")).strip()
-            if value and value != "TBD":
-                return value, f"config.seestars[0].{key}"
+def _cfg_float(key: str, default: float) -> float:
+    try:
+        return float(_flight_cfg().get(key, default))
+    except Exception:
+        return default
 
-    return "10.0.0.1", "fallback.default"
+
+def _cfg_int(key: str, default: int) -> int:
+    try:
+        return int(round(float(_flight_cfg().get(key, default))))
+    except Exception:
+        return default
+
+
+# Read boolean flight settings without trusting TOML/string spelling.
+def _cfg_bool(key: str, default: bool) -> bool:
+    value = _flight_cfg().get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
+VERIFY_SUFFIXES = (
+    ".fits",
+    ".fit",
+    ".axy",
+    ".corr",
+    ".match",
+    ".rdls",
+    ".solved",
+    ".new",
+    ".wcs",
+    "-indx.xyls",
+)
+
+
+# Map a verify artifact back to the shared stem that ties the FITS frame to
+# all astrometry sidecars generated from that solve attempt.
+def _verify_root_name(path: Path) -> str | None:
+    name = path.name
+    for suffix in VERIFY_SUFFIXES:
+        if name.endswith(suffix):
+            root = name[: -len(suffix)]
+            return root if root.endswith("_VERIFY") else None
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -101,17 +142,64 @@ VETO_TEMP = 55.0
 
 CLIENT_ID = 42
 
-VERIFY_EXPOSURE_SEC = 2.0
+VERIFY_EXPOSURE_SEC = max(0.5, _cfg_float("pointing_verify_exposure_sec", 2.0))
 VERIFY_EXPOSURE_RETRY_SEC = 2.0
-POINTING_TOLERANCE_ARCMIN = 12.0
-POINTING_MAX_RETRIES = 1
-PLATESOLVE_RADIUS_DEG = 5.0
-PLATESOLVE_DOWNSAMPLE = 1
-PLATESOLVE_TIMEOUT = 90
+POINTING_TOLERANCE_ARCMIN = max(0.1, _cfg_float("pointing_tolerance_arcmin", 12.0))
+POINTING_MAX_RETRIES = max(0, _cfg_int("pointing_max_retries", 0))
+POINTING_GROSS_ERROR_ARCMIN = max(
+    POINTING_TOLERANCE_ARCMIN,
+    _cfg_float("pointing_gross_error_arcmin", 180.0),
+)
+POINTING_GROSS_MAX_RETRIES = max(0, _cfg_int("pointing_gross_max_retries", 1))
+POINTING_ACCEPT_TARGET_IN_FRAME = _cfg_bool("pointing_accept_target_in_frame", True)
+POINTING_EDGE_MARGIN_PX = max(0, _cfg_int("pointing_edge_margin_px", 250))
+VERIFY_RETENTION_SETS = max(1, _cfg_int("verify_retention_sets", 40))
+POINTING_MODEL_ENABLED = _cfg_bool("pointing_model_enabled", True)
+POINTING_MODEL_MAX_AGE_HOURS = max(0.1, _cfg_float("pointing_model_max_age_hours", 12.0))
+PLATESOLVE_RADIUS_DEG = max(0.1, _cfg_float("pointing_plate_solve_radius_deg", 5.0))
+PLATESOLVE_DOWNSAMPLE = max(1, _cfg_int("pointing_plate_solve_downsample", 1))
+PLATESOLVE_TIMEOUT = max(5, _cfg_int("pointing_plate_solve_timeout_sec", 35))
+PLATESOLVE_CPULIMIT = max(5, min(PLATESOLVE_TIMEOUT, _cfg_int("pointing_plate_solve_cpulimit_sec", 30)))
 
 LOCAL_BUFFER = DATA_DIR / "local_buffer"
 VERIFY_BUFFER = DATA_DIR / "verify_buffer"
+ACTIVE_SCOPE = selected_scope(load_config())
+ACTIVE_SCOPE_TAG = scope_file_tag(ACTIVE_SCOPE)
 logger = logging.getLogger("seevar.pilot")
+
+
+# Keep only the newest verification bundles so dashboard previews remain
+# available without letting solve-field sidecars accumulate indefinitely.
+def _prune_verify_buffer(keep_sets: int = VERIFY_RETENTION_SETS) -> None:
+    if keep_sets < 1 or not VERIFY_BUFFER.exists():
+        return
+
+    verify_fits = sorted(
+        (
+            path
+            for path in VERIFY_BUFFER.glob("*_VERIFY.fit*")
+            if path.is_file()
+        ),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    keep_roots = {
+        root
+        for root in (_verify_root_name(path) for path in verify_fits[:keep_sets])
+        if root
+    }
+    if not keep_roots:
+        return
+
+    for path in VERIFY_BUFFER.iterdir():
+        if not path.is_file():
+            continue
+        root = _verify_root_name(path)
+        if root and root not in keep_roots:
+            try:
+                path.unlink()
+            except OSError as e:
+                logger.debug("A7 verify cleanup failed for %s: %s", path.name, e)
 
 
 # ---------------------------------------------------------------------------
@@ -299,8 +387,9 @@ class AlpacaClient:
 
 
 class AlpacaTelescope(AlpacaClient):
-    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT, device_number: int = TELESCOPE_NUM):
-        super().__init__(ip, port, "telescope", device_number)
+    def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = TELESCOPE_NUM):
+        host, _ = selected_scope_host(load_config()) if not ip else (ip, "explicit argument")
+        super().__init__(host, port, "telescope", device_number)
 
     def unpark(self):
         self._put("unpark")
@@ -374,8 +463,9 @@ class AlpacaCamera(AlpacaClient):
         5: "Error",
     }
 
-    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT, device_number: int = CAMERA_NUM):
-        super().__init__(ip, port, "camera", device_number)
+    def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = CAMERA_NUM):
+        host, _ = selected_scope_host(load_config()) if not ip else (ip, "explicit argument")
+        super().__init__(host, port, "camera", device_number)
 
     def set_gain(self, gain: int):
         self._put("gain", Gain=str(gain))
@@ -444,8 +534,9 @@ class AlpacaFilterWheel(AlpacaClient):
     IR = 1
     LP = 2
 
-    def __init__(self, ip: str = SEESTAR_HOST, port: int = ALPACA_PORT, device_number: int = FILTERWHEEL_NUM):
-        super().__init__(ip, port, "filterwheel", device_number)
+    def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = FILTERWHEEL_NUM):
+        host, _ = selected_scope_host(load_config()) if not ip else (ip, "explicit argument")
+        super().__init__(host, port, "filterwheel", device_number)
 
     def set_position(self, pos: int):
         self._put("position", Position=str(pos))
@@ -545,6 +636,10 @@ def sovereign_stamp(
     }
 
     h["CCD-TEMP"] = ccd_temp if ccd_temp is not None else "UNKNOWN"
+    h["SCOPEID"] = str(ACTIVE_SCOPE.get("scope_id", ACTIVE_SCOPE_TAG))[:68]
+    h["SCOPENAM"] = str(ACTIVE_SCOPE.get("scope_name", ACTIVE_SCOPE_TAG))[:68]
+    if ACTIVE_SCOPE.get("ip"):
+        h["SCOPEIP"] = str(ACTIVE_SCOPE.get("ip"))[:68]
     if airmass is not None:
         h["AIRMASS"] = airmass
     if moon_phase is not None:
@@ -623,14 +718,15 @@ class DiamondSequence:
       acquire(target, status_cb, telemetry) -> FrameResult
     """
 
-    def __init__(self, host: str = SEESTAR_HOST, port: int = ALPACA_PORT):
-        self.host = host
+    def __init__(self, host: str | None = None, port: int = ALPACA_PORT):
+        resolved_host, resolved_source = selected_scope_host(load_config()) if not host else (host, "explicit argument")
+        self.host = resolved_host
         self.port = port
-        self.host_source = "explicit argument" if host != SEESTAR_HOST else SEESTAR_HOST_SOURCE
+        self.host_source = resolved_source
         logger.info("DiamondSequence endpoint: %s:%d (%s)", self.host, self.port, self.host_source)
-        self._telescope = AlpacaTelescope(host, port)
-        self._camera = AlpacaCamera(host, port)
-        self._filter = AlpacaFilterWheel(host, port)
+        self._telescope = AlpacaTelescope(self.host, port)
+        self._camera = AlpacaCamera(self.host, port)
+        self._filter = AlpacaFilterWheel(self.host, port)
         self._session_ready = False
         self._session_connects = 0
         self._last_session_error = ""
@@ -697,10 +793,9 @@ class DiamondSequence:
 
     def _mount_mode(self) -> str:
         try:
-            cfg = load_config()
-            seestars = cfg.get("seestars", [])
-            if seestars:
-                return str(seestars[0].get("mount", "altaz")).strip().lower()
+            scope = selected_scope(load_config())
+            if scope:
+                return str(scope.get("mount", "altaz")).strip().lower()
         except Exception:
             pass
         return "altaz"
@@ -770,7 +865,7 @@ class DiamondSequence:
         VERIFY_BUFFER.mkdir(parents=True, exist_ok=True)
         utc_obs = datetime.now(timezone.utc)
         safe_name = target.name.replace(" ", "_").replace("/", "-")
-        out_path = VERIFY_BUFFER / f"{safe_name}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_{suffix}.fits"
+        out_path = VERIFY_BUFFER / f"{safe_name}_{ACTIVE_SCOPE_TAG}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_{suffix}.fits"
 
         header = sovereign_stamp(target, utc_obs, width, height, ccd_temp=ccd_temp)
         ok = write_fits(img, header, out_path)
@@ -779,10 +874,23 @@ class DiamondSequence:
 
         return out_path
 
-    def _solve_verify_frame(self, fits_path: Path, target: AcquisitionTarget) -> dict:
+    def _solve_verify_frame(
+        self,
+        fits_path: Path,
+        target: AcquisitionTarget,
+        *,
+        radius_deg: float | None = None,
+        timeout_sec: int | None = None,
+        cpulimit_sec: int | None = None,
+        downsample: int | None = None,
+    ) -> dict:
         work_dir = fits_path.parent
         ra_deg = target.ra_hours * 15.0
         dec_deg = target.dec_deg
+        solve_radius = float(radius_deg if radius_deg is not None else PLATESOLVE_RADIUS_DEG)
+        solve_timeout = int(timeout_sec if timeout_sec is not None else PLATESOLVE_TIMEOUT)
+        solve_cpulimit = int(cpulimit_sec if cpulimit_sec is not None else PLATESOLVE_CPULIMIT)
+        solve_downsample = int(downsample if downsample is not None else PLATESOLVE_DOWNSAMPLE)
 
         cmd = [
             "solve-field",
@@ -790,15 +898,15 @@ class DiamondSequence:
             "--dir", str(work_dir),
             "--overwrite",
             "--no-plots",
-            "--downsample", str(PLATESOLVE_DOWNSAMPLE),
+            "--downsample", str(solve_downsample),
             "--ra", str(ra_deg),
             "--dec", str(dec_deg),
-            "--radius", str(PLATESOLVE_RADIUS_DEG),
+            "--radius", str(solve_radius),
             "--scale-units", "arcsecperpix",
             "--scale-low", "3.0",
             "--scale-high", "4.5",
             "--tweak-order", "1",
-            "--cpulimit", "45",
+            "--cpulimit", str(solve_cpulimit),
         ]
 
         logger.info(
@@ -806,8 +914,8 @@ class DiamondSequence:
             fits_path.name,
             ra_deg,
             dec_deg,
-            PLATESOLVE_RADIUS_DEG,
-            PLATESOLVE_TIMEOUT,
+            solve_radius,
+            solve_timeout,
         )
 
         try:
@@ -815,13 +923,13 @@ class DiamondSequence:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=PLATESOLVE_TIMEOUT,
+                timeout=solve_timeout,
             )
         except subprocess.TimeoutExpired:
-            logger.warning("A7 solve-field timeout after %ss for %s", PLATESOLVE_TIMEOUT, fits_path.name)
+            logger.warning("A7 solve-field timeout after %ss for %s", solve_timeout, fits_path.name)
             return {
                 "ok": False,
-                "error": f"solve-field timeout after {PLATESOLVE_TIMEOUT}s",
+                "error": f"solve-field timeout after {solve_timeout}s",
                 "stderr": "",
             }
 
@@ -846,11 +954,36 @@ class DiamondSequence:
         target_coord = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame="icrs")
         solved_coord = SkyCoord(ra=solved_ra_deg * u.deg, dec=solved_dec_deg * u.deg, frame="icrs")
         error_arcmin = float(target_coord.separation(solved_coord).arcminute)
+        target_x = None
+        target_y = None
+        target_in_frame = False
+        frame_width = None
+        frame_height = None
+        margin_px = POINTING_EDGE_MARGIN_PX
+
+        try:
+            image_hdr = fits.getheader(fits_path, 0)
+            frame_width = int(image_hdr.get("NAXIS1", 0))
+            frame_height = int(image_hdr.get("NAXIS2", 0))
+            if frame_width > 0 and frame_height > 0:
+                wcs = WCS(str(wcs_path))
+                target_x, target_y = [float(v) for v in wcs.all_world2pix([[ra_deg, dec_deg]], 0)[0]]
+                max_margin = max(0, min(frame_width, frame_height) // 2 - 1)
+                margin_px = min(POINTING_EDGE_MARGIN_PX, max_margin)
+                target_in_frame = (
+                    margin_px <= target_x < frame_width - margin_px
+                    and margin_px <= target_y < frame_height - margin_px
+                )
+        except Exception as e:
+            logger.debug("A7 target-in-frame check failed for %s: %s", fits_path.name, e)
 
         logger.info(
-            "A7 solve-field success: file=%s err=%.2f arcmin",
+            "A7 solve-field success: file=%s err=%.2f arcmin target_px=%s,%s in_frame=%s",
             fits_path.name,
             error_arcmin,
+            f"{target_x:.1f}" if target_x is not None else "?",
+            f"{target_y:.1f}" if target_y is not None else "?",
+            target_in_frame,
         )
 
         return {
@@ -859,6 +992,12 @@ class DiamondSequence:
             "solved_ra_deg": solved_ra_deg,
             "solved_dec_deg": solved_dec_deg,
             "error_arcmin": error_arcmin,
+            "target_x": target_x,
+            "target_y": target_y,
+            "target_in_frame": target_in_frame,
+            "frame_width": frame_width,
+            "frame_height": frame_height,
+            "edge_margin_px": margin_px,
         }
 
     def _pointing_verify(self, target: AcquisitionTarget, notify, ccd_temp=None) -> dict:
@@ -895,13 +1034,23 @@ class DiamondSequence:
                 "error_arcmin": None,
                 "error": str(e),
             }
+        finally:
+            _prune_verify_buffer()
 
-    def _corrective_nudge(self, command_ra_hours: float, command_dec_deg: float, solve_result: dict) -> tuple[float, float]:
+    # Correct the command point from a solved frame while preserving the true target coordinates.
+    def _corrective_nudge(
+        self,
+        command_ra_hours: float,
+        command_dec_deg: float,
+        expected_ra_hours: float,
+        expected_dec_deg: float,
+        solve_result: dict,
+    ) -> tuple[float, float]:
         solved_ra_hours = float(solve_result["solved_ra_deg"]) / 15.0
         solved_dec_deg = float(solve_result["solved_dec_deg"])
 
-        delta_ra_hours = command_ra_hours - solved_ra_hours
-        delta_dec_deg = command_dec_deg - solved_dec_deg
+        delta_ra_hours = normalize_ra_hours(expected_ra_hours - solved_ra_hours)
+        delta_dec_deg = expected_dec_deg - solved_dec_deg
 
         corrected_ra_hours = command_ra_hours + delta_ra_hours
         corrected_dec_deg = command_dec_deg + delta_dec_deg
@@ -990,12 +1139,42 @@ class DiamondSequence:
 
         t_start = time.monotonic()
         ccd_temp = telemetry.temp_c if telemetry else None
-        command_ra_hours = float(target.ra_hours)
-        command_dec_deg = float(target.dec_deg)
+        science_ra_hours = float(target.ra_hours)
+        science_dec_deg = float(target.dec_deg)
+        command_ra_hours = science_ra_hours
+        command_dec_deg = science_dec_deg
         exp_sec = target.exp_ms / 1000.0
 
         try:
             if not skip_pointing:
+                pointing_model = None
+                if POINTING_MODEL_ENABLED:
+                    pointing_model = load_pointing_model(
+                        ACTIVE_SCOPE_TAG,
+                        max_age_hours=POINTING_MODEL_MAX_AGE_HOURS,
+                    )
+                if pointing_model:
+                    command_ra_hours, command_dec_deg = apply_pointing_model(
+                        science_ra_hours,
+                        science_dec_deg,
+                        pointing_model,
+                    )
+                    if pointing_model.get("kind") == "affine_prealignment":
+                        notify(
+                            "A4",
+                            "Affine prealignment model applied: "
+                            f"command RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° "
+                            f"from {int(pointing_model.get('n_samples', 0))} sample(s)",
+                        )
+                    else:
+                        notify(
+                            "A4",
+                            "Prealignment model applied: "
+                            f"RA {float(pointing_model.get('offset_ra_arcmin', 0.0)):+.1f}' "
+                            f"DEC {float(pointing_model.get('offset_dec_arcmin', 0.0)):+.1f}' "
+                            f"from {int(pointing_model.get('n_samples', 0))} sample(s)",
+                        )
+
                 for attempt in range(POINTING_MAX_RETRIES + 1):
                     notify("A4", f"Slew command RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° ({target.name})")
                     self._telescope.slew_to_coordinates_async(command_ra_hours, command_dec_deg)
@@ -1009,8 +1188,8 @@ class DiamondSequence:
 
                     verify_target = AcquisitionTarget(
                         name=target.name,
-                        ra_hours=command_ra_hours,
-                        dec_deg=command_dec_deg,
+                        ra_hours=science_ra_hours,
+                        dec_deg=science_dec_deg,
                         auid=target.auid,
                         exp_ms=target.exp_ms,
                         observer_code=target.observer_code,
@@ -1032,16 +1211,70 @@ class DiamondSequence:
                         notify("A7", f"Pointing accepted ({error_arcmin:.2f} arcmin <= {POINTING_TOLERANCE_ARCMIN:.2f})")
                         break
 
+                    target_in_frame = bool(solve.get("target_in_frame"))
+                    if (
+                        POINTING_ACCEPT_TARGET_IN_FRAME
+                        and target_in_frame
+                        and error_arcmin < POINTING_GROSS_ERROR_ARCMIN
+                    ):
+                        target_x = float(solve["target_x"])
+                        target_y = float(solve["target_y"])
+                        notify(
+                            "A7",
+                            "Pointing accepted: target is inside solved frame "
+                            f"x={target_x:.0f} y={target_y:.0f} "
+                            f"margin={int(solve.get('edge_margin_px', POINTING_EDGE_MARGIN_PX))}px "
+                            f"(center error {error_arcmin:.2f} arcmin)",
+                        )
+                        break
+
                     notify("A7", f"Pointing outside tolerance ({error_arcmin:.2f} arcmin > {POINTING_TOLERANCE_ARCMIN:.2f})")
+                    if error_arcmin >= POINTING_GROSS_ERROR_ARCMIN:
+                        gross_limit = min(POINTING_MAX_RETRIES, POINTING_GROSS_MAX_RETRIES)
+                        notify(
+                            "A7",
+                            f"Gross pointing miss ({error_arcmin:.2f} arcmin >= "
+                            f"{POINTING_GROSS_ERROR_ARCMIN:.2f}); "
+                            f"gross retry {attempt}/{gross_limit}",
+                        )
+                        if attempt >= gross_limit:
+                            return FrameResult(
+                                success=False,
+                                error=(
+                                    f"Gross pointing error {error_arcmin:.2f} arcmin "
+                                    f"after {attempt} gross retry attempt(s)"
+                                ),
+                            )
+
                     if attempt >= POINTING_MAX_RETRIES:
                         return FrameResult(success=False, error=f"Pointing error {error_arcmin:.2f} arcmin after retries")
 
-                    command_ra_hours, command_dec_deg = self._corrective_nudge(command_ra_hours, command_dec_deg, solve)
+                    command_ra_hours, command_dec_deg = self._corrective_nudge(
+                        command_ra_hours,
+                        command_dec_deg,
+                        science_ra_hours,
+                        science_dec_deg,
+                        solve,
+                    )
                     notify("A8", f"Corrective nudge -> RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° (retry {attempt + 1}/{POINTING_MAX_RETRIES})")
                 else:
                     return FrameResult(success=False, error="Pointing loop exhausted unexpectedly")
             else:
                 notify("A10", f"Reusing established pointing for {target.name}")
+
+            try:
+                tracking_now = self._telescope.safe_get("tracking")
+                if tracking_now is False:
+                    notify("A10", "Tracking reported OFF before science exposure; re-enabling")
+                    self._telescope.set_tracking(True)
+                    time.sleep(1.0)
+                    tracking_after = self._telescope.safe_get("tracking")
+                    if tracking_after is False:
+                        logger.warning("Tracking still reports OFF after re-enable request")
+                elif tracking_now is None:
+                    logger.warning("Tracking state unavailable before science exposure")
+            except Exception as e:
+                logger.warning("Tracking verification before science exposure failed: %s", e)
 
             notify("A10", f"Set gain={GAIN} and start science exposure {exp_sec:.1f}s")
             try:
@@ -1074,12 +1307,12 @@ class DiamondSequence:
             notify("A10", f"Writing science FITS — AUID={target.auid} CCD-TEMP={ccd_temp}")
             LOCAL_BUFFER.mkdir(parents=True, exist_ok=True)
             safe_name = target.name.replace(" ", "_").replace("/", "-")
-            out_path = LOCAL_BUFFER / f"{safe_name}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_Raw.fits"
+            out_path = LOCAL_BUFFER / f"{safe_name}_{ACTIVE_SCOPE_TAG}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_Raw.fits"
 
             science_target = AcquisitionTarget(
                 name=target.name,
-                ra_hours=command_ra_hours,
-                dec_deg=command_dec_deg,
+                ra_hours=science_ra_hours,
+                dec_deg=science_dec_deg,
                 auid=target.auid,
                 exp_ms=target.exp_ms,
                 observer_code=target.observer_code,

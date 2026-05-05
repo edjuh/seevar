@@ -22,15 +22,18 @@ import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.utils.env_loader import DATA_DIR
+from core.utils.env_loader import DATA_DIR, load_config, selected_scope, selected_scope_host
 from core.flight.pilot import (
     AlpacaCamera, AlpacaFilterWheel, TelemetryBlock,
-    SEESTAR_HOST, ALPACA_PORT, EXPOSE_TIMEOUT,
+    ALPACA_PORT, EXPOSE_TIMEOUT,
+)
+from core.postflight.calibration_assets import (
+    DARK_LIBRARY_DIR,
+    ensure_calibration_dirs,
+    upsert_calibration_asset,
 )
 
 logger = logging.getLogger("seevar.dark_library")
-
-DARK_LIBRARY_DIR = DATA_DIR / "dark_library"
 
 # Tighter temperature matching for more defensible dark current behavior.
 TEMP_BIN_SIZE = 2
@@ -40,18 +43,22 @@ N_DARK_FRAMES = 5
 DARK_SETTLE_S = 2
 
 
+# Convert a camera temperature to SeeVar's rounded dark-library bin.
 def _temp_bin(temp_c: float) -> int:
     return int(round(temp_c / TEMP_BIN_SIZE) * TEMP_BIN_SIZE)
 
 
+# Build the canonical dark-library key from temperature, exposure, and gain.
 def _key(temp_bin: int, exp_ms: int, gain: int) -> str:
     return f"dark_tb{temp_bin:+d}_e{exp_ms}_g{gain}"
 
 
+# Return the JSON index path for the reusable dark library.
 def _index_path() -> Path:
     return DARK_LIBRARY_DIR / "index.json"
 
 
+# Load the dark-library index, tolerating missing or damaged index files.
 def _load_index() -> dict:
     p = _index_path()
     if p.exists():
@@ -62,6 +69,7 @@ def _load_index() -> dict:
     return {}
 
 
+# Persist the dark-library index after adding or replacing a master dark.
 def _save_index(index: dict) -> None:
     try:
         _index_path().parent.mkdir(parents=True, exist_ok=True)
@@ -70,18 +78,40 @@ def _save_index(index: dict) -> None:
         logger.error("dark_library: index save failed: %s", e)
 
 
-class DarkLibrary:
-    """Post-session dark frame acquisition via Alpaca FilterWheel + Camera."""
+# Normalize telescope model names so equivalent S30-Pro units can share darks.
+def _normalized_model(value: object) -> str:
+    return str(value or "").strip().lower().replace(" ", "")
 
-    def __init__(self, host: str = SEESTAR_HOST, port: int = ALPACA_PORT):
-        self.host = host
+
+# Read the configured maximum dark/science temperature-bin mismatch.
+def dark_temp_tolerance_c(cfg: dict | None = None) -> float:
+    cfg = cfg if isinstance(cfg, dict) else load_config()
+    value = cfg.get("calibration", {}).get("dark_temp_tolerance_c", TEMP_BIN_TOLS)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float(TEMP_BIN_TOLS)
+
+
+class DarkLibrary:
+    """Fleet-shared dark acquisition via Alpaca, gated by model/temperature/exposure/gain."""
+
+    # Select the active scope and load reusable dark-library metadata.
+    def __init__(self, host: str | None = None, port: int = ALPACA_PORT):
+        cfg = load_config()
+        self._scope = selected_scope(cfg)
+        self._temp_tolerance_c = dark_temp_tolerance_c(cfg)
+        self.host = host or str(self._scope.get("host") or self._scope.get("ip") or selected_scope_host(cfg)[0])
         self.port = port
         self._index = _load_index()
+        ensure_calibration_dirs()
         DARK_LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Reload the on-disk index so another process can add calibration assets.
     def _refresh_index(self):
         self._index = _load_index()
 
+    # Capture master darks for the requested exposure/gain pairs at live temperature.
     def acquire_darks(self, sequences: list, telemetry: Optional[TelemetryBlock] = None) -> dict:
         temp_c = telemetry.temp_c if telemetry and telemetry.temp_c is not None else 0.0
         if temp_c == 0.0:
@@ -120,8 +150,14 @@ class DarkLibrary:
                         "temp_c_actual": round(temp_c, 1),
                         "source": "alpaca_dark_filter",
                         "master_path": status["master_path"],
+                        "scope_id": self._scope.get("scope_id"),
+                        "scope_name": self._scope.get("scope_name"),
+                        "scope_model": self._scope.get("model"),
+                        "scope_ip": self._scope.get("ip"),
+                        "sharing_policy": "fleet_shared_model_and_temperature_gated",
                     }
                     _save_index(self._index)
+                    upsert_calibration_asset("dark", key, self._index[key])
 
         except Exception as e:
             logger.error("acquire_darks: %s", e)
@@ -134,6 +170,7 @@ class DarkLibrary:
 
         return results
 
+    # Capture one master dark from multiple camera dark exposures.
     def _capture_dark_set(self, camera: AlpacaCamera, exp_ms: int, gain: int, temp_bin: int, temp_c: float) -> dict:
         exp_sec = exp_ms / 1000.0
         frames = []
@@ -171,6 +208,16 @@ class DarkLibrary:
         hdr["TEMPCACT"] = round(float(temp_c), 1)
         hdr["NFRAMES"] = len(frames)
         hdr["SOURCE"] = "SeeVar dark_library"
+        hdr["FILTER"] = "DARK"
+        if self._scope.get("scope_id"):
+            hdr["SCOPEID"] = str(self._scope["scope_id"])[:68]
+        if self._scope.get("scope_name"):
+            hdr["SCOPENAM"] = str(self._scope["scope_name"])[:68]
+        if self._scope.get("model"):
+            hdr["SCOPEMOD"] = str(self._scope["model"])[:68]
+        if self._scope.get("ip"):
+            hdr["SCOPEIP"] = str(self._scope["ip"])[:68]
+        hdr["SHAREPOL"] = "MODEL_TEMP_GATE"
         hdr["DATE"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
         fits.PrimaryHDU(data=master, header=hdr).writeto(out_path, overwrite=True)
@@ -181,6 +228,13 @@ class DarkLibrary:
             "master_path": str(out_path),
         }
 
+    # Check whether an indexed dark is compatible with the currently selected scope model.
+    def _model_compatible(self, entry: dict) -> bool:
+        active_model = _normalized_model(self._scope.get("model"))
+        entry_model = _normalized_model(entry.get("scope_model"))
+        return not active_model or not entry_model or active_model == entry_model
+
+    # Find the best reusable dark for a science frame by exposure, gain, model, and temperature.
     def best_dark(self, temp_c: float, exp_ms: int, gain: int) -> tuple[bool, Optional[dict], str]:
         self._refresh_index()
 
@@ -190,7 +244,7 @@ class DarkLibrary:
         if key in self._index:
             entry = self._index[key]
             master_path = Path(entry.get("master_path", ""))
-            if master_path.exists():
+            if master_path.exists() and self._model_compatible(entry):
                 return True, entry, f"dark confirmed: {key}"
 
         candidates = []
@@ -199,8 +253,10 @@ class DarkLibrary:
                 master_path = Path(entry.get("master_path", ""))
                 if not master_path.exists():
                     continue
+                if not self._model_compatible(entry):
+                    continue
                 delta = abs(int(entry.get("temp_bin", 0)) - tb)
-                if delta <= TEMP_BIN_TOLS:
+                if delta <= self._temp_tolerance_c:
                     candidates.append((delta, entry))
 
         if candidates:
@@ -210,6 +266,7 @@ class DarkLibrary:
 
         return False, None, f"no dark for exp_ms={exp_ms} gain={gain} temp_bin={tb:+d}C"
 
+    # Report whether a matching dark exists for preflight/postflight gating.
     def is_dark_current(self, temp_c: float, exp_ms: int, gain: int) -> tuple:
         ok, entry, msg = self.best_dark(temp_c, exp_ms, gain)
         return ok, msg
