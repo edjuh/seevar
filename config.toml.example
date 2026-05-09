@@ -37,12 +37,16 @@ moon_avoidance = 30.0     # minimum angular distance from moon in degrees
 
 # -----------------------------------------------------------------------------
 # HORIZON — optional
-# profile_enabled : true uses data/horizon_mask.json when present.
+# profile_enabled : true uses the configured profile_path when present.
+# profile_path    : relative paths are resolved from the SeeVar repository root.
+# profile_required: true fails planning if the profile is missing or unreadable.
 # safety_floor_deg: hard minimum altitude before manual obstructions are applied.
 #                  [location].horizon_limit is also honored as a safety floor.
 # -----------------------------------------------------------------------------
 [horizon]
 profile_enabled = true
+profile_path = "data/horizon_mask.json"
+profile_required = false
 safety_floor_deg = 15.0
 
 # -----------------------------------------------------------------------------
@@ -54,13 +58,21 @@ safety_floor_deg = 15.0
 #                         "app2_session=...; canary=false"
 # webobs_token  : optional legacy fallback — if set and webobs_session_cookie
 #                 is empty, SeeVar treats this as the raw app2_session value.
-# target_key    : optional — needed for live AAVSO TargetTool API access
-#                 The bundled seed catalog works without these keys.
+# target_tool_api_key : optional — needed for live AAVSO Target Tool API access.
+#                       This is separate from WebObs login/cookie submission.
+# target_key          : legacy alias for target_tool_api_key.
+#                       The bundled seed catalog works without these keys.
 # -----------------------------------------------------------------------------
 [aavso]
 observer_code = "YOUR_CODE_HERE"
 webobs_session_cookie = ""
 webobs_token  = ""
+auto_submit = true
+sanity_enabled = true
+max_mag_error = 0.5
+sanity_margin_mag = 1.0
+max_peak_adu = 58000.0
+target_tool_api_key = ""
 target_key    = ""
 
 # -----------------------------------------------------------------------------
@@ -86,6 +98,9 @@ cadence_divisor      = 20    # period / cadence_divisor = observation interval (
 cadence_fallback_days = 3.0   # fallback cadence (days) for targets without a known period
 fleet_mode         = "single" # single = one shared queue, split = divide when 2+ scopes are active, auto = choose by active scope count
 simulation_mode    = false
+secondary_catalogs = []       # optional filler imaging catalogs: ["messier", "caldwell", "sharpless", "herschel400"]
+secondary_max_targets = 0     # 0 = no cap once enabled
+secondary_duration_sec = 900  # per-object imaging block for secondary catalogs
 
 # -----------------------------------------------------------------------------
 # FLIGHT — optional
@@ -93,9 +108,13 @@ simulation_mode    = false
 # frame in roughly half a minute, the target is probably clouded, blocked, or
 # off-field; move on instead of burning the night.
 # For quick pre-alignment before a session, run:
-#   .venv/bin/python dev/tools/prealign_pointing.py --points 3 --exposure-sec 5
+#   .venv/bin/python dev/tools/telescope/prealign_pointing.py --points 3 --exposure-sec 5
 # -----------------------------------------------------------------------------
 [flight]
+alpaca_port                       = 32323
+alpaca_client_id                  = 42
+gain                              = 80
+settle_seconds                    = 8
 pointing_verify_exposure_sec       = 2.0
 pointing_plate_solve_timeout_sec   = 35
 pointing_plate_solve_cpulimit_sec  = 30
@@ -126,17 +145,18 @@ comp_star_dir = "~/seevar/data/comp_stars"
 
 # -----------------------------------------------------------------------------
 # WEATHER — optional
-# Dual source: open-meteo (precipitation/wind) + Clear Outside (cloud layers/fog)
+# Multi-source: open-meteo + MET Norway/Yr.no + Clear Outside + optional KNMI.
 # All thresholds are tunable here — no code changes required.
 # fog_abort = false disables the fog veto entirely (not recommended).
-# HUMID and HAZY are warnings only — the observatory still opens.
+# Clouds are science no-go. Rain/fog/thunder/wind are hard aborts.
 # -----------------------------------------------------------------------------
 [weather]
 max_precip_mm      = 0.5    # mm/hr   — rain hard abort
 max_wind_kmh       = 30.0   # km/h    — wind hard abort
-max_cloud_low_pct  = 30.0   # %       — low cloud hard abort
-max_cloud_mid_pct  = 50.0   # %       — mid cloud abort
-max_cloud_high_pct = 70.0   # %       — high cloud warning only (HAZY)
+max_cloud_low_pct   = 30.0  # %       — low cloud science no-go
+max_cloud_mid_pct   = 50.0  # %       — mid cloud science no-go
+max_cloud_high_pct  = 70.0  # %       — high cloud science no-go
+max_cloud_total_pct = 70.0  # %       — total cloud science no-go
 max_humidity_pct   = 90.0   # %       — humidity warning only (HUMID) — dew heater cue
 fog_abort          = true   # bool    — any fog reading aborts the session
 
@@ -149,6 +169,10 @@ fog_abort          = true   # bool    — any fog reading aborts the session
 max_plate_solve_candidates = 3
 plate_solve_timeout_sec    = 90
 plate_solve_cpulimit_sec   = 75
+auto_stage_reports         = true
+report_mirror_dir          = "/mnt/astronas/reports"
+auto_park                  = true
+auto_shutdown_scope        = false
 
 # -----------------------------------------------------------------------------
 # CALIBRATION — optional

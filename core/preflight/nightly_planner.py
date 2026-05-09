@@ -43,6 +43,12 @@ CATALOG_DIR = PROJECT_ROOT / "catalogs"
 FEDERATION_CATALOG = CATALOG_DIR / "federation_catalog.json"
 TONIGHTS_PLAN = DATA_DIR / "tonights_plan.json"
 FLEET_PLAN_DIR = DATA_DIR / "fleet_plans"
+SECONDARY_CATALOGS = {
+    "messier": CATALOG_DIR / "messier.json",
+    "caldwell": CATALOG_DIR / "caldwell.json",
+    "sharpless": CATALOG_DIR / "sharpless.json",
+    "herschel400": CATALOG_DIR / "herschel400.json",
+}
 
 LOOKAHEAD_HOURS = 36
 SAMPLE_MINUTES = 10
@@ -408,6 +414,55 @@ def renumber_recommended_order(targets: list[dict]) -> list[dict]:
     return renumbered
 
 
+def _enabled_secondary_catalogs(planner_cfg: dict) -> list[str]:
+    value = planner_cfg.get("secondary_catalogs", [])
+    if isinstance(value, str):
+        value = [part.strip() for part in value.split(",")]
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip().lower() for item in value if str(item).strip()]
+
+
+def _load_secondary_targets(planner_cfg: dict) -> tuple[list[dict], dict[str, int]]:
+    enabled = _enabled_secondary_catalogs(planner_cfg)
+    max_targets = int(planner_cfg.get("secondary_max_targets", 0) or 0)
+    targets: list[dict] = []
+    counts: dict[str, int] = {}
+
+    for catalog_name in enabled:
+        path = SECONDARY_CATALOGS.get(catalog_name, CATALOG_DIR / f"{catalog_name}.json")
+        if not path.exists():
+            counts[catalog_name] = 0
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            rows = payload.get("targets", []) if isinstance(payload, dict) else payload
+        except Exception as e:
+            print(f"[!] Secondary catalog {catalog_name} skipped: {e}")
+            counts[catalog_name] = 0
+            continue
+
+        added = 0
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            item = dict(row)
+            item.setdefault("catalog", catalog_name)
+            item.setdefault("science_mode", "imaging")
+            item.setdefault("priority", -5)
+            item.setdefault("duration", int(planner_cfg.get("secondary_duration_sec", 900)))
+            item["secondary_target"] = True
+            targets.append(item)
+            added += 1
+            if max_targets > 0 and len(targets) >= max_targets:
+                break
+        counts[catalog_name] = added
+        if max_targets > 0 and len(targets) >= max_targets:
+            break
+
+    return targets, counts
+
+
 def _active_scopes(cfg: dict) -> list[dict]:
     scopes = []
     for idx, scope in enumerate(live_available_scopes(cfg)):
@@ -530,6 +585,10 @@ def run_funnel():
     with open(FEDERATION_CATALOG, "r") as f:
         data = json.load(f)
         targets = data.get("data", data.get("targets", [])) if isinstance(data, dict) else data
+    primary_target_count = len(targets)
+    secondary_targets, secondary_counts = _load_secondary_targets(planner_cfg)
+    if secondary_targets:
+        targets = list(targets) + secondary_targets
 
     now_utc = datetime.now(timezone.utc)
     times = build_time_grid(now_utc)
@@ -627,6 +686,17 @@ def run_funnel():
         f"floor={float(horizon_info.get('science_floor_deg', 0.0)):.1f}° "
         f"boxes={int(horizon_info.get('obstruction_count', 0))}"
     )
+    obstructions = horizon_info.get("obstructions") or []
+    if obstructions:
+        labels = [
+            (
+                f"{obs.get('label', 'obstruction')}"
+                f"({float(obs.get('az_start', 0.0)):.0f}-{float(obs.get('az_end', 0.0)):.0f}"
+                f"@{float(obs.get('min_alt', 0.0)):.0f}°)"
+            )
+            for obs in obstructions
+        ]
+        print(f"[=] Horizon obstructions        : {', '.join(labels)}")
     if gate_counts["cadence_skipped"]:
         print(
             "[=] Ledger deferred              : "
@@ -652,6 +722,9 @@ def run_funnel():
             "sun_altitude_threshold_deg": sun_limit,
             "sky_bortle": sky_bortle,
             "catalog_target_count": len(targets),
+            "primary_target_count": primary_target_count,
+            "secondary_target_count": len(secondary_targets),
+            "secondary_catalog_counts": secondary_counts,
             "visible_target_count": len(ordered),
             "planned_target_count": len(ordered),
             "gate_counts": gate_counts,
