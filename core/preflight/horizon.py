@@ -15,17 +15,13 @@ logger = logging.getLogger("seevar.horizon")
 
 PROJECT_ROOT  = Path(__file__).resolve().parents[2]
 CONFIG_PATH   = PROJECT_ROOT / "config.toml"
-MASK_PATH     = PROJECT_ROOT / "data" / "horizon_mask.json"
+DEFAULT_MASK_PATH = PROJECT_ROOT / "data" / "horizon_mask.json"
 
 DEFAULT_SCIENCE_FLOOR_DEG = 15.0
 
-DEFAULT_OBSTRUCTIONS = [
-    {"az_start": 150, "az_end": 210, "min_alt": 45},
-    {"az_start": 300, "az_end": 350, "min_alt": 55},
-]
-
 _profile = {}
 _use_profile = False
+_profile_source = None
 _config = None
 _obstructions = None
 
@@ -74,23 +70,48 @@ def _profile_enabled() -> bool:
     return bool(True if value is None else value)
 
 
+def _profile_required() -> bool:
+    cfg = _load_config()
+    value = cfg.get("horizon", {}).get("profile_required")
+    return bool(False if value is None else value)
+
+
+def _profile_path() -> Path:
+    cfg = _load_config()
+    configured = cfg.get("horizon", {}).get("profile_path")
+    if not configured:
+        return DEFAULT_MASK_PATH
+
+    path = Path(str(configured)).expanduser()
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path
+
+
 def _load_profile() -> bool:
-    global _profile, _use_profile
+    global _profile, _use_profile, _profile_source
     if _profile:
         return _use_profile
 
-    if MASK_PATH.exists() and _profile_enabled():
+    mask_path = _profile_path()
+    if mask_path.exists() and _profile_enabled():
         try:
-            with open(MASK_PATH) as f:
+            with open(mask_path) as f:
                 data = json.load(f)
             _profile = {int(k): float(v) for k, v in data["profile"].items()}
             _use_profile = True
-            logger.debug("Horizon profile loaded: %s (%d entries)", MASK_PATH, len(_profile))
+            _profile_source = mask_path
+            logger.debug("Horizon profile loaded: %s (%d entries)", mask_path, len(_profile))
             return True
         except Exception as e:
-            logger.warning("Failed to load horizon_mask.json: %s — using box fallback", e)
+            if _profile_required():
+                raise RuntimeError(f"Required horizon profile failed to load: {mask_path}: {e}") from e
+            logger.warning("Failed to load horizon profile %s: %s — using configured safety floors", mask_path, e)
+    elif _profile_enabled() and _profile_required():
+        raise FileNotFoundError(f"Required horizon profile does not exist: {mask_path}")
 
     _use_profile = False
+    _profile_source = None
     return False
 
 
@@ -115,8 +136,8 @@ def _load_obstructions() -> list:
         _obstructions = horizon_obstructions
         return _obstructions
 
-    _obstructions = DEFAULT_OBSTRUCTIONS
-    return DEFAULT_OBSTRUCTIONS
+    _obstructions = []
+    return _obstructions
 
 
 def _az_in_sector(az: float, start: float, end: float) -> bool:
@@ -177,11 +198,25 @@ def is_obstructed(az: float, alt: float) -> bool:
 def horizon_summary() -> dict:
     _load_profile()
     obstructions = _load_obstructions()
+    values = list(_profile.values()) if _use_profile else []
     return {
         "uses_profile": bool(_use_profile),
-        "profile_path": str(MASK_PATH) if _use_profile else None,
+        "profile_path": str(_profile_source) if _use_profile else str(_profile_path()),
+        "profile_required": _profile_required(),
+        "profile_points": len(_profile) if _use_profile else 0,
+        "profile_min_alt": round(min(values), 2) if values else None,
+        "profile_max_alt": round(max(values), 2) if values else None,
         "science_floor_deg": round(_science_floor_deg(), 2),
         "obstruction_count": len(obstructions),
+        "obstructions": [
+            {
+                "label": str(obs.get("label", f"obstruction_{idx + 1}")),
+                "az_start": float(obs.get("az_start", 0.0)),
+                "az_end": float(obs.get("az_end", 0.0)),
+                "min_alt": float(obs.get("min_alt", 0.0)),
+            }
+            for idx, obs in enumerate(obstructions)
+        ],
     }
 
 
@@ -225,9 +260,18 @@ if __name__ == "__main__":
     _load_profile()
     mode = "PROFILE + SAFETY BOXES" if _use_profile else "BOX MODEL FALLBACK"
     print(f"Horizon engine v2.1.1 — {mode}")
-    print(f"Mask: {MASK_PATH}")
+    summary = horizon_summary()
+    print(f"Mask: {summary['profile_path']}")
+    print(f"Profile points: {summary['profile_points']}")
+    if summary["profile_min_alt"] is not None:
+        print(f"Profile range: {summary['profile_min_alt']:.1f}° .. {summary['profile_max_alt']:.1f}°")
     print(f"Science floor: {_science_floor_deg():.1f}°")
     print(f"Manual obstructions: {len(_load_obstructions())}")
+    for obs in summary["obstructions"]:
+        print(
+            f"  - {obs['label']}: az {obs['az_start']:.1f}°..{obs['az_end']:.1f}° "
+            f"min_alt {obs['min_alt']:.1f}°"
+        )
     print()
     print("Az    MinAlt  ReqAlt(+5)  Clear@25?")
     for az in range(0, 360, 10):

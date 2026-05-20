@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/prealign_pointing.py
+Filename: dev/tools/telescope/prealign_pointing.py
 Version: 1.0.0
 Objective: Build a quick SeeVar software pointing model from 2-3 bright
            plate-solved alignment stars before starting a science sequence.
@@ -13,23 +13,33 @@ import argparse
 import json
 import logging
 import math
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import numpy as np
 import astropy.units as u
 from astropy.coordinates import AltAz, EarthLocation, SkyCoord
+from astropy.io import fits
 from astropy.time import Time
+from alpaca.camera import Camera
 
 from core.flight.pilot import AcquisitionTarget, DiamondSequence
 from core.flight.pointing_model import build_pointing_model, normalize_ra_hours, save_pointing_model
+import core.preflight.horizon_scanner_v2 as hv2
 from core.preflight.horizon import required_altitude
 from core.utils.env_loader import load_config, selected_scope, scope_file_tag
+
+
+WIDE_CAMERA_NUM = 1
+WIDE_CAMERA_SCALE_LOW = 35.0
+WIDE_CAMERA_SCALE_HIGH = 80.0
 
 
 @dataclass(frozen=True)
@@ -72,8 +82,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--solve-radius-deg", type=float, default=20.0, help="Search radius for alignment solves.")
     parser.add_argument("--solve-timeout-sec", type=int, default=90, help="Timeout for each alignment solve.")
     parser.add_argument("--solve-downsample", type=int, default=2, help="Downsample factor for alignment solves.")
+    parser.add_argument("--no-wide-fallback", action="store_true", help="Do not retry failed alignment solves with the wide camera.")
+    parser.add_argument("--wide-camera-num", type=int, default=WIDE_CAMERA_NUM, help="Wide-camera Alpaca device number.")
+    parser.add_argument("--wide-exposure-sec", type=float, default=5.0, help="Wide-camera fallback exposure in seconds.")
+    parser.add_argument("--wide-gain", type=int, default=0, help="Wide-camera fallback gain.")
+    parser.add_argument("--wide-solve-radius-deg", type=float, default=60.0, help="Wide-camera fallback solve radius.")
+    parser.add_argument("--port", type=int, default=32323, help="Alpaca port.")
     parser.add_argument("--ip", default="", help="Override selected scope IP address.")
     parser.add_argument("--scope-tag", default="", help="Override output model scope tag, e.g. scope01 or scope02.")
+    parser.add_argument("--state-file", type=Path, default=None, help="Scoped system_state JSON to update during manual alignment.")
+    parser.add_argument("--when", default="", help="UTC ISO time for candidate planning only, e.g. 2026-05-09T22:00:00Z.")
     parser.add_argument("--dry-run", action="store_true", help="Only list selected candidates; do not move the telescope.")
     parser.add_argument("--park-after", action="store_true", help="Park the telescope after pre-alignment.")
     parser.add_argument("--output", type=Path, default=None, help="Override pointing model output path.")
@@ -124,7 +142,7 @@ def azimuth_far_enough(az: float, existing: list[dict], min_sep: float) -> bool:
 # Pick bright, visible, horizon-clear alignment stars for the current site and time.
 def choose_alignment_stars(args: argparse.Namespace) -> list[dict]:
     location = site_location()
-    obstime = Time(datetime.now(timezone.utc))
+    obstime = Time(args.when) if str(args.when or "").strip() else Time(datetime.now(timezone.utc))
     candidates = []
 
     for star in BRIGHT_STARS:
@@ -168,8 +186,155 @@ def notify(step: str, msg: str) -> None:
     print(f"[{step}] {msg}", flush=True)
 
 
+# Write prealignment progress into the same state file the dashboard reads.
+def write_state(
+    args: argparse.Namespace,
+    scope: dict,
+    sub: str,
+    msg: str,
+    target: str | None = None,
+    state: str = "PREFLIGHT",
+) -> None:
+    if args.state_file is None:
+        return
+    try:
+        payload = json.loads(args.state_file.read_text(encoding="utf-8")) if args.state_file.exists() else {}
+    except Exception:
+        payload = {}
+    now_utc = datetime.now(timezone.utc).isoformat()
+    payload.update(
+        {
+            "state": state,
+            "scope_name": scope.get("scope_name") or scope.get("name"),
+            "scope_id": scope.get("scope_id"),
+            "sub": sub,
+            "substate": sub,
+            "msg": msg,
+            "message": msg,
+            "updated": now_utc,
+            "updated_utc": now_utc,
+            "current_target": target,
+        }
+    )
+    args.state_file.parent.mkdir(parents=True, exist_ok=True)
+    args.state_file.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+# Store a wide-camera frame as FITS with the target coordinates as solve hints.
+def write_wide_alignment_fits(data: np.ndarray, target: AcquisitionTarget, host: str, scope_tag: str) -> Path:
+    VERIFY_DIR = PROJECT_ROOT / "data" / "verify_buffer"
+    VERIFY_DIR.mkdir(parents=True, exist_ok=True)
+    utc_obs = datetime.now(timezone.utc)
+    safe_name = target.name.replace(" ", "_").replace("/", "-")
+    out_path = VERIFY_DIR / f"{safe_name}_{scope_tag}_{utc_obs.strftime('%Y%m%dT%H%M%S')}_WIDE_ALIGN.fits"
+
+    header = fits.Header()
+    header["DATE-OBS"] = utc_obs.isoformat()
+    header["OBJECT"] = target.name[:68]
+    header["INSTRUME"] = "Seestar S30-Pro WIDE"
+    header["TELESCOP"] = f"Seestar {scope_tag}"
+    header["FILTER"] = "WIDE"
+    header["HOSTIP"] = host
+    header["OBJCTRA"] = float(target.ra_hours * 15.0)
+    header["OBJCTDEC"] = float(target.dec_deg)
+    header["CRVAL1"] = float(target.ra_hours * 15.0)
+    header["CRVAL2"] = float(target.dec_deg)
+    header["SCALE"] = 55.0
+    fits.PrimaryHDU(data=data.astype(np.int32), header=header).writeto(out_path, overwrite=True)
+    return out_path
+
+
+# Capture a fallback frame through the Seestar wide camera.
+def capture_wide_alignment_frame(target: AcquisitionTarget, args: argparse.Namespace, host: str, scope_tag: str) -> Path:
+    camera = None
+    try:
+        camera = Camera(f"{host}:{args.port}", int(args.wide_camera_num))
+        camera.Connected = True
+        hv2.ALPACA_CAMERA_BASE = f"http://{host}:{args.port}/api/v1/camera/{int(args.wide_camera_num)}"
+        hv2.GAIN_WIDE = int(args.wide_gain)
+        hv2.configure_camera(camera)
+        if not hv2.probe_wide_camera(camera, hv2.CLIENT_ID_DEFAULT):
+            raise RuntimeError("wide camera probe failed")
+        image = hv2.capture_image(
+            camera,
+            hv2.CLIENT_ID_DEFAULT,
+            float(args.wide_exposure_sec),
+            timeout=max(20.0, float(args.wide_exposure_sec) + 10.0),
+            download_timeout=max(20.0, float(args.wide_exposure_sec) + 10.0),
+        )
+        if image.ndim == 3:
+            image = image[:, :, 1]
+        return write_wide_alignment_fits(image, target, host, scope_tag)
+    finally:
+        hv2.disconnect_safely(camera, None)
+
+
+# Solve a wide-camera fallback frame using loose scale constraints.
+def solve_wide_alignment_frame(fits_path: Path, target: AcquisitionTarget, args: argparse.Namespace) -> dict:
+    ra_deg = float(target.ra_hours * 15.0)
+    dec_deg = float(target.dec_deg)
+    cmd = [
+        "solve-field",
+        str(fits_path),
+        "--dir",
+        str(fits_path.parent),
+        "--overwrite",
+        "--no-plots",
+        "--no-verify",
+        "--resort",
+        "--objs",
+        "1000",
+        "--downsample",
+        str(max(1, int(args.solve_downsample))),
+        "--ra",
+        str(ra_deg),
+        "--dec",
+        str(dec_deg),
+        "--radius",
+        str(max(1.0, float(args.wide_solve_radius_deg))),
+        "--scale-units",
+        "arcsecperpix",
+        "--scale-low",
+        str(WIDE_CAMERA_SCALE_LOW),
+        "--scale-high",
+        str(WIDE_CAMERA_SCALE_HIGH),
+        "--tweak-order",
+        "2",
+        "--cpulimit",
+        str(max(5, min(int(args.solve_timeout_sec), int(args.solve_timeout_sec) - 5))),
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=max(10, int(args.solve_timeout_sec)))
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": f"wide solve-field timeout after {args.solve_timeout_sec}s"}
+
+    wcs_path = fits_path.with_suffix(".wcs")
+    if not wcs_path.exists():
+        return {"ok": False, "error": f"wide solve-field failed ({result.returncode})"}
+
+    hdr = fits.getheader(wcs_path, 0)
+    solved_ra_deg = float(hdr.get("CRVAL1"))
+    solved_dec_deg = float(hdr.get("CRVAL2"))
+    target_coord = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame="icrs")
+    solved_coord = SkyCoord(ra=solved_ra_deg * u.deg, dec=solved_dec_deg * u.deg, frame="icrs")
+    return {
+        "ok": True,
+        "wcs_path": str(wcs_path),
+        "solved_ra_deg": solved_ra_deg,
+        "solved_dec_deg": solved_dec_deg,
+        "error_arcmin": float(target_coord.separation(solved_coord).arcminute),
+    }
+
+
 # Slew, capture, plate-solve, and return one alignment sample.
-def solve_alignment_star(sequence: DiamondSequence, item: dict, args: argparse.Namespace) -> dict:
+def solve_alignment_star(
+    sequence: DiamondSequence,
+    item: dict,
+    args: argparse.Namespace,
+    host: str,
+    scope: dict,
+    scope_tag: str,
+) -> dict:
     star: AlignStar = item["star"]
     target = AcquisitionTarget(
         name=f"ALIGN_{star.name}",
@@ -180,11 +345,14 @@ def solve_alignment_star(sequence: DiamondSequence, item: dict, args: argparse.N
     )
 
     print(f"Aligning {star.name}: alt={item['alt_deg']:.1f} az={item['az_deg']:.1f}", flush=True)
+    write_state(args, scope, "PREALIGN SLEW", f"Pre-align slewing to {star.name}", star.name)
     sequence._telescope.slew_to_coordinates_async(star.ra_hours, star.dec_deg)
     if not sequence._telescope.wait_for_slew():
         return {"ok": False, "name": star.name, "error": "slew_timeout"}
 
     time.sleep(3.0)
+    write_state(args, scope, "PREALIGN SOLVE", f"Pre-align solving {star.name} with telephoto camera", star.name)
+    camera_source = "tele"
     fits_path = sequence._capture_temp_frame(target, args.exposure_sec, "ALIGN")
     solve = sequence._solve_verify_frame(
         fits_path,
@@ -194,6 +362,12 @@ def solve_alignment_star(sequence: DiamondSequence, item: dict, args: argparse.N
         cpulimit_sec=max(5, min(args.solve_timeout_sec, args.solve_timeout_sec - 5)),
         downsample=args.solve_downsample,
     )
+    if not solve.get("ok") and not args.no_wide_fallback:
+        print(f"  Telephoto solve failed for {star.name}; trying wide camera fallback.", flush=True)
+        write_state(args, scope, "PREALIGN WIDE", f"Pre-align solving {star.name} with wide camera", star.name)
+        camera_source = "wide"
+        fits_path = capture_wide_alignment_frame(target, args, host, scope_tag)
+        solve = solve_wide_alignment_frame(fits_path, target, args)
 
     sample = {
         "ok": bool(solve.get("ok")),
@@ -202,6 +376,7 @@ def solve_alignment_star(sequence: DiamondSequence, item: dict, args: argparse.N
         "target_dec_deg": round(star.dec_deg, 8),
         "alt_deg": item["alt_deg"],
         "az_deg": item["az_deg"],
+        "camera": camera_source,
         "fits_path": str(fits_path),
     }
 
@@ -254,11 +429,11 @@ def main() -> int:
     for item in candidates:
         if sum(1 for sample in samples if sample.get("ok")) >= args.points:
             break
-        sample = solve_alignment_star(sequence, item, args)
+        sample = solve_alignment_star(sequence, item, args, sequence.host, scope, scope_tag)
         samples.append(sample)
         if sample.get("ok"):
             print(
-                f"  OK {sample['name']}: dra={sample['offset_ra_hours'] * 15.0 * 60.0:.2f}' "
+                f"  OK {sample['name']} ({sample['camera']}): dra={sample['offset_ra_hours'] * 15.0 * 60.0:.2f}' "
                 f"ddec={sample['offset_dec_deg'] * 60.0:.2f}' solve_err={sample['error_arcmin']:.2f}'",
                 flush=True,
             )
@@ -267,9 +442,23 @@ def main() -> int:
 
     successes = [sample for sample in samples if sample.get("ok")]
     if not successes:
+        write_state(
+            args,
+            scope,
+            "ALIGNMENT FAILED",
+            "No alignment solve succeeded; science run blocked.",
+            state="ABORTED",
+        )
         print("No alignment solve succeeded; no pointing model written.", file=sys.stderr)
         return 4
     if len(successes) < args.points and not args.allow_partial:
+        write_state(
+            args,
+            scope,
+            "ALIGNMENT FAILED",
+            f"Only {len(successes)}/{args.points} alignment solves succeeded; science run blocked.",
+            state="ABORTED",
+        )
         print(
             f"Only {len(successes)}/{args.points} alignment solves succeeded; no pointing model written.",
             file=sys.stderr,
@@ -296,6 +485,7 @@ def main() -> int:
         print(f"  successes={len(successes)} ra_offset={model['offset_ra_arcmin']:.2f}' dec_offset={model['offset_dec_arcmin']:.2f}'")
     if len(successes) < args.points:
         print(f"  warning: requested {args.points} points, got {len(successes)}")
+    write_state(args, scope, "PREALIGN OK", f"Pointing model ready from {len(successes)} solve(s).")
 
     if args.park_after:
         sequence._telescope.park()

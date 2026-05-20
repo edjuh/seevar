@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/rpc_client.py
+Filename: dev/tools/telescope/rpc_client.py
 Version: 2.0.1
 Objective: Interactive JSON-RPC client for Seestar port 4700 using pre-built sovereign payloads.
 """

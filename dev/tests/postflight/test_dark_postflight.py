@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/test_dark_postflight.py
+Filename: dev/tests/postflight/test_dark_postflight.py
 Version: 1.0.1
 Objective: Smoke-test the dark calibration + accountant closure path without hardware.
 

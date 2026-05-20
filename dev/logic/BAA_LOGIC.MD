@@ -20,7 +20,7 @@ Implemented in:
 - `core/postflight/aavso_reporter.py`
 
 Test driver:
-- `dev/tools/aavso_reporter_test.py`
+- `dev/tools/reports/aavso_reporter_test.py`
 
 ---
 

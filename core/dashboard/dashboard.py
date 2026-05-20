@@ -8,6 +8,7 @@ Objective: Fleet-ready dashboard with Alpaca REST telemetry on port 32323 and ni
 import json
 import logging
 import os
+import re
 import struct
 import sys
 import time
@@ -42,6 +43,8 @@ VERIFY_BUFFER     = DATA_DIR / "verify_buffer"
 ARCHIVE_DIR       = DATA_DIR / "archive"
 PROCESS_DIR       = DATA_DIR / "process"
 COMMAND_FILE      = DATA_DIR / "operator_command.json"
+REPORT_DIR        = DATA_DIR / "reports"
+AAVSO_ANALYTICS_URL = "https://apps.aavso.org/v2/accounts/analytics/"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,6 +84,62 @@ def write_operator_command(command: str) -> None:
     }
     COMMAND_FILE.write_text(json.dumps(payload, indent=2))
 
+
+# Mark dashboard state immediately after a manual abort.
+def mark_abort_state(message: str = "Operator abort requested.") -> None:
+    now_utc = datetime.now(timezone.utc).isoformat()
+    paths = [STATE_FILE, *sorted(DATA_DIR.glob("system_state.scope*.json"))]
+    for path in paths:
+        try:
+            payload = load_json_file(path, {}) if path.exists() else {}
+            payload.update({
+                "state": "ABORTED",
+                "sub": "OPERATOR ABORT",
+                "substate": "OPERATOR ABORT",
+                "msg": message,
+                "message": message,
+                "updated": now_utc,
+                "updated_utc": now_utc,
+            })
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        except Exception as exc:
+            log.warning("Could not mark abort state in %s: %s", path, exc)
+
+
+def _configured_scope_hosts(config: dict) -> list[tuple[str, int]]:
+    hosts = []
+    for entry in config.get("seestars", []):
+        ip = str(entry.get("ip", "")).strip()
+        if not ip or ip == "TBD":
+            continue
+        try:
+            port = int(entry.get("alpaca_port", 32323))
+        except Exception:
+            port = 32323
+        hosts.append((ip, port))
+    return hosts
+
+
+def abort_hardware_now(config: dict) -> list[str]:
+    results = []
+    tx = int(time.time()) % 100000
+    for ip, port in _configured_scope_hosts(config):
+        base = f"http://{ip}:{port}/api/v1"
+        for device, action in (("camera/0", "abortexposure"), ("camera/1", "abortexposure"), ("telescope/0", "abortslew")):
+            try:
+                response = http_requests.put(
+                    f"{base}/{device}/{action}",
+                    data={"ClientID": 42, "ClientTransactionID": tx},
+                    timeout=0.5,
+                )
+                ok = response.status_code < 400
+                results.append(f"{ip} {device}/{action}: {'ok' if ok else response.status_code}")
+            except Exception as exc:
+                results.append(f"{ip} {device}/{action}: {exc}")
+            tx += 1
+    return results
+
 ALPACA_TIMEOUT = 2.0
 WIDE_PREVIEW_EXPOSURE_SEC = 0.5
 
@@ -106,8 +165,10 @@ HW_CACHE = {
     },
     "fleet": [],
 }
-HW_CACHE_TTL = 5
-WEATHER_STALE_SEC = 1800
+HW_CACHE_TTL = 15
+# WeatherSentinel refreshes every 4 hours. Mark it unusable only after it
+# misses the next cycle plus margin; the UI still shows the exact age.
+WEATHER_STALE_SEC = 5 * 3600
 TELEMETRY_STALE_SEC = 300
 
 DASHBOARD_EVENT_STATE = {
@@ -119,6 +180,12 @@ DASHBOARD_EVENT_STATE = {
     "state_missing": None,
     "weather_missing": None,
 }
+
+SUBMISSION_CACHE = {
+    "timestamp": 0.0,
+    "data": {"aavso": 0, "baa": 0, "source": "local"},
+}
+SUBMISSION_CACHE_TTL = 30 * 60
 
 def _set_event_flag(key: str, active: bool, message: str, *, level: int = logging.WARNING):
     previous = DASHBOARD_EVENT_STATE.get(key)
@@ -237,6 +304,30 @@ def _payload_age_seconds(payload: dict) -> float | None:
             pass
 
     return None
+
+
+def _load_orchestrator_state(config: dict) -> tuple[dict, Path]:
+    """Prefer the freshest scoped state in fleet/split mode."""
+    planner = config.get("planner", {}) if isinstance(config, dict) else {}
+    fleet_mode = str(planner.get("fleet_mode", "single")).strip().lower()
+
+    if fleet_mode in {"split", "auto"}:
+        candidates = []
+        for path in sorted(DATA_DIR.glob("system_state.scope*.json")):
+            payload = load_json_file(path, {})
+            if not payload:
+                continue
+            try:
+                mtime = path.stat().st_mtime
+            except OSError:
+                mtime = 0.0
+            candidates.append((mtime, path, payload))
+
+        if candidates:
+            _, path, payload = max(candidates, key=lambda item: item[0])
+            return payload, path
+
+    return load_json_file(STATE_FILE, {}), STATE_FILE
 
 
 def refresh_hw_cache():
@@ -385,6 +476,110 @@ def load_json_file(path, default=None):
     except (json.JSONDecodeError, OSError):
         return default if default is not None else {}
 
+
+def _report_observation_count(report_path: Path) -> int:
+    if not report_path.exists():
+        return 0
+    try:
+        with report_path.open("r", encoding="utf-8", errors="replace") as handle:
+            return sum(1 for line in handle if line.strip() and not line.startswith("#"))
+    except OSError:
+        return 0
+
+
+def _local_aavso_submitted_count() -> int:
+    count = 0
+    seen_reports = set()
+    for path in sorted(REPORT_DIR.glob("aavso_submit_result_*.json")):
+        result = load_json_file(path, {})
+        if not result.get("accepted"):
+            continue
+
+        report_path = Path(str(result.get("report_path", "")))
+        if report_path and report_path not in seen_reports:
+            seen_reports.add(report_path)
+            count += _report_observation_count(report_path)
+            continue
+
+        for line in result.get("success_lines", []):
+            match = re.search(r"(\d+)\s+observations?\s+(?:were\s+)?submitted", str(line), re.I)
+            if match:
+                count += int(match.group(1))
+                break
+    return count
+
+
+def _local_baa_submitted_count() -> int:
+    count = 0
+    for path in sorted(REPORT_DIR.glob("baa_submit_result_*.json")):
+        result = load_json_file(path, {})
+        if result.get("accepted"):
+            count += int(result.get("observations", 1) or 1)
+    return count
+
+
+def _aavso_cookie_from_config(config: dict) -> str:
+    aavso = config.get("aavso", {}) if isinstance(config, dict) else {}
+    for key in ("webobs_session_cookie", "webobs_cookie", "session_cookie", "webobs_token"):
+        value = str(aavso.get(key, "")).strip()
+        if value:
+            return value
+    return ""
+
+
+def _apply_aavso_cookie(session: http_requests.Session, cookie_string: str) -> None:
+    raw = str(cookie_string or "").strip()
+    if not raw:
+        return
+    if "=" not in raw:
+        session.cookies.set("app2_session", raw, domain="apps.aavso.org", path="/")
+        session.cookies.set("canary", "false", domain="apps.aavso.org", path="/")
+        return
+    for part in raw.split(";"):
+        if "=" not in part:
+            continue
+        name, value = part.split("=", 1)
+        session.cookies.set(name.strip(), value.strip(), domain="apps.aavso.org", path="/")
+    session.cookies.set("canary", "false", domain="apps.aavso.org", path="/")
+
+
+def _fetch_aavso_analytics_count(config: dict) -> int | None:
+    cookie = _aavso_cookie_from_config(config)
+    if not cookie:
+        return None
+    try:
+        session = http_requests.Session()
+        _apply_aavso_cookie(session, cookie)
+        response = session.get(AAVSO_ANALYTICS_URL, timeout=8)
+        if "/accounts/auth0/login" in response.url:
+            return None
+        text = re.sub(r"<[^>]+>", " ", response.text)
+        text = re.sub(r"\s+", " ", text)
+        match = re.search(r"Photometry Submissions\s+(\d+)", text, re.I)
+        return int(match.group(1)) if match else None
+    except Exception as exc:
+        log.debug("AAVSO analytics count unavailable: %s", exc)
+        return None
+
+
+def build_submission_counts(config: dict) -> dict:
+    now = time.time()
+    if now - SUBMISSION_CACHE["timestamp"] < SUBMISSION_CACHE_TTL:
+        return dict(SUBMISSION_CACHE["data"])
+
+    dashboard_cfg = config.get("dashboard", {}) if isinstance(config, dict) else {}
+    use_analytics = bool(dashboard_cfg.get("aavso_analytics", False))
+    local_aavso = _local_aavso_submitted_count()
+    analytics_aavso = _fetch_aavso_analytics_count(config) if use_analytics else None
+    data = {
+        "aavso": analytics_aavso if analytics_aavso is not None else local_aavso,
+        "baa": _local_baa_submitted_count(),
+        "source": "aavso_analytics" if analytics_aavso is not None else "local",
+    }
+    SUBMISSION_CACHE["timestamp"] = now
+    SUBMISSION_CACHE["data"] = dict(data)
+    return data
+
 def _primary_scope_ip() -> str | None:
     cfg = load_config("~/seevar/config.toml")
     seestars = cfg.get("seestars", [])
@@ -457,7 +652,7 @@ def _alpaca_camera_request(base: str, method: str, endpoint: str, *, timeout: fl
     return data.get("Value")
 
 
-def _download_alpaca_image(base: str, *, timeout: float = 12.0) -> np.ndarray:
+def _download_alpaca_image(base: str, *, timeout: float = 12.0, allow_json: bool = True) -> np.ndarray:
     params = {
         "ClientID": 42,
         "ClientTransactionID": _next_preview_txid(),
@@ -474,7 +669,10 @@ def _download_alpaca_image(base: str, *, timeout: float = 12.0) -> np.ndarray:
     except Exception as exc:
         log.debug("Wide preview imagebytes unavailable: %s", exc)
 
-    response = http_requests.get(f"{base}/imagearray", params=params, timeout=max(timeout, 30.0))
+    if not allow_json:
+        raise RuntimeError("imagebytes unavailable")
+
+    response = http_requests.get(f"{base}/imagearray", params=params, timeout=timeout)
     data = response.json()
     err = data.get("ErrorNumber", 0)
     if err:
@@ -518,7 +716,7 @@ def _alpaca_wide_snapshot_jpeg() -> bytes | None:
     base = f"http://{ip}:{_primary_scope_port()}/api/v1/camera/1"
     try:
         try:
-            _alpaca_camera_request(base, "PUT", "connected", timeout=4.0, Connected="true")
+            _alpaca_camera_request(base, "PUT", "connected", timeout=1.0, Connected="true")
         except Exception as exc:
             log.debug("Wide preview connect attempt failed: %s", exc)
 
@@ -527,19 +725,19 @@ def _alpaca_wide_snapshot_jpeg() -> bytes | None:
                 base,
                 "PUT",
                 "startexposure",
-                timeout=4.0,
+                timeout=1.0,
                 Duration=str(WIDE_PREVIEW_EXPOSURE_SEC),
                 Light="true",
             )
-            deadline = time.monotonic() + max(10.0, WIDE_PREVIEW_EXPOSURE_SEC + 6.0)
+            deadline = time.monotonic() + max(1.5, WIDE_PREVIEW_EXPOSURE_SEC + 1.0)
             while time.monotonic() < deadline:
-                if bool(_alpaca_camera_request(base, "GET", "imageready", timeout=3.0)):
+                if bool(_alpaca_camera_request(base, "GET", "imageready", timeout=0.5)):
                     break
                 time.sleep(0.25)
         except Exception as exc:
             log.debug("Wide preview fresh exposure unavailable, trying last image: %s", exc)
 
-        return _render_array_jpeg(_download_alpaca_image(base))
+        return _render_array_jpeg(_download_alpaca_image(base, timeout=2.0, allow_json=False))
     except Exception as exc:
         log.info("Alpaca wide snapshot unavailable: %s", exc)
         return None
@@ -561,7 +759,7 @@ def _rtsp_snapshot_jpeg(kind: str) -> bytes | None:
         "-",
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, timeout=8, check=True)
+        result = subprocess.run(cmd, capture_output=True, timeout=2, check=True)
         return result.stdout or None
     except Exception as e:
         log.info("RTSP snapshot unavailable for %s: %s", kind, e)
@@ -616,7 +814,7 @@ def build_target_funnel():
         "compiled_count": compiled_count,
     }
 
-FLIGHT_WINDOW_CACHE = {"date": None, "text": ""}
+FLIGHT_WINDOW_CACHE = {"key": None, "text": ""}
 
 def get_dusk_utc(lat, lon, elev):
     try:
@@ -705,9 +903,10 @@ def build_nightly_progress(plan_targets: list, ledger: dict, dusk_dt, now_utc: d
     }
 
 
-def get_flight_window(lat: float, lon: float, elev: float) -> str:
+def get_flight_window(lat: float, lon: float, elev: float, sun_limit_deg: float) -> str:
     today_str = datetime.now().strftime("%Y-%m-%d")
-    if FLIGHT_WINDOW_CACHE["date"] == today_str:
+    cache_key = f"{today_str}:{sun_limit_deg:.2f}"
+    if FLIGHT_WINDOW_CACHE["key"] == cache_key:
         return FLIGHT_WINDOW_CACHE["text"]
     try:
         loc = EarthLocation(lat=lat*u.deg, lon=lon*u.deg, height=elev*u.m)
@@ -722,18 +921,18 @@ def get_flight_window(lat: float, lon: float, elev: float) -> str:
             t = Time(t_dt)
             frame = AltAz(obstime=t, location=loc)
             sun_alt = get_sun(t).transform_to(frame).alt.deg
-            if sun_alt <= -18.0 and not is_night:
+            if sun_alt <= sun_limit_deg and not is_night:
                 is_night = True
                 dusk_str = t_dt.astimezone().strftime("%H:%M")
-            elif sun_alt > -18.0 and is_night:
+            elif sun_alt > sun_limit_deg and is_night:
                 is_night = False
                 dawn_str = t_dt.astimezone().strftime("%H:%M")
                 break
         if dusk_str and dawn_str:
-            res = f"{dusk_str} - {dawn_str}"
+            res = f"{dusk_str} - {dawn_str} (<{sun_limit_deg:.0f}°)"
         else:
-            res = "NO ASTRONOMICAL NIGHT"
-        FLIGHT_WINDOW_CACHE["date"] = today_str
+            res = f"NONE (<{sun_limit_deg:.0f}°)"
+        FLIGHT_WINDOW_CACHE["key"] = cache_key
         FLIGHT_WINDOW_CACHE["text"] = res
         return res
     except Exception as e:
@@ -849,10 +1048,13 @@ def index():
     target_data = load_plan()
     config = load_config("~/seevar/config.toml")
     loc = config.get('location', {})
+    planner = config.get('planner', {})
+    sun_limit = float(planner.get('sun_altitude_limit', -18.0))
     fw_text = get_flight_window(
         loc.get('lat', 51.4769),
         loc.get('lon', 0.0),
-        loc.get('elevation', 0.0)
+        loc.get('elevation', 0.0),
+        sun_limit,
     )
     return render_template('index.html', target_data=target_data, flight_window=fw_text)
 
@@ -900,7 +1102,7 @@ def get_telemetry():
         "remaining_count": 0,
         "planned_count": 0,
     }
-    state_data = load_json_file(STATE_FILE, {})
+    state_data, state_path = _load_orchestrator_state(config)
     if state_data:
         orchestrator.update({
             "state": state_data.get("state", orchestrator["state"]),
@@ -912,6 +1114,9 @@ def get_telemetry():
             "remaining_count": state_data.get("remaining_count", 0),
             "planned_count": state_data.get("planned_count", 0),
         })
+        orchestrator["scope_name"] = state_data.get("scope_name")
+        orchestrator["scope_id"] = state_data.get("scope_id")
+        orchestrator["state_source"] = state_path.name
 
     ledger = load_json_file(LEDGER_FILE, {})
     _check_dashboard_sources(env, state_data, weather_data)
@@ -921,6 +1126,7 @@ def get_telemetry():
         loc.get('lat', 51.4769), loc.get('lon', 0.0), loc.get('elevation', 0.0)
     )
     postflight = build_postflight(ledger, dusk_dt)
+    postflight["submissions"] = build_submission_counts(config)
 
     plan_targets = load_plan()
     nightly_progress = build_nightly_progress(plan_targets, ledger, dusk_dt, datetime.now(timezone.utc))
@@ -955,8 +1161,31 @@ def get_telemetry():
 @app.post('/command/<action>')
 def dashboard_command(action: str):
     action = str(action).strip().lower()
-    if action not in {"abort", "reset"}:
+    if action not in {"abort", "reset", "fleet-sync"}:
         return jsonify({"ok": False, "error": "unsupported_command"}), 400
+    if action == "fleet-sync":
+        script = PROJECT_ROOT / "dev/tools/telescope/sync_fleet_orchestrators.py"
+        result = subprocess.run(
+            [sys.executable, str(script), "--apply"],
+            cwd=str(PROJECT_ROOT),
+            text=True,
+            capture_output=True,
+            timeout=45,
+            check=False,
+        )
+        return jsonify({
+            "ok": result.returncode == 0,
+            "command": action,
+            "returncode": result.returncode,
+            "stdout": result.stdout.strip(),
+            "stderr": result.stderr.strip(),
+        }), 200 if result.returncode == 0 else 500
+    if action == "abort":
+        config = load_config("~/seevar/config.toml")
+        mark_abort_state()
+        hardware_results = abort_hardware_now(config)
+        write_operator_command(action)
+        return jsonify({"ok": True, "command": action, "hardware": hardware_results})
     write_operator_command(action)
     return jsonify({"ok": True, "command": action})
 

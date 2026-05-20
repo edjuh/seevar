@@ -12,7 +12,7 @@ import requests
 
 from core.hardware.live_battery import poll_battery_snapshot
 
-ALPACA_TIMEOUT = 2.0
+ALPACA_TIMEOUT = 0.15
 ALPACA_CLIENT_PARAMS = {"ClientID": 42, "ClientTransactionID": 1}
 
 CAMERA_STATE_NAMES = {

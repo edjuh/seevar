@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/horizon_profile_editor.py
+Filename: dev/tools/horizon/horizon_profile_editor.py
 Version: 1.0.0
 Objective: Run a local Flask editor for manual SeeVar horizon profile cleanup.
 """
@@ -83,7 +83,7 @@ def _blank_payload(mask_path: Path) -> dict:
         for az in range(360)
     }
     return {
-        "#objective": "Manual SeeVar horizon profile edited with dev/tools/horizon_profile_editor.py.",
+        "#objective": "Manual SeeVar horizon profile edited with dev/tools/horizon/horizon_profile_editor.py.",
         "source": "manual_editor",
         "method": "operator_canvas_edit",
         "timestamp": datetime.now(timezone.utc).isoformat(),

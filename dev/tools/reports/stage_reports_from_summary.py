@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/stage_reports_from_summary.py
+Filename: dev/tools/reports/stage_reports_from_summary.py
 Objective: Stage AAVSO/BAA submission files from the latest real-night
            postflight summary JSON written by accountant.py.
 """
@@ -9,6 +9,8 @@ Objective: Stage AAVSO/BAA submission files from the latest real-night
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 import math
 import shutil
@@ -29,6 +31,13 @@ VSP_CACHE_DIRS = [
 INSTRUMENTAL_MAG_ZEROPOINT = 25.0
 DEFAULT_MIRROR_DIR = Path("/mnt/astronas/reports")
 AAVSO_MAX_MAG_ERROR = 0.5
+AAVSO_RANGE_MARGIN_MAG = 1.0
+AAVSO_PEER_MARGIN_MAG = 0.35
+AAVSO_PEER_WINDOW_DAYS = 120
+AAVSO_PEER_MIN_OBS = 5
+AAVSO_MAX_PEAK_ADU = 58000.0
+AAVSO_REJECTIONS: list[dict] = []
+AAVSO_PEER_CACHE: dict[tuple[str, int, int], tuple[float, float, int] | None] = {}
 
 import sys
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -155,6 +164,108 @@ def _safe_float(value, default: float) -> float:
         return default
 
 
+def _aavso_sanity_cfg() -> dict:
+    try:
+        cfg = load_config()
+        aavso = cfg.get("aavso", {}) if isinstance(cfg, dict) else {}
+        return aavso if isinstance(aavso, dict) else {}
+    except Exception:
+        return {}
+
+
+def _vsx_range(target_name: str) -> tuple[float, float] | None:
+    path = PROJECT_ROOT / "data" / "vsx_catalog.json"
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        stars = payload.get("stars") if isinstance(payload, dict) else None
+        if not isinstance(stars, dict):
+            return None
+        row = stars.get(str(target_name))
+        if not isinstance(row, dict):
+            return None
+        bright = float(row.get("max_mag"))
+        faint = float(row.get("min_mag"))
+        if not math.isfinite(bright) or not math.isfinite(faint):
+            return None
+        return min(bright, faint), max(bright, faint)
+    except Exception:
+        return None
+
+
+def _aavso_recent_range(target_name: str, jd: float, window_days: int) -> tuple[float, float, int] | None:
+    window = max(1, int(window_days))
+    key = (str(target_name).strip().lower(), int(jd), window)
+    if key in AAVSO_PEER_CACHE:
+        return AAVSO_PEER_CACHE[key]
+
+    try:
+        import requests
+
+        response = requests.get(
+            "https://www.aavso.org/vsx/index.php",
+            params={
+                "view": "api.delim",
+                "ident": target_name,
+                "fromjd": f"{jd - window:.5f}",
+                "tojd": f"{jd + window:.5f}",
+                "delimiter": ",",
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+        reader = csv.DictReader(io.StringIO(response.text))
+        mags = []
+        for row in reader:
+            band = str(row.get("band") or "").strip().upper()
+            if band not in {"V", "TG", "CV"}:
+                continue
+            if str(row.get("fainterThan") or "0").strip() not in {"", "0", "false", "False"}:
+                continue
+            try:
+                mag = float(row.get("mag"))
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(mag):
+                mags.append(mag)
+
+        if not mags:
+            AAVSO_PEER_CACHE[key] = None
+            return None
+
+        mags.sort()
+        lo_idx = max(0, min(len(mags) - 1, int(round((len(mags) - 1) * 0.05))))
+        hi_idx = max(0, min(len(mags) - 1, int(round((len(mags) - 1) * 0.95))))
+        result = (mags[lo_idx], mags[hi_idx], len(mags))
+        AAVSO_PEER_CACHE[key] = result
+        return result
+    except Exception:
+        AAVSO_PEER_CACHE[key] = None
+        return None
+
+
+def _reject_aavso(obs: dict, reason: str) -> None:
+    row = {
+        "target": obs.get("target", "UNKNOWN"),
+        "mag": obs.get("mag"),
+        "err": obs.get("err"),
+        "peak_adu": obs.get("peak_adu"),
+        "reason": reason,
+    }
+    AAVSO_REJECTIONS.append(row)
+    print(f"Warning: AAVSO skipped {row['target']}: {reason}")
+
+
+def _write_aavso_quarantine() -> Path | None:
+    if not AAVSO_REJECTIONS:
+        return None
+    out = PROJECT_ROOT / "data" / "reports" / f"AAVSO_QUARANTINE_{datetime.now():%Y%m%d_%H%M}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(AAVSO_REJECTIONS, indent=2), encoding="utf-8")
+    return out
+
+
 # Recover chart id and a plausible check-star row by crossmatching retained
 # Gaia comparison stars back onto the VSP chart sequence.
 def _chart_context(row: dict) -> dict:
@@ -258,18 +369,70 @@ def _compute_check_mag(comp_rows: list[dict], source_id: str | None) -> str | fl
 
 
 def _aavso_ready_observations(observations: list[dict]) -> list[dict]:
+    sanity = _aavso_sanity_cfg()
+    enabled = bool(sanity.get("sanity_enabled", True))
+    max_err = _safe_float(sanity.get("max_mag_error"), AAVSO_MAX_MAG_ERROR)
+    range_margin = _safe_float(sanity.get("sanity_margin_mag"), AAVSO_RANGE_MARGIN_MAG)
+    peer_enabled = bool(sanity.get("peer_sanity_enabled", True))
+    peer_margin = _safe_float(sanity.get("peer_sanity_margin_mag"), AAVSO_PEER_MARGIN_MAG)
+    peer_window = int(_safe_float(sanity.get("peer_sanity_window_days"), AAVSO_PEER_WINDOW_DAYS))
+    peer_min_obs = int(_safe_float(sanity.get("peer_sanity_min_obs"), AAVSO_PEER_MIN_OBS))
+    max_peak = _safe_float(sanity.get("max_peak_adu"), AAVSO_MAX_PEAK_ADU)
+
     ready = []
     for obs in observations:
         target = obs.get("target", "UNKNOWN")
         try:
             merr = float(obs.get("err"))
         except (TypeError, ValueError):
-            print(f"Warning: AAVSO skipped {target}: MERR is missing or non-numeric")
+            _reject_aavso(obs, "MERR is missing or non-numeric")
             continue
 
-        if not math.isfinite(merr) or merr < 0.0 or merr > AAVSO_MAX_MAG_ERROR:
-            print(f"Warning: AAVSO skipped {target}: MERR {merr:.3f} outside 0.000-{AAVSO_MAX_MAG_ERROR:.3f}")
+        if not math.isfinite(merr) or merr < 0.0 or merr > max_err:
+            _reject_aavso(obs, f"MERR {merr:.3f} outside 0.000-{max_err:.3f}")
             continue
+
+        if enabled:
+            peak = obs.get("peak_adu")
+            if peak not in (None, ""):
+                peak_value = _safe_float(peak, -1.0)
+                if peak_value >= max_peak:
+                    _reject_aavso(obs, f"peak ADU {peak_value:.1f} exceeds sanity limit {max_peak:.1f}")
+                    continue
+
+            try:
+                mag = float(obs.get("mag"))
+            except (TypeError, ValueError):
+                _reject_aavso(obs, "magnitude is missing or non-numeric")
+                continue
+            if not math.isfinite(mag):
+                _reject_aavso(obs, "magnitude is not finite")
+                continue
+
+            vsx = _vsx_range(str(target))
+            if vsx is not None:
+                bright, faint = vsx
+                if mag < bright - range_margin or mag > faint + range_margin:
+                    _reject_aavso(
+                        obs,
+                        f"mag {mag:.3f} outside VSX {bright:.2f}-{faint:.2f} +/- {range_margin:.2f}",
+                    )
+                    continue
+
+            if peer_enabled:
+                peer = _aavso_recent_range(str(target), float(obs.get("jd")), peer_window)
+                if peer is not None:
+                    peer_bright, peer_faint, n_peer = peer
+                    if n_peer >= peer_min_obs and (mag < peer_bright - peer_margin or mag > peer_faint + peer_margin):
+                        _reject_aavso(
+                            obs,
+                            (
+                                f"mag {mag:.3f} outside recent AAVSO "
+                                f"{peer_bright:.2f}-{peer_faint:.2f} +/- {peer_margin:.2f} "
+                                f"({n_peer} peer obs)"
+                            ),
+                        )
+                        continue
         ready.append(obs)
 
     if not ready:
@@ -384,6 +547,10 @@ def stage_reports(
         accepted = _accepted_from_ledger(PROJECT_ROOT / "data" / "ledger.json")
         ledger_fallback = True
 
+    global AAVSO_REJECTIONS
+    AAVSO_REJECTIONS = []
+    AAVSO_PEER_CACHE.clear()
+
     observations = [_observation_from_summary(row) for row in accepted]
     effective_baa_observer_code = baa_observer_code
     if effective_baa_observer_code is None and observer_code:
@@ -400,6 +567,9 @@ def stage_reports(
         aavso.finalize_report(_aavso_ready_observations(observations)),
         baa_ext.finalize_report(observations),
     ]
+    quarantine = _write_aavso_quarantine()
+    if quarantine is not None:
+        outputs.append(quarantine)
 
     if include_baa_ccd and not ledger_fallback:
         for obs in observations:

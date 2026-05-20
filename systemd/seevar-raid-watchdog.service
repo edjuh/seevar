@@ -1,0 +1,15 @@
+[Unit]
+Description=SeeVar RAID Watchdog
+After=local-fs.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/seevar
+Environment=PYTHONPATH=%h/seevar
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/seevar/.venv/bin/python3 dev/utils/raid_watchdog.py --array /dev/md0 --mountpoint /mnt/raid1 --state %h/seevar/logs/raid_state.json --stop-services
+StandardOutput=append:%h/seevar/logs/raid_watchdog.log
+StandardError=append:%h/seevar/logs/raid_watchdog.log
+
+TimeoutStartSec=20s
+TimeoutStopSec=5s

@@ -118,6 +118,10 @@ def build_time_grid(now_utc):
     return [now_utc + timedelta(minutes=i * SAMPLE_MINUTES) for i in range(steps)]
 
 
+def allow_partial_current_night() -> bool:
+    return "--allow-partial" in sys.argv
+
+
 def contiguous_windows(mask):
     windows = []
     start = None
@@ -586,8 +590,9 @@ def run_funnel():
         data = json.load(f)
         targets = data.get("data", data.get("targets", [])) if isinstance(data, dict) else data
     primary_target_count = len(targets)
+    secondary_after_photometry = bool(planner_cfg.get("secondary_after_photometry", False))
     secondary_targets, secondary_counts = _load_secondary_targets(planner_cfg)
-    if secondary_targets:
+    if secondary_targets and not secondary_after_photometry:
         targets = list(targets) + secondary_targets
 
     now_utc = datetime.now(timezone.utc)
@@ -598,6 +603,17 @@ def run_funnel():
     dark_windows = contiguous_windows(dark_mask.tolist())
     if not dark_windows:
         print("No astronomical dark found in the planning horizon.")
+        return
+
+    skipped_partial_window = False
+    if dark_windows[0][0] == 0 and not allow_partial_current_night():
+        dark_windows = dark_windows[1:]
+        skipped_partial_window = True
+        print("[=] Skipped active partial dark window; planning the next full night.")
+        print("[=] Use --allow-partial only for an intentional in-night recovery plan.")
+
+    if not dark_windows:
+        print("No full upcoming dark window found in the planning horizon.")
         return
 
     planning_start_idx, planning_end_idx = dark_windows[0]
@@ -717,6 +733,8 @@ def run_funnel():
             "active_scope_count": len(active_scopes),
             "planning_start_utc": planning_start_utc.isoformat(),
             "planning_end_utc": planning_end_utc.isoformat(),
+            "allow_partial_current_night": allow_partial_current_night(),
+            "skipped_partial_current_night": skipped_partial_window,
             "sample_minutes": SAMPLE_MINUTES,
             "clearance_margin_deg": CLEARANCE_MARGIN_DEG,
             "sun_altitude_threshold_deg": sun_limit,
@@ -725,6 +743,7 @@ def run_funnel():
             "primary_target_count": primary_target_count,
             "secondary_target_count": len(secondary_targets),
             "secondary_catalog_counts": secondary_counts,
+            "secondary_after_photometry": secondary_after_photometry,
             "visible_target_count": len(ordered),
             "planned_target_count": len(ordered),
             "gate_counts": gate_counts,

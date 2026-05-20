@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/clean_postflight_remnants.py
+Filename: dev/tools/ops/clean_postflight_remnants.py
 Version: 1.0.0
 Objective: Remove transient postflight solver sidecars from SeeVar data buffers.
 

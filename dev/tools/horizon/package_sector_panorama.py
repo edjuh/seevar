@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/package_sector_panorama.py
+Filename: dev/tools/horizon/package_sector_panorama.py
 Objective: Package a pre-stitched panorama sector plus a SeeVar horizon mask into
 the conservative Stellarium spherical landscape zip format.
 """

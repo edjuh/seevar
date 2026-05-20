@@ -36,6 +36,5 @@ Do not write new code against the old “TCP 4700 as main control path” assump
 ## 5. Pull Request Protocol
 Before merging:
 1. Verify the logic docs still reflect the real architecture.
-2. Run the regression tests in `dev/test_*.py`.
+2. Run the regression tests in `dev/tests/postflight/test_*.py`.
 3. Keep changes scoped and scientifically honest.
-

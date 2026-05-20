@@ -25,6 +25,11 @@ from scipy.ndimage import shift as ndi_shift
 from scipy.spatial import cKDTree
 from skimage.registration import phase_cross_correlation
 
+try:
+    import astroalign
+except ImportError:  # optional fallback; normal shift alignment remains available
+    astroalign = None
+
 import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -604,6 +609,89 @@ def _star_shift(reference: np.ndarray, moving: np.ndarray, max_shift_px: float =
     return shift_y, shift_x
 
 
+# Use astroalign's asterism matching when translational shift alignment is not enough.
+def _astroalign_frame(reference: np.ndarray, moving: np.ndarray) -> tuple[np.ndarray, dict] | None:
+    if astroalign is None:
+        return None
+
+    try:
+        fill = float(np.median(moving[np.isfinite(moving)]))
+        registered, footprint = astroalign.register(
+            moving.astype(np.float32, copy=False),
+            reference.astype(np.float32, copy=False),
+            fill_value=fill,
+        )
+    except Exception as exc:
+        log.debug("  astroalign fallback unavailable for frame: %s", exc)
+        return None
+
+    invalid_fraction = 0.0
+    if footprint is not None:
+        invalid_fraction = float(np.count_nonzero(footprint)) / float(footprint.size)
+    if invalid_fraction > 0.60:
+        log.warning("  astroalign fallback rejected: %.0f%% invalid footprint", invalid_fraction * 100.0)
+        return None
+
+    return registered.astype(np.float32), {
+        "method": "ASTROALIGN",
+        "invalid_fraction": invalid_fraction,
+    }
+
+
+# Prefer cheap shift alignment, but fall back to astroalign for rotated/doubled fields.
+def _align_stack_frame(
+    reference: np.ndarray,
+    ref_work: np.ndarray,
+    moving: np.ndarray,
+    name: str,
+) -> tuple[np.ndarray, tuple[float, float], str] | None:
+    work = moving - np.median(moving)
+    star_shift = _star_shift(reference, moving)
+    shift_y = shift_x = None
+
+    try:
+        shift_yx, _, _ = phase_cross_correlation(ref_work, work, upsample_factor=10)
+        shift_y, shift_x = float(shift_yx[0]), float(shift_yx[1])
+    except Exception as exc:
+        if star_shift is None:
+            astro = _astroalign_frame(reference, moving)
+            if astro:
+                return astro[0], (0.0, 0.0), astro[1]["method"]
+            log.warning("  stack align failed for %s: %s", name, exc)
+            return None
+        shift_y, shift_x = star_shift
+
+    if star_shift is not None:
+        star_y, star_x = star_shift
+        if shift_y is not None and shift_x is not None and max(abs(star_y - shift_y), abs(star_x - shift_x)) > 5.0:
+            log.warning(
+                "  stack phase shift overridden for %s: phase dy=%.1f dx=%.1f, stars dy=%.1f dx=%.1f",
+                name,
+                shift_y,
+                shift_x,
+                star_y,
+                star_x,
+            )
+        shift_y, shift_x = star_y, star_x
+
+    if abs(shift_y) > 250 or abs(shift_x) > 250:
+        astro = _astroalign_frame(reference, moving)
+        if astro:
+            log.info(
+                "  astroalign fallback accepted for %s after excessive shift dy=%.1f dx=%.1f",
+                name,
+                shift_y,
+                shift_x,
+            )
+            return astro[0], (0.0, 0.0), astro[1]["method"]
+        log.warning("  stack align rejected for %s: excessive shift dy=%.1f dx=%.1f", name, shift_y, shift_x)
+        return None
+
+    fill = float(np.median(moving))
+    aligned_arr = ndi_shift(moving, shift=(shift_y, shift_x), order=1, mode="constant", cval=fill)
+    return aligned_arr.astype(np.float32), (shift_y, shift_x), "SHIFT"
+
+
 def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: datetime) -> Path | None:
     if len(calibrated_paths) < 2:
         return None
@@ -647,40 +735,17 @@ def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: dateti
     aligned = [reference]
     aligned_names = [kept[0][1]]
     shifts = [(0.0, 0.0)]
+    align_methods = Counter({"REF": 1})
 
     for arr, name in kept[1:]:
-        work = arr - np.median(arr)
-        star_shift = _star_shift(reference, arr)
-        try:
-            shift_yx, _, _ = phase_cross_correlation(ref_work, work, upsample_factor=10)
-            shift_y, shift_x = float(shift_yx[0]), float(shift_yx[1])
-        except Exception as e:
-            if star_shift is None:
-                log.warning("  stack align failed for %s: %s", name, e)
-                continue
-            shift_y, shift_x = star_shift
-
-        if star_shift is not None:
-            star_y, star_x = star_shift
-            if max(abs(star_y - shift_y), abs(star_x - shift_x)) > 5.0:
-                log.warning(
-                    "  stack phase shift overridden for %s: phase dy=%.1f dx=%.1f, stars dy=%.1f dx=%.1f",
-                    name,
-                    shift_y,
-                    shift_x,
-                    star_y,
-                    star_x,
-                )
-            shift_y, shift_x = star_y, star_x
-
-        if abs(shift_y) > 250 or abs(shift_x) > 250:
-            log.warning("  stack align rejected for %s: excessive shift dy=%.1f dx=%.1f", name, shift_y, shift_x)
+        aligned_result = _align_stack_frame(reference, ref_work, arr, name)
+        if aligned_result is None:
             continue
-
-        aligned_arr = ndi_shift(arr, shift=(shift_y, shift_x), order=1, mode="constant", cval=float(np.median(arr)))
-        aligned.append(aligned_arr.astype(np.float32))
+        aligned_arr, shift_yx, method = aligned_result
+        aligned.append(aligned_arr)
         aligned_names.append(name)
-        shifts.append((shift_y, shift_x))
+        shifts.append(shift_yx)
+        align_methods[method] += 1
 
     if len(aligned) < 2:
         log.warning("  stack alignment kept fewer than 2 usable frames for %s", target_name)
@@ -694,7 +759,7 @@ def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: dateti
     header["OBJECT"] = target_name
     header["NCOMBINE"] = len(aligned)
     header["STACKED"] = True
-    header["ALIGNMTH"] = "SHIFTMEAN"
+    header["ALIGNMTH"] = "+".join(f"{k}:{v}" for k, v in sorted(align_methods.items()))[:68]
     header["ALIGNSUC"] = len(aligned)
     header["ALIGNREF"] = aligned_names[0][:68]
     header["BUNIT"] = "ADU-DARKSUB"

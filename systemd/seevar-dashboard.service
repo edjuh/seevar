@@ -2,6 +2,7 @@
 Description=SeeVar Dashboard
 After=network-online.target
 Wants=network-online.target
+RequiresMountsFor=/mnt/raid1
 StartLimitIntervalSec=300
 StartLimitBurst=5
 

@@ -23,6 +23,8 @@ scipy==1.17.0
 scikit-image==0.25.2
 opencv-python==4.10.0.84
 pillow==11.3.0
+astroalign>=2.6,<3.0
+matplotlib>=3.8,<4.0
 
 # --- Data Handling -----------------------------------------------------------
 pandas==2.3.1

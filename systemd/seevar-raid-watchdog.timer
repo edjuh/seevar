@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SeeVar RAID Watchdog Every 5 Minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=seevar-raid-watchdog.service
+
+[Install]
+WantedBy=timers.target

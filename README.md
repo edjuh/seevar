@@ -29,6 +29,10 @@ It is repeatable, honest measurement.
 
 Observation cadence follows AAVSO-style scientific needs rather than casual imaging habits.
 
+When the photometric run is finished, SeeVar may optionally use remaining safe dark time for
+secondary imaging catalogs such as Caldwell. These frames are filler products only: they are not
+submitted as photometry and should be archived separately for later stacking/gallery tooling.
+
 ---
 
 ## Current Status
@@ -57,6 +61,7 @@ It is making the science chain more defensible and operationally safer:
 - deterministic AAVSO report staging
 - BAA-modified AAVSO Extended and richer CCD/CMOS test-file export
 - multi-scope execution without shared-file collisions
+- optional post-photometry secondary imaging queue for Caldwell/Messier-style targets
 
 ---
 
@@ -91,7 +96,11 @@ SeeVar is organized as a sovereign observing pipeline:
    Processes captured frames using the `P1-P8` science chain:
    ingest, calibration matching, calibration application, astrometric solve, source measurement, ensemble calibration, quality verdict, and commit/report.
 
-4. **Oversight**
+4. **Secondary Imaging**
+   Optional filler phase after photometry/reporting. It uses configured catalogs, respects weather,
+   horizon, daylight, and battery guards, and moves captured frames directly into secondary storage.
+
+5. **Oversight**
    Dashboard, logs, notifier, and ledger state remain available throughout the entire mission.
 
 ---
@@ -108,6 +117,11 @@ Confirmed device access includes:
 - Filter wheel
 - Focuser
 - Dew-heater switch
+
+Developer SSH access is optional but useful for diagnostics. When enabled on owned scopes,
+`dev/tools/telescope/seestar_ssh_probe.py` can collect OS version, network identity,
+storage status, ZWO plan state, and onboard Astrometry.net index inventory without steering
+the telescope.
 
 This means:
 
@@ -136,8 +150,9 @@ Current reporting direction:
 - science channel: `G`
 - reporting code: `TG`
 - morning triage artifact: `data/reports/postflight_summary_*.txt` and `.json`
-- manual submission staging: `python3 dev/tools/stage_reports_from_summary.py`
-- WebObs submit probe/upload: `python3 dev/tools/submit_aavso_webobs.py --probe-only`
+- manual submission staging: `python3 dev/tools/reports/stage_reports_from_summary.py`
+- WebObs submit probe/upload: `python3 dev/tools/reports/submit_aavso_webobs.py --probe-only`
+- light-curve quicklooks: `python3 dev/tools/reports/lightcurve_plots.py`
 
 ### Astrometric and detector truth matter
 
@@ -148,6 +163,21 @@ A magnitude is only trustworthy if the pipeline can justify:
 - photometric truth
 
 That is why postflight is now being hardened aggressively.
+
+### Secondary imaging
+
+Secondary imaging is enabled in `[planner]`:
+
+```toml
+secondary_catalogs = ["caldwell"]
+secondary_after_photometry = true
+secondary_duration_sec = 900
+secondary_output_dir = ""
+```
+
+If `secondary_output_dir` is empty, output goes to `[storage].primary_dir/secondary_catalogs`.
+For AstroCat or similar gallery software, run the gallery on NAS/RAID and mount this directory
+read-only. Do not index `data/local_buffer`.
 
 ---
 
@@ -252,7 +282,7 @@ For manual cleanup of `data/horizon_mask.json`, run the local Flask editor:
 
 ```bash
 cd ~/seevar
-/home/ed/seevar/.venv/bin/python dev/tools/horizon_profile_editor.py \
+/home/ed/seevar/.venv/bin/python dev/tools/horizon/horizon_profile_editor.py \
   --host 0.0.0.0 \
   --port 5060
 ```

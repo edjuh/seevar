@@ -71,6 +71,7 @@
         .control-btn.reset { color: #88ccff; border-color: #234154; }
         .preview-card { width: 100%; max-width: 260px; margin-top: 18px; border-top: 1px dashed #333; padding-top: 12px; }
         .preview-title { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.65em; letter-spacing: 1.5px; margin-bottom: 8px; }
+        .preview-status { color: var(--text-muted); }
         .preview-image { width: 100%; height: 120px; object-fit: cover; border: 1px solid #2a2a2a; background: #050505; }
         @keyframes pulse-green { 0% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } 50% { box-shadow: 0 0 30px rgba(57,255,20,0.8); } 100% { box-shadow: 0 0 10px rgba(57,255,20,0.5); } }
         @keyframes pulse-blue { 0% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } 50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(93,173,226,0.8); } 100% { transform: scale(1); box-shadow: 0 0 10px rgba(93,173,226,0.4); } }
@@ -142,14 +143,11 @@
     <div class="container">
         <div class="panel">
             <h2>SYSTEM VITALS</h2>
-            <div class="flight-window-row"><span class="label">FLIGHT WINDOW</span> <span class="fw-val">{{ flight_window }}</span></div>
-            <div class="row"><span class="label">SEESTAR (STATE)</span> <span id="tel-link-val" class="val">WAITING...</span> <div id="tel-link-led" class="led grey"></div></div>
+            <div class="flight-window-row"><span class="label">DARK WINDOW</span> <span class="fw-val">{{ flight_window }}</span></div>
             <div class="row"><span class="label">GPS (LOCK)</span> <span id="gps-val" class="val"></span> <div id="gps-led" class="led grey"></div></div>
-            <div class="row"><span class="label">WEATHER (PRED)</span> <span id="weather-val" class="val">CLEAR</span> <div id="weather-icon-led" class="led weather-icon">⭐</div></div>
+            <div class="row"><span class="label">WEATHER</span> <span id="weather-val" class="val">FETCHING</span> <div id="weather-icon-led" class="led weather-icon">⭐</div></div>
             <div class="row"><span class="label">FOG (VIS)</span> <span class="val">DISCONNECTED</span> <div class="led blue-grey"></div></div>
             
-            <div class="row fleet-row"><span class="label">BATTERIES</span> <span id="bb-batt" class="val stat-val val-wrap">--</span></div>
-            <div class="row"><span class="label">MOUNT POS</span> <span id="bb-mount" class="val stat-val">--</span></div>
             <div class="row fleet-row"><span class="label">FLEET</span> <span id="bb-fleet" class="val stat-val val-wrap">--</span></div>
             
             <div class="target-card">
@@ -176,13 +174,14 @@
                 <div class="control-bar">
                     <button id="abort-btn" class="control-btn abort" type="button">ABORT</button>
                     <button id="reset-btn" class="control-btn reset" type="button">RESET</button>
+                    <button id="fleet-sync-btn" class="control-btn reset" type="button">FLEET</button>
                 </div>
                 <div class="preview-card">
                     <div class="preview-title"><span>A7 VERIFY VIEW</span><span>LATEST</span></div>
                     <img id="verify-preview" class="preview-image" src="/preview/verify.jpg" alt="Latest pointing verification frame">
                 </div>
                 <div class="preview-card">
-                    <div class="preview-title"><span>WIDE FIELD VIEW</span><span>LIVE</span></div>
+                    <div class="preview-title"><span>WIDE FIELD VIEW</span><span id="wide-preview-status" class="preview-status">LIVE</span></div>
                     <img id="wide-preview" class="preview-image" src="/preview/wide.jpg" alt="Wide-field live preview">
                 </div>
             </div>
@@ -218,7 +217,7 @@
                 </div>
             </div>
             <div class="pf-led-row">
-                <span class="pf-led-label">AAVSO READY</span>
+                <span class="pf-led-label">REPORTS</span>
                 <div class="pf-led-right">
                     <span class="pf-led-val" id="pf-aavso-val">--</span>
                     <div id="led-aavso" class="led grey"></div>
@@ -280,7 +279,17 @@
                     : t.period_days.toFixed(1) + "d")
                 : "--";
             document.getElementById('t-mag').innerText = `${maxM} – ${minM} · ${perD} (V)`;
-            tickerIndex = (tickerIndex + 1) % targetData.length;
+        }
+
+        function formatAge(seconds) {
+            if(seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) return 'age unknown';
+            const s = Math.max(0, Number(seconds));
+            if(s < 90) return 'updated now';
+            const minutes = Math.floor(s / 60);
+            if(minutes < 90) return `${minutes}m old`;
+            const hours = Math.floor(minutes / 60);
+            const rem = minutes % 60;
+            return rem ? `${hours}h${String(rem).padStart(2, '0')}m old` : `${hours}h old`;
         }
 
         let lastWidePreviewRefresh = 0;
@@ -295,6 +304,8 @@
                     }
                     const widePreview = document.getElementById('wide-preview');
                     if (widePreview && (Date.now() - lastWidePreviewRefresh > 15000)) {
+                        const wideStatus = document.getElementById('wide-preview-status');
+                        if (wideStatus) wideStatus.innerText = 'LIVE';
                         widePreview.src = '/preview/wide.jpg?ts=' + Date.now();
                         lastWidePreviewRefresh = Date.now();
                     }
@@ -333,16 +344,18 @@
                         const wLed = document.getElementById('weather-icon-led');
                         const stale = !!data.weather.stale;
                         const status = data.weather.status || 'N/A';
-                        const currentStatus = data.weather.current_status || status;
+                        const age = formatAge(data.weather.age_s);
 
                         if(wVal) {
-                            const label = stale ? `STALE (${status})` : `${status} tonight / ${currentStatus} now`;
+                            const label = stale
+                                ? `NO RECENT WEATHER / ${age}`
+                                : `${status} tonight / ${age}`;
                             wVal.innerText = label;
                             wVal.style.color = stale ? '#ff9900' : '';
                             wVal.style.fontStyle = stale ? 'italic' : 'normal';
                         }
                         if(wLed) {
-                            wLed.innerText = stale ? '⏳' : (data.weather.icon || '❓');
+                            wLed.innerText = stale ? '!' : (data.weather.icon || '❓');
                             wLed.style.color = '#fff';
                         }
 
@@ -432,62 +445,6 @@
                     }
 
                     if(data.hardware) {
-                        const linkVal = document.getElementById('tel-link-val');
-                        const linkLed = document.getElementById('tel-link-led');
-                        const battTxt = document.getElementById('bb-batt');
-                        const mountTxt = document.getElementById('bb-mount');
-
-                        if(["ACTIVE","ONLINE"].includes(data.hardware.link_status)) {
-                            const statusLabels = {"ACTIVE": "NATIVE COMMS UP", "ONLINE": "ONLINE", "CONNECTING": "CONNECTING..."};
-                            linkVal.innerText = statusLabels[data.hardware.link_status] || data.hardware.link_status;
-                            linkLed.className = "led green";
-                        } else if (data.hardware.link_status === "WAITING") {
-                            linkVal.innerText = "WAITING";
-                            linkLed.className = "led orange";
-                        } else {
-                            linkVal.innerText = "OFFLINE";
-                            linkLed.className = "led red";
-                        }
-
-                        if (data.fleet && data.fleet.length > 0) {
-                            const battSummary = data.fleet.map(f => {
-                                const raw = f.battery;
-                                const value = raw !== undefined && raw !== null && raw !== "" && raw !== "N/A"
-                                    ? parseInt(raw, 10)
-                                    : null;
-                                const suffix = f.charge_online ? " ⚡" : "";
-                                let cls = "batt-good";
-                                let text = "UNKNOWN";
-                                if (value !== null && !Number.isNaN(value)) {
-                                    text = `${value}%${suffix}`;
-                                    if (value <= 15) cls = "batt-crit-inline";
-                                    else if (value <= 30) cls = "batt-warn-inline";
-                                }
-                                return `<span class="fleet-item"><span class="fleet-icon">·</span><span class="fleet-text">${f.name} <span class="${cls}">${text}</span></span></span>`;
-                            }).join("");
-                            battTxt.className = "val stat-val val-wrap";
-                            battTxt.innerHTML = `<span class="fleet-list">${battSummary}</span>`;
-                        } else {
-                            const batt = data.hardware.battery;
-                            if (batt !== "N/A" && batt !== undefined && batt !== null && batt !== "") {
-                                battTxt.innerText = batt + "%";
-                                if (parseInt(batt) > 30) battTxt.className = "val stat-val";
-                                else if (parseInt(batt) > 15) battTxt.className = "val stat-val batt-warn";
-                                else battTxt.className = "val stat-val batt-crit";
-                            } else {
-                                battTxt.innerText = "UNKNOWN";
-                                battTxt.className = "val";
-                            }
-                        }
-                        // New Live Mount Coordinate handling
-                        if (data.hardware.ra !== undefined && data.hardware.dec !== undefined && data.hardware.ra !== "N/A") {
-                            const ra = parseFloat(data.hardware.ra).toFixed(3);
-                            const dec = parseFloat(data.hardware.dec).toFixed(3);
-                            mountTxt.innerText = `${ra}h, ${dec}°`;
-                        } else {
-                            mountTxt.innerText = "--";
-                        }
-
                         // Fleet indicator
                         if (data.fleet && data.fleet.length > 0) {
                             const fleetTxt = document.getElementById("bb-fleet");
@@ -533,11 +490,15 @@
                         photVal.className  = 'pf-led-val' + (pf.phot_led === 'green' ? ' v-green' : pf.phot_led === 'orange' ? ' v-orange' : '');
                         photVal.innerText  = observed > 0 ? observed + ' OBS' : '--';
 
-                        const aavsoLed = document.getElementById('led-aavso');
-                        const aavsoVal = document.getElementById('pf-aavso-val');
-                        aavsoLed.className = 'led ' + (pf.aavso_led || 'grey');
-                        aavsoVal.className  = 'pf-led-val' + (pf.aavso_led === 'green' ? ' v-green' : pf.aavso_led === 'orange' ? ' v-orange' : '');
-                        aavsoVal.innerText  = pf.aavso_led === 'green' ? 'SUBMITTED' : pf.aavso_led === 'orange' ? 'PENDING' : '--';
+                        const reportLed = document.getElementById('led-aavso');
+                        const reportVal = document.getElementById('pf-aavso-val');
+                        const submissions = pf.submissions || {};
+                        const aavsoCount = submissions.aavso || 0;
+                        const baaCount = submissions.baa || 0;
+                        const reportClass = (aavsoCount > 0 || baaCount > 0) ? 'green' : 'grey';
+                        reportLed.className = 'led ' + reportClass;
+                        reportVal.className = 'pf-led-val' + (reportClass === 'green' ? ' v-green' : '');
+                        reportVal.innerText = `AAVSO ${aavsoCount} / BAA ${baaCount}`;
 
                         const overallEl = document.getElementById('pf-overall');
                         if (pf.overall === 'green') {
@@ -591,8 +552,14 @@
 
         document.getElementById('abort-btn').addEventListener('click', () => sendCommand('abort'));
         document.getElementById('reset-btn').addEventListener('click', () => sendCommand('reset'));
+        document.getElementById('fleet-sync-btn').addEventListener('click', () => sendCommand('fleet-sync'));
+        document.getElementById('wide-preview').addEventListener('load', () => {
+            document.getElementById('wide-preview-status').innerText = 'LIVE';
+        });
+        document.getElementById('wide-preview').addEventListener('error', () => {
+            document.getElementById('wide-preview-status').innerText = 'OFFLINE';
+        });
 
-        setInterval(updateTicker, 4000);
         setInterval(fetchTelemetry, 2000);
         setInterval(updateJDate, 1000);
         updateTicker(); fetchTelemetry(); updateJDate();

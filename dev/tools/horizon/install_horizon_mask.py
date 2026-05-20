@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/install_horizon_mask.py
+Filename: dev/tools/horizon/install_horizon_mask.py
 Objective: Install a candidate horizon_mask.json into the SeeVar runtime data dir
 with a timestamped backup of any existing mask.
 """

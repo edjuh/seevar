@@ -40,6 +40,7 @@ data/weather_state.json
 *.fts
 .idea/
 *.key
+*.pem
 *.log
 logs/
 # Logs
@@ -61,9 +62,13 @@ __pycache__/
 # Storage mounts — OS-level, not repo content
 *.swp
 tests/
+!dev/tests/
+!dev/tests/**
 # Tests & Dev Utilities — not part of public install
 *.token
 utils/
+!dev/utils/
+!dev/utils/raid_watchdog.py
 .venv/
 venv/
 .vscode/

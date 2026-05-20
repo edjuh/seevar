@@ -23,12 +23,13 @@ Interface contract:
 import json
 import logging
 import math
+import socket
 import subprocess
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import requests
@@ -46,26 +47,37 @@ from core.flight.pointing_model import apply_pointing_model, load_pointing_model
 # Dynamic IP Resolution
 # ---------------------------------------------------------------------------
 
+_CONFIG_CACHE: dict[str, Any] | None = None
+
+
+def _config() -> dict[str, Any]:
+    global _CONFIG_CACHE
+    if _CONFIG_CACHE is None:
+        cfg = load_config()
+        _CONFIG_CACHE = cfg if isinstance(cfg, dict) else {}
+    return _CONFIG_CACHE
+
+
 def _resolve_seestar_host() -> tuple[str, str]:
-    return selected_scope_host(load_config())
+    return selected_scope_host(_config())
 
 
 def _flight_cfg() -> dict:
-    cfg = load_config()
+    cfg = _config()
     return cfg.get("flight", {}) if isinstance(cfg, dict) else {}
 
 
 def _cfg_float(key: str, default: float) -> float:
     try:
         return float(_flight_cfg().get(key, default))
-    except Exception:
+    except (TypeError, ValueError):
         return default
 
 
 def _cfg_int(key: str, default: int) -> int:
     try:
         return int(round(float(_flight_cfg().get(key, default))))
-    except Exception:
+    except (TypeError, ValueError):
         return default
 
 
@@ -109,7 +121,8 @@ def _verify_root_name(path: Path) -> str | None:
 # ---------------------------------------------------------------------------
 
 SEESTAR_HOST, SEESTAR_HOST_SOURCE = _resolve_seestar_host()
-ALPACA_PORT = 32323
+SEESTAR_RPC_PORT = 4700
+ALPACA_PORT = max(1, _cfg_int("alpaca_port", 32323))
 TELESCOPE_NUM = 0
 CAMERA_NUM = 0
 FILTERWHEEL_NUM = 0
@@ -122,7 +135,7 @@ INSTRUMENT = "IMX585"
 TELESCOPE = "ZWO Seestar S30-Pro"
 FILTER_NAME = "TG"
 
-GAIN = 80
+GAIN = max(0, _cfg_int("gain", 80))
 FOCALLEN = 160
 APERTURE = 30
 PIXSCALE = 3.74
@@ -131,7 +144,7 @@ RDNOISE = 1.6
 PEDESTAL = 0
 SWCREATE = "SeeVar v3.1.0 (Alpaca)"
 
-SETTLE_SECONDS = 8
+SETTLE_SECONDS = max(0, _cfg_int("settle_seconds", 8))
 SLEW_TIMEOUT = 60
 EXPOSE_TIMEOUT = 120
 DOWNLOAD_TIMEOUT = 300
@@ -140,7 +153,7 @@ EXP_MS_DEFAULT = 5000
 VETO_BATTERY = 10
 VETO_TEMP = 55.0
 
-CLIENT_ID = 42
+CLIENT_ID = max(1, _cfg_int("alpaca_client_id", 42))
 
 VERIFY_EXPOSURE_SEC = max(0.5, _cfg_float("pointing_verify_exposure_sec", 2.0))
 VERIFY_EXPOSURE_RETRY_SEC = 2.0
@@ -163,7 +176,7 @@ PLATESOLVE_CPULIMIT = max(5, min(PLATESOLVE_TIMEOUT, _cfg_int("pointing_plate_so
 
 LOCAL_BUFFER = DATA_DIR / "local_buffer"
 VERIFY_BUFFER = DATA_DIR / "verify_buffer"
-ACTIVE_SCOPE = selected_scope(load_config())
+ACTIVE_SCOPE = selected_scope(_config())
 ACTIVE_SCOPE_TAG = scope_file_tag(ACTIVE_SCOPE)
 logger = logging.getLogger("seevar.pilot")
 
@@ -346,8 +359,14 @@ class AlpacaClient:
             "ClientID": CLIENT_ID,
             "ClientTransactionID": self._next_tx(),
         }
-        r = requests.get(f"{self.base}/{prop}", params=params, timeout=timeout)
-        data = r.json()
+        try:
+            r = requests.get(f"{self.base}/{prop}", params=params, timeout=timeout)
+            r.raise_for_status()
+            data = r.json()
+        except requests.RequestException as e:
+            raise RuntimeError(f"Alpaca GET {prop}: request failed: {e}") from e
+        except ValueError as e:
+            raise RuntimeError(f"Alpaca GET {prop}: invalid JSON response") from e
         err = data.get("ErrorNumber", 0)
         if err:
             raise RuntimeError(f"Alpaca GET {prop}: error {err} — {data.get('ErrorMessage', '')}")
@@ -359,26 +378,32 @@ class AlpacaClient:
             "ClientTransactionID": self._next_tx(),
         }
         payload.update(kwargs)
-        r = requests.put(f"{self.base}/{method}", data=payload, timeout=timeout)
-        data = r.json()
+        try:
+            r = requests.put(f"{self.base}/{method}", data=payload, timeout=timeout)
+            r.raise_for_status()
+            data = r.json()
+        except requests.RequestException as e:
+            raise RuntimeError(f"Alpaca PUT {method}: request failed: {e}") from e
+        except ValueError as e:
+            raise RuntimeError(f"Alpaca PUT {method}: invalid JSON response") from e
         err = data.get("ErrorNumber", 0)
         if err:
             raise RuntimeError(f"Alpaca PUT {method}: error {err} — {data.get('ErrorMessage', '')}")
         return data.get("Value")
 
-    def safe_get(self, prop: str, default=None):
+    def safe_get(self, prop: str, default: Any = None) -> Any:
         try:
             return self._get(prop)
-        except Exception:
+        except RuntimeError:
             return default
 
-    def connect(self):
+    def connect(self) -> None:
         self._put("connected", Connected="true")
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         try:
             self._put("connected", Connected="false")
-        except Exception:
+        except RuntimeError:
             pass
 
     @property
@@ -388,7 +413,7 @@ class AlpacaClient:
 
 class AlpacaTelescope(AlpacaClient):
     def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = TELESCOPE_NUM):
-        host, _ = selected_scope_host(load_config()) if not ip else (ip, "explicit argument")
+        host, _ = selected_scope_host(_config()) if not ip else (ip, "explicit argument")
         super().__init__(host, port, "telescope", device_number)
 
     def unpark(self):
@@ -408,9 +433,18 @@ class AlpacaTelescope(AlpacaClient):
             timeout=20.0,
         )
 
-    def wait_for_slew(self, timeout: float = SLEW_TIMEOUT) -> bool:
+    def abort_slew(self):
+        self._put("abortslew")
+
+    def wait_for_slew(self, timeout: float = SLEW_TIMEOUT, abort_callback=None) -> bool:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            if abort_callback and abort_callback():
+                try:
+                    self.abort_slew()
+                except Exception as e:
+                    logger.warning("Abort slew request failed: %s", e)
+                return False
             if not self._get("slewing"):
                 return True
             time.sleep(1.0)
@@ -464,7 +498,7 @@ class AlpacaCamera(AlpacaClient):
     }
 
     def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = CAMERA_NUM):
-        host, _ = selected_scope_host(load_config()) if not ip else (ip, "explicit argument")
+        host, _ = selected_scope_host(_config()) if not ip else (ip, "explicit argument")
         super().__init__(host, port, "camera", device_number)
 
     def set_gain(self, gain: int):
@@ -476,9 +510,15 @@ class AlpacaCamera(AlpacaClient):
     def abort_exposure(self):
         self._put("abortexposure")
 
-    def wait_for_image(self, exposure_sec: float, timeout: float = EXPOSE_TIMEOUT) -> bool:
+    def wait_for_image(self, exposure_sec: float, timeout: float = EXPOSE_TIMEOUT, abort_callback=None) -> bool:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            if abort_callback and abort_callback():
+                try:
+                    self.abort_exposure()
+                except Exception as e:
+                    logger.warning("Abort exposure request failed: %s", e)
+                return False
             try:
                 if self._get("imageready"):
                     return True
@@ -492,8 +532,14 @@ class AlpacaCamera(AlpacaClient):
             "ClientID": CLIENT_ID,
             "ClientTransactionID": self._next_tx(),
         }
-        r = requests.get(f"{self.base}/imagearray", params=params, timeout=DOWNLOAD_TIMEOUT)
-        data = r.json()
+        try:
+            r = requests.get(f"{self.base}/imagearray", params=params, timeout=DOWNLOAD_TIMEOUT)
+            r.raise_for_status()
+            data = r.json()
+        except requests.RequestException as e:
+            raise RuntimeError(f"imagearray: request failed: {e}") from e
+        except ValueError as e:
+            raise RuntimeError("imagearray: invalid JSON response") from e
         err = data.get("ErrorNumber", 0)
         if err:
             raise RuntimeError(f"imagearray: error {err} — {data.get('ErrorMessage', '')}")
@@ -529,13 +575,43 @@ class AlpacaCamera(AlpacaClient):
         return self._get("cameraysize")
 
 
+def _seestar_rpc_call(host: str, method: str, params=None, port: int = SEESTAR_RPC_PORT, timeout: float = 6.0) -> dict:
+    payload = {"id": int(time.time() * 1000) % 1_000_000, "method": method}
+    if params is not None:
+        payload["params"] = params
+
+    wire = (json.dumps(payload) + "\r\n").encode("utf-8")
+    chunks: list[bytes] = []
+    with socket.create_connection((host, port), timeout=timeout) as sock:
+        sock.settimeout(timeout)
+        sock.sendall(wire)
+        while True:
+            try:
+                block = sock.recv(65536)
+            except socket.timeout:
+                break
+            if not block:
+                break
+            chunks.append(block)
+            if b"\r\n" in block or b"\n" in block:
+                break
+
+    if not chunks:
+        return {"result": None}
+
+    data = json.loads(b"".join(chunks).splitlines()[0].decode("utf-8"))
+    if "error" in data:
+        raise RuntimeError(f"{method}: {data['error']}")
+    return data
+
+
 class AlpacaFilterWheel(AlpacaClient):
     DARK = 0
     IR = 1
     LP = 2
 
     def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = FILTERWHEEL_NUM):
-        host, _ = selected_scope_host(load_config()) if not ip else (ip, "explicit argument")
+        host, _ = selected_scope_host(_config()) if not ip else (ip, "explicit argument")
         super().__init__(host, port, "filterwheel", device_number)
 
     def set_position(self, pos: int):
@@ -557,7 +633,7 @@ def _read_gps_ram() -> dict:
         lon = float(data.get("lon", 0.0))
         elev = float(data.get("elevation", 0.0))
         return {"lat": lat, "lon": lon, "elevation": elev}
-    except Exception:
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
         return {"lat": 0.0, "lon": 0.0, "elevation": 0.0}
 
 
@@ -719,7 +795,7 @@ class DiamondSequence:
     """
 
     def __init__(self, host: str | None = None, port: int = ALPACA_PORT):
-        resolved_host, resolved_source = selected_scope_host(load_config()) if not host else (host, "explicit argument")
+        resolved_host, resolved_source = selected_scope_host(_config()) if not host else (host, "explicit argument")
         self.host = resolved_host
         self.port = port
         self.host_source = resolved_source
@@ -734,10 +810,9 @@ class DiamondSequence:
     def _management_status(self) -> tuple[bool, str]:
         try:
             r = requests.get(f"http://{self.host}:{self.port}/management/apiversions", timeout=5)
-            if r.status_code != 200:
-                return False, f"Alpaca management returned HTTP {r.status_code}"
+            r.raise_for_status()
             return True, ""
-        except Exception as e:
+        except requests.RequestException as e:
             return False, f"Alpaca management unreachable: {e}"
 
     def _is_reachable(self) -> bool:
@@ -747,7 +822,7 @@ class DiamondSequence:
     def _require_connected(self, client: AlpacaClient, label: str):
         try:
             connected = bool(client.connected)
-        except Exception as e:
+        except RuntimeError as e:
             raise RuntimeError(f"{label} connection probe failed: {e}")
         if not connected:
             raise RuntimeError(f"{label} reports connected=false after connect()")
@@ -770,7 +845,7 @@ class DiamondSequence:
             self._telescope._get("rightascension")
             self._telescope._get("declination")
             return True, ""
-        except Exception as e:
+        except RuntimeError as e:
             return False, f"Alpaca backend reachable but telescope not operational: {e}"
 
     def _read_operational_telemetry(self, level_ok: bool) -> TelemetryBlock:
@@ -786,17 +861,17 @@ class DiamondSequence:
         if lat not in (None, 0.0):
             return float(lat)
         try:
-            cfg = load_config()
+            cfg = _config()
             return float(cfg.get("location", {}).get("lat"))
-        except Exception:
+        except (TypeError, ValueError):
             return None
 
     def _mount_mode(self) -> str:
         try:
-            scope = selected_scope(load_config())
+            scope = selected_scope(_config())
             if scope:
                 return str(scope.get("mount", "altaz")).strip().lower()
-        except Exception:
+        except (TypeError, ValueError):
             pass
         return "altaz"
 
@@ -1129,13 +1204,27 @@ class DiamondSequence:
             t.level_ok = level_ok
             return t
 
-    def acquire(self, target: AcquisitionTarget, status_cb=None, telemetry: Optional[TelemetryBlock] = None, skip_pointing: bool = False) -> FrameResult:
+    def acquire(
+        self,
+        target: AcquisitionTarget,
+        status_cb=None,
+        telemetry: Optional[TelemetryBlock] = None,
+        skip_pointing: bool = False,
+        abort_callback=None,
+    ) -> FrameResult:
         """Execute A4-A11 for one target, or science-only when pointing is already established."""
 
         def notify(step, msg):
             if status_cb:
                 status_cb(f"[{step}] {msg}")
             logger.info("[%s] %s", step, msg)
+
+        def abort_requested() -> bool:
+            try:
+                return bool(abort_callback and abort_callback())
+            except Exception as e:
+                logger.warning("Abort callback failed: %s", e)
+                return False
 
         t_start = time.monotonic()
         ccd_temp = telemetry.temp_c if telemetry else None
@@ -1146,6 +1235,9 @@ class DiamondSequence:
         exp_sec = target.exp_ms / 1000.0
 
         try:
+            if abort_requested():
+                return FrameResult(success=False, error="operator_abort")
+
             if not skip_pointing:
                 pointing_model = None
                 if POINTING_MODEL_ENABLED:
@@ -1176,15 +1268,27 @@ class DiamondSequence:
                         )
 
                 for attempt in range(POINTING_MAX_RETRIES + 1):
+                    if abort_requested():
+                        return FrameResult(success=False, error="operator_abort")
+
                     notify("A4", f"Slew command RA={command_ra_hours:.4f}h DEC={command_dec_deg:.4f}° ({target.name})")
                     self._telescope.slew_to_coordinates_async(command_ra_hours, command_dec_deg)
 
                     notify("A5", f"Waiting for slew completion (timeout={SLEW_TIMEOUT}s)")
-                    if not self._telescope.wait_for_slew(SLEW_TIMEOUT):
+                    if not self._telescope.wait_for_slew(SLEW_TIMEOUT, abort_callback=abort_requested):
+                        if abort_requested():
+                            return FrameResult(success=False, error="operator_abort")
                         return FrameResult(success=False, error=f"Slew timeout ({SLEW_TIMEOUT}s)")
 
+                    if abort_requested():
+                        return FrameResult(success=False, error="operator_abort")
+
                     notify("A6", f"Settling {SETTLE_SECONDS}s after slew")
-                    time.sleep(SETTLE_SECONDS)
+                    settle_deadline = time.monotonic() + SETTLE_SECONDS
+                    while time.monotonic() < settle_deadline:
+                        if abort_requested():
+                            return FrameResult(success=False, error="operator_abort")
+                        time.sleep(min(0.5, max(0.0, settle_deadline - time.monotonic())))
 
                     verify_target = AcquisitionTarget(
                         name=target.name,
@@ -1198,6 +1302,8 @@ class DiamondSequence:
                     )
 
                     solve = self._pointing_verify(verify_target, notify, ccd_temp=ccd_temp)
+                    if abort_requested():
+                        return FrameResult(success=False, error="operator_abort")
 
                     if not solve.get("ok"):
                         notify("A7", f"Pointing verify failed: {solve.get('error', 'unknown error')}")
@@ -1277,6 +1383,8 @@ class DiamondSequence:
                 logger.warning("Tracking verification before science exposure failed: %s", e)
 
             notify("A10", f"Set gain={GAIN} and start science exposure {exp_sec:.1f}s")
+            if abort_requested():
+                return FrameResult(success=False, error="operator_abort")
             try:
                 self._camera.set_gain(GAIN)
             except Exception as e:
@@ -1286,8 +1394,13 @@ class DiamondSequence:
 
             notify("A10", "Waiting for science exposure + readout")
             image_timeout = exp_sec + EXPOSE_TIMEOUT
-            if not self._camera.wait_for_image(exp_sec, timeout=image_timeout):
+            if not self._camera.wait_for_image(exp_sec, timeout=image_timeout, abort_callback=abort_requested):
+                if abort_requested():
+                    return FrameResult(success=False, error="operator_abort")
                 return FrameResult(success=False, error=f"Image not ready after {image_timeout}s")
+
+            if abort_requested():
+                return FrameResult(success=False, error="operator_abort")
 
             try:
                 ccd_temp = self._camera.temperature
@@ -1344,6 +1457,16 @@ class DiamondSequence:
             self._telescope.park()
         except Exception as e:
             logger.warning("Park failed: %s", e)
+
+    def at_park(self) -> bool:
+        return bool(self._telescope.at_park)
+
+    def shutdown_scope(self):
+        try:
+            self._telescope.set_tracking(False)
+        except Exception as e:
+            logger.warning("Tracking stop before shutdown failed: %s", e)
+        return _seestar_rpc_call(self.host, "pi_shutdown")
 
     def disconnect_all(self):
         self._camera.disconnect()

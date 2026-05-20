@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/test_synthetic_imx585_field.py
+Filename: dev/tests/postflight/test_synthetic_imx585_field.py
 Version: 1.0.0
 Objective: End-to-end synthetic IMX585-style postflight rehearsal.
 

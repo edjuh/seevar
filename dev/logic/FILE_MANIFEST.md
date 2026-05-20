@@ -112,20 +112,20 @@
 | dev/logic/SIMULATORLOGIC.MD | 2.0.0 (Sovereign A1-A12) | Outlines networking and state logic required to synchronize the SeeStar ALP Bridge with the Raspberry Pi Simulator en... |
 | dev/logic/STATE_MACHINE.MD | 5.0.0 (Sovereign A1-A12) | Deterministic hardware transitions for AAVSO acquisition |
 | dev/logic/WORKFLOW.MD | 1.9.0 | Describe the full operational flow of SeeVar from preflight through flight, postflight, and parked state using the cu... |
-| dev/test_calibration_assets.py | 1.0.0 | Smoke-test calibration asset requirement summaries without FITS dependencies. |
-| dev/test_dark_postflight.py | 1.0.1 | Smoke-test the dark calibration + accountant closure path without hardware. |
-| dev/test_postflight_low_snr.py | 1.0.0 | Verify postflight rejects a dark-calibrated frame when photometric SNR is too low. |
-| dev/test_postflight_no_dark.py | 1.0.0 | Verify postflight fails honestly when no matching master dark exists. |
-| dev/test_synthetic_imx585_field.py | 1.0.0 | End-to-end synthetic IMX585-style postflight rehearsal. |
-| dev/test_tcrb_s30_s50_field.py | 1.0.0 | Rehearse postflight on T CrB-inspired synthetic S30 and S50 fields. |
-| dev/tools/aavso_reporter_test.py | 1.0.0 | Generate a small dummy AAVSO Extended Format report for WebObs preview testing, or the BAA-modified AAVSO Extended va... |
-| dev/tools/clean_postflight_remnants.py | N/A | Dry-run-first cleanup tool for transient astrometry solver products in SeeVar data directories. |
-| dev/tools/horizon_audit.py | 1.0.1 | Audit tonights_plan.json against the real camera-scanned horizon mask. Shows how many targets are observable tonight... |
-| dev/tools/install_horizon_mask.py | N/A | Install a candidate horizon_mask.json into the SeeVar runtime data dir with a timestamped backup of any existing mask. |
-| dev/tools/package_sector_panorama.py | N/A | Package a pre-stitched panorama sector plus a SeeVar horizon mask into the conservative Stellarium spherical landscap... |
-| dev/tools/prealign_pointing.py | 1.0.0 | Build a quick SeeVar software pointing model from 2-3 bright plate-solved alignment stars before starting a science s... |
-| dev/tools/rpc_client.py | 2.0.1 | Interactive JSON-RPC client for Seestar port 4700 using pre-built sovereign payloads. |
-| dev/tools/session_triage.py | N/A | Summarise the last SeeVar observing session from logs, ledger, plan, and data buffers without touching telescope state. |
+| dev/tests/postflight/test_calibration_assets.py | 1.0.0 | Smoke-test calibration asset requirement summaries without FITS dependencies. |
+| dev/tests/postflight/test_dark_postflight.py | 1.0.1 | Smoke-test the dark calibration + accountant closure path without hardware. |
+| dev/tests/postflight/test_postflight_low_snr.py | 1.0.0 | Verify postflight rejects a dark-calibrated frame when photometric SNR is too low. |
+| dev/tests/postflight/test_postflight_no_dark.py | 1.0.0 | Verify postflight fails honestly when no matching master dark exists. |
+| dev/tests/postflight/test_synthetic_imx585_field.py | 1.0.0 | End-to-end synthetic IMX585-style postflight rehearsal. |
+| dev/tests/postflight/test_tcrb_s30_s50_field.py | 1.0.0 | Rehearse postflight on T CrB-inspired synthetic S30 and S50 fields. |
+| dev/tools/reports/aavso_reporter_test.py | 1.0.0 | Generate a small dummy AAVSO Extended Format report for WebObs preview testing, or the BAA-modified AAVSO Extended va... |
+| dev/tools/ops/clean_postflight_remnants.py | N/A | Dry-run-first cleanup tool for transient astrometry solver products in SeeVar data directories. |
+| dev/tools/horizon/horizon_audit.py | 1.0.1 | Audit tonights_plan.json against the real camera-scanned horizon mask. Shows how many targets are observable tonight... |
+| dev/tools/horizon/install_horizon_mask.py | N/A | Install a candidate horizon_mask.json into the SeeVar runtime data dir with a timestamped backup of any existing mask. |
+| dev/tools/horizon/package_sector_panorama.py | N/A | Package a pre-stitched panorama sector plus a SeeVar horizon mask into the conservative Stellarium spherical landscap... |
+| dev/tools/telescope/prealign_pointing.py | 1.0.0 | Build a quick SeeVar software pointing model from 2-3 bright plate-solved alignment stars before starting a science s... |
+| dev/tools/telescope/rpc_client.py | 2.0.1 | Interactive JSON-RPC client for Seestar port 4700 using pre-built sovereign payloads. |
+| dev/tools/ops/session_triage.py | N/A | Summarise the last SeeVar observing session from logs, ledger, plan, and data buffers without touching telescope state. |
 | dev/utils/comp_purger.py | 1.1.1 | Prunes orphaned comparison star charts in the SeeVar catalog. |
 | dev/utils/generate_manifest.py | 1.6.2 | Generate FILE_MANIFEST.md for SeeVar and mirror it to NAS while excluding transient runtime data, generated science p... |
 | dev/utils/harvest_manager.py | 1.3.1 | SeeVar Harvester - Supports simulation data (.fit) and real FITS. |

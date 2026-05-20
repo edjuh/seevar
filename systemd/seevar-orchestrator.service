@@ -2,6 +2,7 @@
 Description=SeeVar Science Orchestrator
 After=network-online.target seevar-weather.service seevar-gps.service
 Wants=network-online.target seevar-weather.service seevar-gps.service
+RequiresMountsFor=/mnt/raid1
 StartLimitIntervalSec=300
 StartLimitBurst=5
 

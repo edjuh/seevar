@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/test_postflight_no_dark.py
+Filename: dev/tests/postflight/test_postflight_no_dark.py
 Version: 1.0.0
 Objective: Verify postflight fails honestly when no matching master dark exists.
 """

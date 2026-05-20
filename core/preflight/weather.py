@@ -5,16 +5,17 @@ Filename: core/preflight/weather.py
 Version: 1.8.0
 Objective: Tri-source weather consensus daemon providing dark-window timing and hard-abort imaging veto state for preflight and flight.
            conditions (rain, snow, fog, storm, wind) per hour within
-           tonight's astronomical dark window. Cloud cover at any level
-           is a warning only — never an abort. Reports best contiguous
-           imaging window within the dark period. Feeds status,
+           tonight's astronomical dark window. Cloud cover is not a safety
+           abort, but is a science no-go when configured limits are exceeded.
+           Reports best contiguous imaging window within the dark period. Feeds status,
            imaging_window_start, imaging_window_end, clouds_pct,
            humidity_pct to the Orchestrator via data/weather_state.json.
            Poll interval: 4 hours.
-           Source 1 — open-meteo   : precipitation, wind, humidity (forecast)
-           Source 2 — Clear Outside: per-layer clouds, fog (forecast)
-           Source 3 — KNMI EDR     : measured oktas, visibility, ww from
-                                     Schiphol (ground truth — hard aborts only)
+           Source 1 — open-meteo   : precipitation, wind, humidity, total cloud (forecast)
+           Source 2 — MET Norway   : total cloud forecast
+           Source 3 — Clear Outside: per-layer clouds, fog (forecast)
+           Source 4 — KNMI EDR     : measured oktas, visibility, ww from
+                                     Schiphol (ground truth)
 """
 
 import json
@@ -24,8 +25,10 @@ import logging
 import requests
 import sys
 import tomllib
+import argparse
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -37,7 +40,7 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("WeatherSentinel")
 
-POLL_INTERVAL_S = 14400  # 4 hours
+POLL_INTERVAL_S = 1800  # 30 minutes; preflight must see fresh weather.
 LOCK_FILE = DATA_DIR / "locks" / "weather.lock"
 _LOCK_HANDLE = None
 
@@ -98,12 +101,15 @@ def _ww_is_thunder(ww: float) -> bool:
 
 def _load_thresholds() -> dict:
     """Load hard-abort thresholds from config.toml [weather].
-    Cloud cover thresholds are retained for display/warning only —
-    they do not trigger abort in v1.8+."""
+    Cloud cover thresholds are science no-go gates."""
     defaults = {
         "precip_limit":    0.5,    # mm — open-meteo forecast abort
         "wind_limit":      30.0,   # km/h
         "humidity_limit":  90.0,   # % — warning/dew heater cue, not abort
+        "cloud_low_limit": 30.0,   # % — science no-go
+        "cloud_mid_limit": 50.0,   # % — science no-go
+        "cloud_high_limit":70.0,   # % — science no-go
+        "cloud_total_limit": 70.0, # % — science no-go for total-cloud sources
         "fog_abort":       True,
         "min_window_hours": 1,     # minimum contiguous clear hours to report
     }
@@ -115,6 +121,10 @@ def _load_thresholds() -> dict:
             "precip_limit":     float(w.get("max_precip_mm",   defaults["precip_limit"])),
             "wind_limit":       float(w.get("max_wind_kmh",    defaults["wind_limit"])),
             "humidity_limit":   float(w.get("max_humidity_pct", defaults["humidity_limit"])),
+            "cloud_low_limit":  float(w.get("max_cloud_low_pct", defaults["cloud_low_limit"])),
+            "cloud_mid_limit":  float(w.get("max_cloud_mid_pct", defaults["cloud_mid_limit"])),
+            "cloud_high_limit": float(w.get("max_cloud_high_pct", defaults["cloud_high_limit"])),
+            "cloud_total_limit": float(w.get("max_cloud_total_pct", defaults["cloud_total_limit"])),
             "fog_abort":        bool(w.get("fog_abort",        defaults["fog_abort"])),
             "min_window_hours": int(w.get("min_window_hours",  defaults["min_window_hours"])),
         }
@@ -267,10 +277,39 @@ def _hour_has_hard_abort(hour_data: dict, t: dict, knmi_cfg: dict) -> tuple[bool
     return False, ""
 
 
+def _hour_cloud_reason(hour_data: dict, t: dict, *, use_knmi: bool = False) -> str:
+    """Return a science no-go reason when cloud limits are exceeded."""
+    low = float(hour_data.get("co_low", 0) or 0)
+    mid = float(hour_data.get("co_mid", 0) or 0)
+    high = float(hour_data.get("co_high", 0) or 0)
+    om_total = float(hour_data.get("om_clouds", 0) or 0)
+    met_total = hour_data.get("met_clouds")
+    total_limit = float(t.get("cloud_total_limit", max(t["cloud_high_limit"], t["cloud_mid_limit"])))
+    reasons = []
+
+    if low > t["cloud_low_limit"]:
+        reasons.append(f"CO low {low:.0f}%>{t['cloud_low_limit']:.0f}%")
+    if mid > t["cloud_mid_limit"]:
+        reasons.append(f"CO mid {mid:.0f}%>{t['cloud_mid_limit']:.0f}%")
+    if high > t["cloud_high_limit"]:
+        reasons.append(f"CO high {high:.0f}%>{t['cloud_high_limit']:.0f}%")
+    if om_total > total_limit:
+        reasons.append(f"OM total {om_total:.0f}%>{total_limit:.0f}%")
+    if met_total is not None and float(met_total) > total_limit:
+        reasons.append(f"MET total {float(met_total):.0f}%>{total_limit:.0f}%")
+
+    if use_knmi:
+        oktas = hour_data.get("knmi_oktas")
+        if oktas is not None and float(oktas) >= 5:
+            reasons.append(f"KNMI {float(oktas):.0f} oktas")
+
+    return "; ".join(reasons)
+
+
 def find_best_imaging_window(hourly_evals: list, min_hours: int = 1) -> tuple | None:
     """
-    Find the longest contiguous block of hours with no hard abort.
-    hourly_evals: list of (datetime, abort: bool, reason: str)
+    Find the longest contiguous block of hours usable for science.
+    hourly_evals: list of (datetime, blocked: bool, reason: str)
     Returns (window_start: datetime, window_end: datetime) or None.
     """
     best_start = best_end = None
@@ -313,10 +352,12 @@ class WeatherSentinel:
 
         log.info(
             "Thresholds v1.8 — precip:%.1fmm wind:%.0fkm/h hum:%.0f%% "
-            "fog_abort:%s min_window:%dh | clouds: WARNING ONLY",
+            "fog_abort:%s min_window:%dh | clouds low/mid/high/total:%.0f/%.0f/%.0f/%.0f%%",
             self.t["precip_limit"], self.t["wind_limit"],
             self.t["humidity_limit"], self.t["fog_abort"],
             self.t["min_window_hours"],
+            self.t["cloud_low_limit"], self.t["cloud_mid_limit"],
+            self.t["cloud_high_limit"], self.t["cloud_total_limit"],
         )
         if self.knmi_cfg:
             log.info("KNMI source: %s (%s) vv_limit:%dm",
@@ -344,7 +385,7 @@ class WeatherSentinel:
             f"https://api.open-meteo.com/v1/forecast"
             f"?latitude={lat}&longitude={lon}"
             f"&hourly=precipitation,cloud_cover,relative_humidity_2m,"
-            f"wind_speed_10m&timezone=UTC"
+            f"wind_speed_10m&timezone=UTC&forecast_days=2"
         )
         try:
             r = requests.get(url, timeout=10)
@@ -377,15 +418,69 @@ class WeatherSentinel:
             return []
 
     # -------------------------------------------------------------------------
-    # SOURCE 2 — Clear Outside (hourly fog only — clouds are display only)
+    # SOURCE 2 — MET Norway / Yr.no (hourly total cloud forecast)
+    # -------------------------------------------------------------------------
+
+    def fetch_met_no_hourly(self, lat: float, lon: float,
+                            dark_window: tuple | None) -> dict:
+        """
+        Fetch MET Norway total cloud forecast.
+        Returns dict keyed by UTC hour datetime → cloud_area_fraction.
+        """
+        url = (
+            "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+            f"?lat={lat:.4f}&lon={lon:.4f}"
+        )
+        headers = {"User-Agent": "SeeVar/1.8 weather sentinel; github.com/edjuh/seevar"}
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            r.raise_for_status()
+            data = r.json()
+
+            dark_start = dark_end = None
+            if dark_window:
+                dark_start, dark_end = dark_window
+
+            hours = {}
+            for item in data.get("properties", {}).get("timeseries", []):
+                ts = item.get("time")
+                if not ts:
+                    continue
+                try:
+                    dt = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(timezone.utc)
+                except ValueError:
+                    continue
+                if dark_window and not (dark_start <= dt <= dark_end):
+                    continue
+                cloud = (
+                    item.get("data", {})
+                    .get("instant", {})
+                    .get("details", {})
+                    .get("cloud_area_fraction")
+                )
+                if cloud is None:
+                    continue
+                hour_dt = dt.replace(minute=0, second=0, microsecond=0)
+                hours[hour_dt] = float(cloud)
+
+            log.info("MET Norway — %d hours within dark window fetched", len(hours))
+            return hours
+
+        except Exception as e:
+            log.warning("MET Norway fetch failed: %s", e)
+            return {}
+
+    # -------------------------------------------------------------------------
+    # SOURCE 3 — Clear Outside (hourly fog and per-layer cloud forecast)
     # -------------------------------------------------------------------------
 
     def fetch_clear_outside_hourly(self, lat: float, lon: float,
                                    dark_window: tuple | None) -> dict:
         """
         Fetch per-hour fog flag and cloud layers from Clear Outside.
-        Returns dict keyed by hour-of-day (int) → {co_fog, co_low, co_mid,
-        co_high}. Clouds stored for display; fog used for abort evaluation.
+        Returns dict keyed by UTC hour datetime → {co_fog, co_low, co_mid,
+        co_high}. Clear Outside data is local-date/hour based; preserving
+        the date avoids overwriting tonight's hours with later forecast days.
         """
         try:
             from clear_outside_apy import ClearOutsideAPY
@@ -394,12 +489,25 @@ class WeatherSentinel:
             data = api.pull()
 
             result = {}
+            local_tz = datetime.now().astimezone().tzinfo or ZoneInfo("UTC")
+            local_today = datetime.now(local_tz).date()
             for day_key in sorted(data.get("forecast", {}).keys()):
                 day   = data["forecast"][day_key]
                 hours = day.get("hours", {})
+                try:
+                    day_offset = int(str(day_key).split("-")[-1])
+                except (TypeError, ValueError):
+                    continue
+                local_date = local_today + timedelta(days=day_offset)
                 for hour_key in sorted(hours.keys(), key=int):
                     h = hours[hour_key]
-                    result[int(hour_key)] = {
+                    local_dt = datetime.combine(
+                        local_date,
+                        datetime.min.time().replace(hour=int(hour_key)),
+                        tzinfo=local_tz,
+                    )
+                    utc_hour = local_dt.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
+                    result[utc_hour] = {
                         "co_fog":  int(h.get("fog",         0)),
                         "co_low":  int(h.get("low-clouds",  0)),
                         "co_mid":  int(h.get("mid-clouds",  0)),
@@ -417,7 +525,7 @@ class WeatherSentinel:
             return {}
 
     # -------------------------------------------------------------------------
-    # SOURCE 3 — KNMI EDR (ground truth — single latest measurement)
+    # SOURCE 4 — KNMI EDR (ground truth — single latest measurement)
     # -------------------------------------------------------------------------
 
     def fetch_knmi(self) -> dict:
@@ -503,7 +611,7 @@ class WeatherSentinel:
 
     def get_consensus(self):
         """
-        Per-hour hard-abort evaluation across the dark window.
+        Per-hour safety and science-quality evaluation across the dark window.
 
         Hard abort conditions (telescope in):
           1. KNMI ww >= 50          — measured precipitation (rain/snow/hail)
@@ -514,17 +622,19 @@ class WeatherSentinel:
           6. open-meteo precip      — forecast precipitation
           7. open-meteo wind        — forecast wind above limit
 
-        Warning only (log, never abort, telescope keeps imaging):
-          - Cloud cover at any level (low/mid/high) — all sources
-          - KNMI oktas — display only
+        Science no-go:
+          - Cloud cover above configured limits
+
+        Warning only:
           - Humidity — dew heater cue only
 
         Outcome:
-          - status: CLEAR / CLOUDY / HAZY / HUMID / RAIN / FOG / WINDY / THUNDER
-            CLEAR/CLOUDY/HAZY/HUMID = imaging go
+          - status: CLEAR / MIXED / CLOUDY / HAZY / HUMID / RAIN / FOG / WINDY / THUNDER
+            CLEAR/HAZY/HUMID = imaging go
+            CLOUDY/MIXED = no science go
             RAIN/FOG/WINDY/THUNDER  = hard abort
           - imaging_window_start / imaging_window_end: best contiguous
-            non-abort block within the dark window (UTC ISO strings)
+            non-abort and non-cloudy block within the dark window (UTC ISO strings)
         """
         lat, lon = self.get_coordinates()
         if lat == 0.0 and lon == 0.0:
@@ -535,6 +645,7 @@ class WeatherSentinel:
 
         log.info("Fetching tri-source weather for %.4f, %.4f...", lat, lon)
         om_hours = self.fetch_open_meteo_hourly(lat, lon, dark_window)
+        met_hours = self.fetch_met_no_hourly(lat, lon, dark_window)
         co_hours = self.fetch_clear_outside_hourly(lat, lon, dark_window)
         knmi     = self.fetch_knmi()
 
@@ -553,38 +664,54 @@ class WeatherSentinel:
             dt   = om["dt"]
             hour = dt.hour
 
-            # Merge Clear Outside for this hour (keyed by hour-of-day)
-            co = co_hours.get(hour, {})
+            # Merge Clear Outside for this exact UTC hour.
+            co = co_hours.get(dt.replace(minute=0, second=0, microsecond=0), {})
+            met_clouds = met_hours.get(dt.replace(minute=0, second=0, microsecond=0))
 
             # Build merged hour dict for abort evaluation
             h = {
                 "om_precip":  om["om_precip"],
                 "om_wind":    om["om_wind"],
+                "om_clouds":  om["om_clouds"],
+                "met_clouds": met_clouds,
                 "co_fog":     co.get("co_fog", 0),
+                "co_low":     co.get("co_low", 0),
+                "co_mid":     co.get("co_mid", 0),
+                "co_high":    co.get("co_high", 0),
                 # KNMI ground truth only applied to current hour
                 "knmi_ww":    knmi.get("ww") if hour == current_hour else None,
                 "knmi_vv":    knmi.get("vv") if hour == current_hour else None,
+                "knmi_oktas": knmi.get("oktas") if hour == current_hour else None,
             }
 
             abort, reason = _hour_has_hard_abort(h, t, self.knmi_cfg)
+            cloud_reason = "" if abort else _hour_cloud_reason(h, t, use_knmi=(hour == current_hour))
             hourly_evals.append((dt, abort, reason))
 
             hourly_detail.append({
                 "hour_utc":   dt.strftime("%H:%M"),
                 "abort":      abort,
                 "reason":     reason,
+                "cloud_block": bool(cloud_reason),
+                "cloud_reason": cloud_reason,
                 "om_precip":  om["om_precip"],
                 "om_wind":    om["om_wind"],
                 "om_clouds":  om["om_clouds"],
+                "met_clouds": met_clouds,
                 "co_fog":     co.get("co_fog",  0),
                 "co_low":     co.get("co_low",  0),
                 "co_mid":     co.get("co_mid",  0),
                 "co_high":    co.get("co_high", 0),
             })
 
-        # Best contiguous imaging window
+        # Best contiguous science window: clouds block science, not just hard aborts.
+        science_evals = [
+            (dt, bool(d.get("abort") or d.get("cloud_block")),
+             d.get("reason") or d.get("cloud_reason", ""))
+            for (dt, _abort, _reason), d in zip(hourly_evals, hourly_detail)
+        ]
         imaging_window = find_best_imaging_window(
-            hourly_evals, min_hours=t["min_window_hours"]
+            science_evals, min_hours=t["min_window_hours"]
         )
 
         # Overall status — driven by NOW, not window_max
@@ -592,10 +719,18 @@ class WeatherSentinel:
         # Otherwise: warning statuses from current conditions
         now_abort = False
         now_reason = ""
+        now_cloudy = False
+        now_cloud_reason = ""
         for dt, abort, reason in hourly_evals:
             if dt.hour == current_hour:
-                now_abort  = abort
-                now_reason = reason
+                current_hour_detail = next(
+                    (d for d in hourly_detail if int(d["hour_utc"][:2]) == current_hour),
+                    {},
+                )
+                now_abort = bool(current_hour_detail.get("abort"))
+                now_reason = current_hour_detail.get("reason", "")
+                now_cloudy = bool(current_hour_detail.get("cloud_block"))
+                now_cloud_reason = current_hour_detail.get("cloud_reason", "")
                 break
 
         current_detail = next(
@@ -617,6 +752,13 @@ class WeatherSentinel:
                 "knmi_vv":   knmi.get("vv"),
             }
             now_abort, now_reason = _hour_has_hard_abort(h_now, t, self.knmi_cfg)
+            if not now_abort:
+                now_cloud_reason = _hour_cloud_reason(
+                    {"knmi_oktas": knmi.get("oktas")},
+                    t,
+                    use_knmi=True,
+                )
+                now_cloudy = bool(now_cloud_reason)
 
         if now_abort:
             # Determine specific abort status from reason string
@@ -641,7 +783,19 @@ class WeatherSentinel:
             cur_high = current_detail.get("co_high", 0)
             knmi_oktas = knmi.get("oktas")
 
-            if cur_low > 50 or cur_mid > 50 or (knmi_oktas is not None and knmi_oktas >= 5):
+            current_cloud_reason = _hour_cloud_reason(
+                {
+                    "co_low": cur_low,
+                    "co_mid": cur_mid,
+                    "co_high": cur_high,
+                    "om_clouds": current_om.get("om_clouds", 0),
+                    "met_clouds": current_detail.get("met_clouds"),
+                    "knmi_oktas": knmi_oktas,
+                },
+                t,
+                use_knmi=True,
+            )
+            if current_cloud_reason:
                 current_status, current_icon = "CLOUDY", "☁️"
             elif cur_high > 70:
                 current_status, current_icon = "HAZY",   "🌤️"
@@ -651,7 +805,10 @@ class WeatherSentinel:
                 current_status, current_icon = "CLEAR",  "✨"
 
         # Collect display values
-        clouds_pct   = int(max((d["om_clouds"] for d in hourly_detail), default=0))
+        clouds_pct   = int(max(
+            max(float(d.get("om_clouds") or 0), float(d.get("met_clouds") or 0))
+            for d in hourly_detail
+        ) if hourly_detail else 0)
         humidity_pct = int(knmi.get("rh") or
                            max((om["om_humidity"] for om in om_hours), default=0))
         knmi_oktas   = knmi.get("oktas")
@@ -665,26 +822,31 @@ class WeatherSentinel:
         win_end_str   = (imaging_window[1].strftime("%H:%M UTC")
                          if imaging_window else None)
 
-        abort_hours = sum(1 for _, a, _ in hourly_evals if a)
-        clear_hours = len(hourly_evals) - abort_hours
+        abort_hours = sum(1 for d in hourly_detail if d.get("abort"))
+        cloudy_hours = sum(1 for d in hourly_detail if d.get("cloud_block"))
+        clear_hours = len(hourly_evals) - abort_hours - cloudy_hours
 
         if imaging_window:
-            if abort_hours == 0:
+            if abort_hours == 0 and cloudy_hours == 0:
                 status, icon = "CLEAR", "✨"
+            elif abort_hours == 0 and cloudy_hours == len(hourly_detail):
+                status, icon = "CLOUDY", "☁️"
             else:
                 status, icon = "MIXED", "🌤️"
         else:
             if abort_hours > 0:
                 status, icon = "BLOCKED", "☁️"
+            elif cloudy_hours > 0:
+                status, icon = "CLOUDY", "☁️"
             else:
                 status, icon = current_status, current_icon
 
         log.info(
             "Consensus: tonight=%s %s | now=%s %s | dark:%s→%s | imaging window:%s→%s "
-            "| clear:%dh abort:%dh | knmi:%.0f oktas ww:%.0f vv:%.0fm",
+            "| clear:%dh cloudy:%dh abort:%dh | knmi:%.0f oktas ww:%.0f vv:%.0fm",
             status, icon, current_status, current_icon, dark_start_str, dark_end_str,
             win_start_str or "none", win_end_str or "none",
-            clear_hours, abort_hours,
+            clear_hours, cloudy_hours, abort_hours,
             knmi_oktas or 0,
             knmi.get("ww") or 0,
             knmi.get("vv") or 0,
@@ -694,19 +856,28 @@ class WeatherSentinel:
             abort_reasons = list({r for _, a, r in hourly_evals if a and r})
             log.info("Abort hours reasons: %s", "; ".join(abort_reasons))
 
+        updated_utc = datetime.now(timezone.utc)
         state = {
             "_objective": (
-                "Tri-source weather consensus v1.8. Hard aborts: rain/fog/thunder/wind. "
-                "Cloud cover is warning only. Per-hour evaluation within dark window."
+                "Multi-source weather consensus v1.8. Hard aborts: rain/fog/thunder/wind. "
+                "Cloud cover is a science no-go when configured limits are exceeded. "
+                "Per-hour evaluation within dark window."
             ),
             "status":                status,
             "icon":                  icon,
             "current_status":        current_status,
             "current_icon":          current_icon,
-            "imaging_go":            not now_abort,
+            "imaging_go":            not now_abort and not now_cloudy,
+            "safe_to_open":          not now_abort,
+            "science_go":            bool(imaging_window),
+            "current_science_go":    not now_cloudy,
+            "tonight_science_go":    bool(imaging_window),
+            "current_reason":        now_reason,
+            "cloud_reason":          now_cloud_reason,
             "imaging_window_start":  win_start_str,
             "imaging_window_end":    win_end_str,
             "clear_hours":           clear_hours,
+            "cloudy_hours":          cloudy_hours,
             "abort_hours":           abort_hours,
             "clouds_pct":            clouds_pct,
             "humidity_pct":          humidity_pct,
@@ -720,7 +891,8 @@ class WeatherSentinel:
             "dark_start":            dark_start_str,
             "dark_end":              dark_end_str,
             "hourly_detail":         hourly_detail,
-            "last_update":           time.time(),
+            "last_update":           updated_utc.timestamp(),
+            "last_update_utc":       updated_utc.isoformat(),
         }
 
         try:
@@ -731,11 +903,54 @@ class WeatherSentinel:
             log.error("Failed to write weather_state.json: %s", e)
 
 
-if __name__ == "__main__":
+def _print_manual_summary(state_path: Path) -> None:
+    """Print the fields an operator needs after a manual weather refresh."""
+    try:
+        state = json.loads(state_path.read_text())
+    except Exception as exc:
+        print(f"weather_state unavailable: {exc}")
+        return
+
+    print(f"tonight       : {state.get('status')} {state.get('icon', '')}")
+    print(f"now           : {state.get('current_status')} {state.get('current_icon', '')}")
+    print(f"imaging_go    : {state.get('imaging_go')}")
+    print(f"dark window   : {state.get('dark_start')} -> {state.get('dark_end')}")
+    print(f"imaging window: {state.get('imaging_window_start')} -> {state.get('imaging_window_end')}")
+    print(f"clear/cloud/abort h : {state.get('clear_hours')} / {state.get('cloudy_hours')} / {state.get('abort_hours')}")
+    if state.get("cloud_reason"):
+        print(f"cloud reason  : {state.get('cloud_reason')}")
+    print(f"clouds/humid  : {state.get('clouds_pct')}% / {state.get('humidity_pct')}%")
+    print(
+        "KNMI          : "
+        f"{state.get('knmi_station')} oktas={state.get('knmi_oktas')} "
+        f"ww={state.get('knmi_ww')} vv={state.get('knmi_vv_m')}m"
+    )
+
+
+def main() -> int:
+    """Run the weather sentinel as a daemon or one-shot manual check."""
+    parser = argparse.ArgumentParser(description="SeeVar tri-source weather sentinel")
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="fetch weather once, write data/weather_state.json, print a summary, and exit",
+    )
+    args = parser.parse_args()
+
     if not _acquire_singleton_lock():
-        raise SystemExit(0)
+        return 0
     log.info("WeatherSentinel v1.8.0 starting...")
     sentinel = WeatherSentinel()
+
+    if args.once:
+        sentinel.get_consensus()
+        _print_manual_summary(sentinel.weather_state_file)
+        return 0
+
     while True:
         sentinel.get_consensus()
         time.sleep(POLL_INTERVAL_S)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

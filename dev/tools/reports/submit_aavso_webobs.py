@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/submit_aavso_webobs.py
+Filename: dev/tools/reports/submit_aavso_webobs.py
 Objective: Probe or submit the newest staged AAVSO report through the
            authenticated apps.aavso.org WebObs photometry form.
 """
@@ -22,7 +22,10 @@ from core.postflight.aavso_submitter import AAVSOWebObsSubmitter
 
 # Pick the newest staged AAVSO extended report by default.
 def _latest_aavso_report() -> Path:
-    candidates = sorted(REPORT_DIR.glob("AAVSO_*.txt"))
+    candidates = sorted(
+        path for path in REPORT_DIR.glob("AAVSO_*.txt")
+        if not path.name.startswith("AAVSO_TEST_")
+    )
     if not candidates:
         raise FileNotFoundError(f"No staged AAVSO report found in {REPORT_DIR}")
     return candidates[-1]
