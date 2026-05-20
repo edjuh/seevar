@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Check mdadm RAID health and publish a small SeeVar state file."""
+# -*- coding: utf-8 -*-
+"""
+Filename: dev/utils/raid_watchdog.py
+Version: 1.0.0
+Objective: Check mdadm RAID health and publish a small SeeVar state file.
+"""
 
 from __future__ import annotations
 

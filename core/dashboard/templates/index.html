@@ -52,6 +52,18 @@
         .grey { background-color: var(--led-grey); }
         .blue-grey { background-color: var(--led-bluegrey); box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); border: 1px solid #333; color: transparent; }
         .weather-icon { background: none; box-shadow: none; font-size: 18px; color: transparent; }
+        .weather-forecast-card { margin: -2px 0 14px 0; padding: 8px 0 12px 0; border-bottom: 1px dashed #333; }
+        .weather-forecast-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 0.65em; letter-spacing: 1.5px; color: var(--text-muted); }
+        .weather-forecast-head a { color: #88ccff; text-decoration: none; }
+        .weather-forecast-img-wrap { display: block; max-width: 100%; height: 42px; overflow: hidden; border: 1px solid #252525; background: #050505; margin-bottom: 6px; }
+        .weather-forecast-img { width: 100%; max-width: 520px; transform: translateY(-18px); opacity: 0.82; filter: saturate(0.85) brightness(0.8); }
+        .weather-hours { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; }
+        .weather-hour { border: 1px solid #252525; padding: 3px 2px; min-height: 30px; text-align: center; font-size: 0.62em; color: #777; overflow: hidden; }
+        .weather-hour.clear { color: var(--led-green); border-color: #1a3a0a; }
+        .weather-hour.cloudy { color: var(--led-orange); border-color: #3a2a00; }
+        .weather-hour.abort { color: var(--alert-red); border-color: #4f1d1d; }
+        .weather-hour-time { display: block; color: #555; }
+        .weather-hour-val { display: block; font-weight: bold; }
         
         .center-content { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80%; text-align: center; }
         .icon-p { background: linear-gradient(135deg, #1e90ff, #005cbf); color: white; font-size: 3em; font-weight: bold; font-family: sans-serif; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); transition: all 0.5s ease; }
@@ -146,6 +158,16 @@
             <div class="flight-window-row"><span class="label">DARK WINDOW</span> <span class="fw-val">{{ flight_window }}</span></div>
             <div class="row"><span class="label">GPS (LOCK)</span> <span id="gps-val" class="val"></span> <div id="gps-led" class="led grey"></div></div>
             <div class="row"><span class="label">WEATHER</span> <span id="weather-val" class="val">FETCHING</span> <div id="weather-icon-led" class="led weather-icon">⭐</div></div>
+            <div class="weather-forecast-card">
+                <div class="weather-forecast-head">
+                    <span>NIGHT FORECAST</span>
+                    <a href="{{ clearoutside_url }}" target="_blank" rel="noopener">CLEAROUTSIDE</a>
+                </div>
+                <a class="weather-forecast-img-wrap" href="{{ clearoutside_url }}" target="_blank" rel="noopener">
+                    <img class="weather-forecast-img" src="{{ clearoutside_image }}" alt="ClearOutside forecast">
+                </a>
+                <div id="weather-hours" class="weather-hours"></div>
+            </div>
             <div class="row"><span class="label">FOG (VIS)</span> <span class="val">DISCONNECTED</span> <div class="led blue-grey"></div></div>
             
             <div class="row fleet-row"><span class="label">FLEET</span> <span id="bb-fleet" class="val stat-val val-wrap">--</span></div>
@@ -362,6 +384,22 @@
                         const gpsLed = document.getElementById('gps-led');
                         if (stale && gpsLed) {
                             // no-op placeholder to keep weather handling grouped
+                        }
+
+                        const weatherHours = document.getElementById('weather-hours');
+                        if (weatherHours) {
+                            const hours = (data.weather.hourly_detail || []).slice(0, 6);
+                            weatherHours.innerHTML = hours.map(h => {
+                                const cls = h.abort ? 'abort' : (h.cloud_block ? 'cloudy' : 'clear');
+                                const clouds = Math.max(
+                                    Number(h.om_clouds || 0),
+                                    Number(h.met_clouds || 0),
+                                    Number(h.co_low || 0),
+                                    Number(h.co_mid || 0),
+                                    Number(h.co_high || 0)
+                                );
+                                return `<div class="weather-hour ${cls}"><span class="weather-hour-time">${h.hour_utc || '--'}</span><span class="weather-hour-val">${Math.round(clouds)}%</span></div>`;
+                            }).join('');
                         }
                     }
 
