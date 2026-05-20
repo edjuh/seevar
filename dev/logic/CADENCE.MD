@@ -49,20 +49,21 @@ See `AAVSO_LOGIC.MD` and `API_PROTOCOL.MD` for scoring detail.
 
 ---
 
-## 🛠️ 3. Diamond Sequence Integration
+## 🛠️ 3. Flight Integration
 
-For every target cleared by cadence and altitude logic, the hardware
-executes the **Diamond Sequence** via `core/flight/pilot.py`:
+For every target cleared by cadence, horizon, weather, and timing logic,
+`core/flight/orchestrator.py` executes the current `A1-A12` flight chain through
+`core/flight/pilot.py` and `core/flight/fsm.py`.
 
-1. **Clear** — `iscope_stop_view` on port 4700 — abort any active session.
-2. **Slew** — `scope_sync [ra_hours, dec_deg]` on port 4700.
-3. **Settle** — 8 second post-slew wait.
-4. **Expose** — `iscope_start_view {"mode": "star"}` on port 4700.
-5. **Capture** — read frame_id 21 from binary stream on port 4801 —
-   raw uint16 Bayer GRBG, 2160×3840.
-6. **Stamp** — `sovereign_stamp()` writes AAVSO-compliant FITS header.
-7. **Store** — `write_fits()` → `data/local_buffer/{TARGET}_{TS}_Raw.fits`.
-8. **Stop** — `iscope_stop_view` to end session.
+Flight captures raw FITS custody into:
+
+```text
+data/local_buffer/{TARGET}_{TS}_Raw.fits
+```
+
+The active transport is described in `ALPACA_BRIDGE.MD` and `API_PROTOCOL.MD`.
+Older direct-TCP examples are historical and must not override current flight
+law.
 
 On success, `data/ledger.json` is updated with `last_success` timestamp,
 resetting the cadence clock for that target.

@@ -17,7 +17,7 @@ Cadence and targeting logic: `AAVSO_LOGIC.MD`.
 | 3. Sequence | `core/preflight/chart_fetcher.py` | VSP API (`apps.aavso.org`) | `catalogs/reference_stars/*.json` |
 | 4. Audit | `core/preflight/audit.py` | `federation_catalog.json` + `ledger.json` | `federation_catalog.json` (annotated) |
 | 5. Plan | `core/preflight/nightly_planner.py` | `federation_catalog.json` + GPS | `data/tonights_plan.json` |
-| 6. Acquire | `core/flight/pilot.py` `DiamondSequence` | `tonights_plan.json` + TCP port 4801 | `data/local_buffer/{TARGET}_{TS}_Raw.fits` |
+| 6. Acquire | `core/flight/pilot.py` `DiamondSequence` | `tonights_plan.json` + Alpaca-era telescope control | `data/local_buffer/{TARGET}_{TS}_Raw.fits` |
 | 7. Extract | `core/postflight/science_processor.py` | `*_Raw.fits` | `*_Green.fits` (Johnson V proxy) |
 | 8. Ledger | `core/flight/orchestrator.py` | acquisition result | `data/ledger.json` (`last_success`, `attempts`) |
 | 9. Custody | NAS rsync | `data/local_buffer/` | `/mnt/astronas/{TARGET}/` |

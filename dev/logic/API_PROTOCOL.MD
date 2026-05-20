@@ -22,11 +22,10 @@ Supporting paths:
 | `32323` | HTTP Alpaca (ASCOM) | Primary hardware control |
 | `32227` | UDP broadcast | Alpaca discovery |
 | `4700` | legacy / event-stream context only | Not the primary control doctrine |
-| `4801` | binary stream | frame/event stream where applicable |
+| `4801` | binary stream | historical frame/event diagnostics only |
 
 ## Contributor Rule
 
 New hardware-control code should target Alpaca-native behavior first.
 
 Do not reintroduce the old assumption that “SeeVar control = TCP 4700 JSON-RPC”.
-

@@ -39,7 +39,10 @@ Port 4700 is retained read-only for battery_pct and charger_status,
 which are not exposed via Alpaca. WilhelminaMonitor listens passively.
 No commands are sent to port 4700.
 
-**Ports 4801, 4800, 5432, 5555 — no longer used.**
+Ports `4801` and `4800` are not production science-control paths.
+Ports `5432` and `5555` may exist on the DEV RPI when `seestar_alp` is
+running as a diagnostics/API workbench, but they are not the normal flight
+control path.
 
 ## Alpaca REST Conventions
 

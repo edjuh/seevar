@@ -1,296 +1,173 @@
-# 🗺️ SEEVAR: MISSION WORKFLOW
+# SeeVar Mission Workflow
 
-> **Objective:** Describe the full operational flow of SeeVar from preflight through flight, postflight, and parked state using the current sovereign architecture.
-> **Version:** 1.9.0
+> **Objective:** Current operational flow from preflight to parked state.
+> **Version:** 2.0.0
 > **Path:** `dev/logic/WORKFLOW.MD`
 
-SeeVar runs as a deterministic observatory pipeline.
+SeeVar is a deterministic observatory pipeline.
 
-It no longer exists as a loose wrapper around Seestar tooling.
-It is now a sovereign workflow with explicit authority boundaries:
+The current production control layer is Alpaca-era hardware control with optional diagnostic/API workbench paths. Older direct-TCP JSON-RPC documents are historical unless explicitly marked as still used for a narrow diagnostic function.
 
-- PREFLIGHT decides whether the mission may happen
-- FLIGHT captures trustworthy raw science frames
-- POSTFLIGHT decides whether those frames become trustworthy science
-- PARKED and ABORTED preserve state and stop unsafe continuation
+Authority boundaries:
 
-This document is the narrative overview.
-The detailed doctrinal documents remain:
+- `PREFLIGHT` decides whether a mission may happen.
+- `PLANNING` locks the executable target order from the preflight artifact.
+- `FLIGHT` captures trustworthy raw frames.
+- `POSTFLIGHT` decides whether frames become trustworthy science.
+- `PARKED` and `ABORTED` stop unsafe or finished operations without hiding state.
 
-- `PREFLIGHT.MD`
-- `FLIGHT.MD`
-- `POSTFLIGHT.MD`
-- `STATE_MACHINE.MD`
-
----
-
-## State Overview
+## State Chain
 
 ```text
-IDLE → PREFLIGHT → PLANNING → FLIGHT → POSTFLIGHT → PARKED
-                           ↓
-                        ABORTED
-Each state has one purpose.
-No state should silently take over another state's responsibilities.
+IDLE -> PREFLIGHT -> PLANNING -> FLIGHT -> POSTFLIGHT -> PARKED
+                                \
+                                 -> ABORTED
+```
 
-Phase 1 — PREFLIGHT
-Entry condition: mission window approaching or simulation start
-Exit condition: all hard gates pass
-Abort condition: any hard veto fails
+No state may silently replace another state's responsibility.
 
-Preflight answers three questions:
+## Canonical Artifacts
 
-is the system safe to operate?
-is the observatory context valid?
-what is tonight's canonical target list?
-1.1 Environment and location truth
-SeeVar first establishes observational context:
+| Artifact | Owner | Meaning |
+| --- | --- | --- |
+| `config.toml` | Operator | Site, scope, planner, postflight, storage configuration |
+| `data/weather_state.json` | Weather sentinel | Current and forecast safety context |
+| `data/tonights_plan.json` | Preflight | Canonical nightly mission plan |
+| `data/ssc_payload.json` | Schedule compiler | Executable Seestar/SSC-style payload |
+| `data/system_state*.json` | Orchestrator/dashboard | Live mission state |
+| `data/local_buffer/*.fits` | Flight | Raw frame custody |
+| `data/calibrated_buffer/*` | Postflight | Working calibrated products |
+| `data/archive/*` | Postflight | Durable observation custody |
+| `data/ledger.json` | Postflight | Scientific outcome ledger |
+| `data/reports/*` | Postflight/reporting | AAVSO/BAA/report artifacts |
 
-site coordinates
-system time
-astronomical dark window
-local horizon constraints
-storage availability
-Location and time truth matter because all planning, timestamping, and altitude logic depend on them.
+## Phase 1: IDLE
 
-1.2 Catalog and cadence truth
-The science catalog is filtered into an actionable mission set.
+`IDLE` waits for a valid observing opportunity.
 
-This stage includes:
+It reports the dark window and current hold reason. It must re-read current configuration/weather before entering preflight so stale dashboard or planner state does not govern a live run.
 
-target catalog readiness
-comparison-star availability
-cadence enforcement from the ledger
-scientific due-ness for the current night
-Targets that are not due should not enter the nightly plan.
+## Phase 2: PREFLIGHT
 
-1.3 Weather and hardware gate
-Before motion, the observatory must pass its hard vetoes.
+Preflight answers one question: may the system attempt a mission now?
 
-Typical checks include:
+Checks include:
 
-weather imaging go/no-go
-hardware reachability
-thermal safety
-power safety
-storage readiness
-zero-state or neutralizer readiness
-A failed hard veto must stop the mission before flight begins.
+- current config and selected fleet mode
+- system time and site coordinates
+- astronomical dark window
+- weather hard vetoes
+- horizon/profile constraints
+- storage availability
+- scope reachability and telemetry
+- zero-state / neutralizer readiness
+- optional pre-alignment / pointing model refresh
 
-1.4 Nightly plan generation
-Preflight then produces the authoritative mission artifact:
+Preflight produces or validates:
 
+```text
 data/tonights_plan.json
-This file is the canonical handoff into flight.
+```
 
-It represents the planner's truth after:
+That file is the canonical handoff. Flight must not invent a competing target list.
 
-cadence
-astronomical dark
-local horizon clearance
-required observing window
-ranking and ordering
-Flight must consume this plan.
-It must not silently invent its own competing planner.
+## Phase 3: PLANNING
 
-Phase 2 — PLANNING
-Entry condition: preflight passed
-Exit condition: executable target list locked
-Abort condition: no viable targets remain
+Planning is intentionally narrow.
 
-Planning in the modern architecture is intentionally narrow.
+It loads `tonights_plan.json`, preserves planner order, removes expired windows, applies any mission cap, and locks the executable list.
 
-Its job is not to rebuild the night from scratch.
-Its job is to prepare the already-approved nightly plan for execution.
+It does not redo cadence scoring or replace preflight filtering.
 
-That means:
+## Phase 4: FLIGHT
 
-load tonights_plan.json
-sort by canonical planner order if needed
-reject expired windows
-preserve the planner's authority
-hand targets into flight cleanly
-This phase exists to translate preflight products into executable mission order, not to replace them.
+Flight owns capture, not final science.
 
-Phase 3 — FLIGHT
-Entry condition: executable targets exist
-Exit condition: target list exhausted, dawn, or postflight handoff
-Abort condition: hard safety veto during active mission
+Each target follows the canonical `A1-A12` chain:
 
-Flight owns one thing:
-capturing trustworthy raw science frames.
+| Step | Name | Purpose |
+| --- | --- | --- |
+| `A1` | Target Lock | Select next approved target |
+| `A2` | Safety Gate | Refresh hard veto state before movement |
+| `A3` | Session Init | Establish live telemetry and session state |
+| `A4` | Slew Command | Move to intended coordinates |
+| `A5` | Slew Verify | Confirm movement completed |
+| `A6` | Settle | Allow mechanical/optical settling |
+| `A7` | Pointing Verify | Plate-solve or otherwise verify pointing |
+| `A8` | Corrective Nudge | Re-slew/sync/nudge within configured tolerance |
+| `A9` | Exposure Plan | Choose exposure, gain, frame count |
+| `A10` | Acquire | Capture science frame(s) |
+| `A11` | Quality Gate | Operational frame sanity checks |
+| `A12` | Commit | Stamp custody and ledger attempt state |
 
-It does not own deep science reduction.
-It does not own final photometric acceptance.
-It does not own report publication.
+A target can pass flight and still fail postflight.
 
-Its canonical per-target chain is A1-A12.
+Flight outputs raw custody:
 
-The Sovereign Flight Sequence (A1-P12? No: A1-A12)
-Each target executes the same deterministic chain.
+- FITS files in `data/local_buffer/`
+- live state in `data/system_state*.json`
+- logs and telemetry
+- ledger attempt/capture status
 
-A1 — Target Lock
-Load the next target from tonights_plan.json.
+## Phase 5: POSTFLIGHT
 
-A2 — Safety Gate
-Refresh hard veto state before movement.
+Postflight owns scientific truth.
 
-A3 — Session Init
-Establish live telescope, camera, and telemetry state.
+It follows `P1-P8`:
 
-A4 — Slew Command
-Command the telescope to the target coordinates.
+| Step | Name | Purpose |
+| --- | --- | --- |
+| `P1` | Ingest | Read raw FITS and identify target group |
+| `P2` | Calibration Match | Select dark/flat/bias assets |
+| `P3` | Calibration Apply | Produce calibrated working frames |
+| `P4` | Astrometric Solve | Attach real WCS truth |
+| `P5` | Source Measurement | Measure target and comparison stars |
+| `P6` | Ensemble Calibration | Compute calibrated magnitude |
+| `P7` | Quality Verdict | Apply saturation, SNR, comp, fit, residual gates |
+| `P8` | Commit And Report | Archive, ledger, report, and cleanup |
 
-A5 — Slew Verify
-Confirm that the mount has completed the commanded movement.
+Postflight must fail honestly. No report is produced from an unproven observation.
 
-A6 — Settle
-Allow post-slew mechanical stability.
+## Optional Secondary Imaging
 
-A7 — Pointing Verify
-Confirm actual pointing against intended pointing.
+After photometric work, SeeVar may run a secondary imaging queue if enabled.
 
-A8 — Corrective Nudge
-Re-slew or adjust if pointing error exceeds tolerance.
+This is for Messier/Caldwell/Herschel-style filler targets. It must obey weather, horizon, daylight, storage, and battery guards. It is not AAVSO/BAA science unless separately reduced and proven.
 
-A9 — Exposure Plan
-Choose the actual science exposure parameters.
+## PARKED
 
-A10 — Acquire
-Capture the science frame and write raw FITS custody.
+`PARKED` is the normal completed state.
 
-A11 — Quality Gate
-Perform immediate operational checks on the captured frame.
+The scope is parked or shutdown according to config. State remains visible for the dashboard and logs.
 
-A12 — Commit
-Record the target attempt/result and hand the frame into postflight custody.
+## ABORTED
 
-Flight ends when a trustworthy raw frame has been captured and committed.
+`ABORTED` means control must stop.
 
-Flight Outputs
-Flight produces operational custody artifacts, not final science verdicts.
+It can be caused by:
 
-Typical outputs include:
+- weather hard veto
+- battery/thermal/storage failure
+- unrecoverable hardware or API failure
+- no viable targets
+- operator abort
 
-raw science FITS in data/local_buffer/
-live mission state in data/system_state.json
-updated ledger attempt/success state
-flight logs and telemetry traces
-The key rule is:
-a frame can be operationally successful in flight and still fail scientifically in postflight.
+Abort does not automatically invalidate already captured frames. Postflight may still process frames with valid custody.
 
-Phase 4 — POSTFLIGHT
-Entry condition: flight complete or mission halted after capture phase
-Exit condition: all eligible frames judged and committed
-Failure mode: individual frames may fail without invalidating the whole night
+## Transport Law
 
-Postflight exists to establish scientific trust.
+Current production control is Alpaca-era SeeVar control through `core/flight/pilot.py`, `core/flight/fsm.py`, and `core/flight/orchestrator.py`.
 
-This is where SeeVar decides whether a raw frame is good enough to become an observation.
+`seestar_alp` is an API workbench/integration candidate, especially for scheduler, mosaic, solve, heater level, and diagnostics. It is documented in `SEESTAR_ALP_API.MD`.
 
-Its canonical chain is P1-P8.
+Native Seestar SSH access is diagnostic and file-oriented only. It is documented in `SEESTAR_SSH_ACCESS.MD`.
 
-The Sovereign Postflight Sequence (P1-P8)
-P1 — Ingest
-Read and validate the raw FITS file and recover target identity.
+Older direct-TCP JSON-RPC notes remain historical unless a document explicitly marks a specific method as still used for telemetry or diagnostics.
 
-P2 — Calibration Match
-Find the best detector calibration assets for the frame.
+## Operating Principle
 
-P3 — Calibration Apply
-Apply dark subtraction and later flat correction on derived working products.
-
-P4 — Astrometric Solve
-Produce a real solved WCS for the frame.
-
-P5 — Source Measurement
-Measure target and candidate comp stars using Bayer-aware methods.
-
-P6 — Ensemble Calibration
-Compute the differential magnitude from the comparison-star ensemble.
-
-P7 — Quality Verdict
-Apply scientific pass/fail gates.
-
-P8 — Commit And Report
-Write durable ledger/archive/report products.
-
-Postflight ends only after the frame is either accepted honestly or failed honestly.
-
-Postflight Outputs
-Postflight produces scientific custody artifacts.
-
-Typical outputs include:
-
-updated data/ledger.json
-archived frame custody
-Gaia cache products
-dark-library usage records
-staged AAVSO report artifacts
-future QC artifacts and summary products
-This is the phase that turns raw frames into scientific records.
-
-PARKED
-Entry condition: postflight finished, mission complete, or safe stop required
-
-The observatory is no longer active.
-Hardware is safe.
-State is preserved.
-The system waits for the next mission opportunity.
-
-PARKED is a normal end state.
-
-ABORTED
-Entry condition: hard veto or unrecoverable mission failure
-
-ABORTED is not a scientific judgment on all data.
-It is a control-state judgment that the mission must stop.
-
-Examples:
-
-unsafe power state
-unsafe thermal state
-weather hard abort
-irrecoverable hardware failure
-no viable targets
-If useful data was already captured before abort, that data may still proceed into postflight, depending on custody rules.
-
-Current Scientific Boundary
-The most important architectural rule is this:
-
-Flight proves:
-a trustworthy raw frame was captured
-Postflight proves:
-the frame supports trustworthy science
-That separation protects the observatory from confusing capture success with scientific success.
-
-Canonical Artifacts
-Artifact	Authority	Meaning
-data/tonights_plan.json	PREFLIGHT	canonical nightly mission list
-data/system_state.json	FLIGHT / orchestrator	live mission state
-data/local_buffer/*.fits	FLIGHT	raw frame custody
-data/ledger.json	POSTFLIGHT	scientific outcome ledger
-data/archive/*	POSTFLIGHT	archived observation custody
-data/reports/*	POSTFLIGHT	publication-ready outputs
-Current Version Story
-1.7.x
-Mission contract restoration.
-
-1.8.x
-Flight hardening and A1-A12 alignment.
-
-1.9.x
-Postflight scientific hardening:
-
-P1-P8
-astrometric truth
-detector truth
-robust ensemble photometry
-deterministic reporting
-Operating Principle
 SeeVar is not allowed to pretend.
 
-If a frame is not proven, it is not accepted.
-If a mission state is not authoritative, it must not silently overrule one that is.
-
-That principle applies to both code and science.
+If a plan is stale, it must be refreshed or rejected.
+If a frame is not proven, it must not be accepted.
+If a transport path is experimental, it must not be described as production law.

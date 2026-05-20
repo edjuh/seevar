@@ -8,8 +8,8 @@ The TCP JSON-RPC protocol described below was the operational path
 during the Sovereign era (v1.0–v1.7). As of v3.0.0 (2026-03-30), all
 hardware control uses the official ZWO ASCOM Alpaca REST API.
 
-Port 4700 is retained read-only for battery/charger telemetry via
-WilhelminaMonitor. No commands are sent to port 4700.
+Port 4700 may still be used by explicit diagnostics/RPC tools where documented,
+but it is not the current production flight-control law.
 
 ---
 
@@ -22,7 +22,7 @@ see `API_PROTOCOL.MD`.
 
 ---
 
-## Three tiers — same interface
+## Historical three-tier model
 
 The S30-Pro speaks JSON-RPC on port 4700 regardless of who is talking
 to it. Three tiers of control exist, all using the same wire format:
@@ -30,20 +30,13 @@ to it. Three tiers of control exist, all using the same wire format:
 | Tier | Controller | Route | Status |
 |------|-----------|-------|--------|
 | 1 | ZWO phone app | Proprietary, closed | Not used by SeeVar |
-| 2 | seestar_alp on Pi | JSON-RPC, Pi acts as server | Simulation only |
-| 3 | SeeVar direct TCP | JSON-RPC direct to telescope | Production |
+| 2 | seestar_alp on Pi | JSON-RPC/API bridge | Historical / diagnostic |
+| 3 | SeeVar direct TCP | JSON-RPC direct to telescope | Historical |
 
-**Simulation (now):** seestar_alp runs as a daemon on the Pi and
-exposes the same JSON-RPC interface the real telescope will expose.
-SeeVar connects to the Pi's own ethernet IP on port 4700.
-The Pi is both client and server during simulation.
+These notes describe the pre-Alpaca direct-control era and must not be used as
+current production doctrine.
 
-**Production (April 2026):** The S30-Pro joins the local network on
-its own IP address. SeeVar connects directly to the telescope.
-seestar_alp is no longer in the path. The wire format, the confirmed
-methods, and the port numbers are identical. Only the IP changes.
-
-The telescope IP is set in `config.toml` under `[hardware]`.
+The telescope IP is set in `config.toml` under `[[seestars]]`.
 It is never hardcoded in application logic or documentation.
 
 ---
@@ -52,14 +45,15 @@ It is never hardcoded in application logic or documentation.
 
 | Port | Host | Protocol | Purpose |
 |------|------|----------|---------|
-| `4700` | `<telescope_ip>` | JSON-RPC over TCP (`\r\n`) | All sovereign control |
-| `4801` | `<telescope_ip>` | Binary frame stream | Science capture (preview frames) |
-| `4800` | `<telescope_ip>` | Binary frame stream | ZIP stacks — not used for science |
-| `5432` | `127.0.0.1` | HTTP (Alpaca) | Bridge health-check only |
+| `4700` | `<telescope_ip>` | JSON-RPC over TCP (`\r\n`) | Historical / diagnostics |
+| `4801` | `<telescope_ip>` | Binary frame stream | Historical frame diagnostics |
+| `4800` | `<telescope_ip>` | Binary frame stream | Historical ZIP stacks |
+| `5432` | `127.0.0.1` | HTTP | Historical bridge / current seestar_alp workbench |
 
-`<telescope_ip>` is read from `config.toml [hardware] host` at runtime.
+`<telescope_ip>` is read from `config.toml [[seestars]] ip` at runtime.
 
-**Port 5555 does not exist. Port 4720 does not exist. Do not use either.**
+Port `5555` exists only as a `seestar_alp` Alpaca action wrapper on the DEV RPI
+when that service is running. It is not native Seestar firmware.
 
 ---
 
@@ -72,9 +66,9 @@ Opened at session start by `ControlSocket`. Kept open for the duration
 of the session. All JSON-RPC commands go here. Closed after T6.
 
 **Frame connection (port 4801)**
-Opened at T5 by `ImageSocket`. Opened only when a frame is expected.
-Binary stream only — no JSON. Closed after one valid science frame
-is received.
+Opened at T5 by the old `ImageSocket`. Binary stream only — no JSON.
+This is historical behavior; current science acquisition uses Alpaca camera
+exposure/download paths.
 
 These are independent sockets. A failure on one does not close the other.
 
@@ -125,7 +119,7 @@ a session lock. Send `iscope_stop_view` and retry.
 
 ---
 
-## Wire format — port 4801
+## Historical wire format — port 4801
 
 Binary stream. No JSON. No `\r\n` terminator.
 
@@ -143,7 +137,7 @@ fields: _s1, _s2, _s3, size, _s5, _s6, code, frame_id, width, height
 **frame_id values:**
 | frame_id | Content | Action |
 |----------|---------|--------|
-| 21 | Raw uint16 Bayer GRBG preview | Science target — read payload |
+| 21 | Raw uint16 Bayer GRBG preview | Historical science frame |
 | 23 | ZIP stack | Not used for science — skip |
 | any | payload < 1000 bytes | Heartbeat packet — skip |
 
