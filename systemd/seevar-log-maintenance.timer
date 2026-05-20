@@ -1,0 +1,10 @@
+[Unit]
+Description=Run SeeVar Log Maintenance Daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=seevar-log-maintenance.service
+
+[Install]
+WantedBy=timers.target

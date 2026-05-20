@@ -2,21 +2,21 @@
 # Version: 2026.03 (annotated)
 # Path: logic/SEEVAR_DICT.PSV
 #
-# Empirical vocabulary dump from seestar_alp bridge testing (Kriel era).
-# All entries were verified against the Alpaca /1/command wrapper on
-# port 5432 (bridge path). Method names are still valid on sovereign
-# TCP port 4700 — only the transport layer changed.
+# Historical empirical vocabulary dump from seestar_alp bridge testing
+# (Kriel era). Entries were verified against the old Alpaca /1/command
+# wrapper on port 5432. Treat this as a diagnostics/protocol reference,
+# not current production flight law.
 #
 # Reading guide:
 #   Endpoint_Payload  — the Alpaca wrapper form used during testing
 #   Expected_Response — observed JSON response (truncated with ...)
 #
-# CONFIRMED for sovereign TCP (port 4700, JSON-RPC):
+# CONFIRMED historical/diagnostic JSON-RPC methods:
 #   get_device_state, iscope_stop_view, iscope_start_view,
 #   scope_sync, scope_goto, scope_park, set_control_value,
 #   set_setting, start_solve, get_solve_result, start_auto_focuse
 #
-# NOT CONFIRMED / DO NOT USE in sovereign path:
+# NOT CONFIRMED / DO NOT USE in production flight:
 #   start_exposure, get_last_image, get_stacked_img,
 #   iscope_get_app_state, method_sync
 #

@@ -131,7 +131,7 @@ def effective_fleet_mode(cfg: dict | None = None) -> str:
     if requested == "auto":
         return "split" if active_count >= 2 else "single"
     if requested == "split":
-        return "split" if active_count >= 2 else "single"
+        return "split"
     return "single"
 
 

@@ -71,6 +71,10 @@ auto_submit = true
 sanity_enabled = true
 max_mag_error = 0.5
 sanity_margin_mag = 1.0
+peer_sanity_enabled = true
+peer_sanity_margin_mag = 0.35
+peer_sanity_window_days = 120
+peer_sanity_min_obs = 5
 max_peak_adu = 58000.0
 target_tool_api_key = ""
 target_key    = ""
@@ -101,6 +105,8 @@ simulation_mode    = false
 secondary_catalogs = []       # optional filler imaging catalogs: ["messier", "caldwell", "sharpless", "herschel400"]
 secondary_max_targets = 0     # 0 = no cap once enabled
 secondary_duration_sec = 900  # per-object imaging block for secondary catalogs
+secondary_after_photometry = true # true = run filler imaging only after variable postflight/reporting
+secondary_output_dir = ""     # optional; default is [storage].primary_dir/secondary_catalogs
 
 # -----------------------------------------------------------------------------
 # FLIGHT — optional
@@ -130,6 +136,28 @@ verify_retention_sets             = 40
 pointing_model_enabled             = true
 pointing_model_max_age_hours       = 12.0
 frame_retry_limit                  = 0
+prealign_before_flight             = false
+prealign_points                    = 3
+prealign_exposure_sec              = 5.0
+prealign_timeout_sec               = 600
+prealign_required                  = true
+prealign_allow_partial             = false
+prealign_min_alt                   = 35.0
+prealign_max_alt                   = 82.0
+prealign_solve_radius_deg          = 20.0
+prealign_solve_timeout_sec         = 90
+prealign_solve_downsample          = 2
+prealign_wide_fallback             = true
+prealign_wide_exposure_sec         = 5.0
+prealign_wide_gain                 = 0
+prealign_wide_solve_radius_deg     = 60.0
+
+# seestar_alp is a diagnostics/API workbench by default.
+# Keep production science flight on firmware Alpaca unless this is explicitly enabled.
+[seestar_alp]
+enabled = false
+base_url = "http://127.0.0.1:5555"
+mode = "diagnostic" # diagnostic | controlled
 
 # -----------------------------------------------------------------------------
 # STORAGE — required

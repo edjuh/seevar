@@ -269,7 +269,7 @@ def inferred_objective(filepath: Path) -> str | None:
         "dev/logic/PHOTOMETRICS.MD": "Scientific standards and roadmap for SeeVar differential photometry.",
         "dev/logic/PICKERING_PROTOCOL.MD": "Historical and cultural reference explaining SeeVar naming and observatory design inspiration.",
         "dev/logic/PREFLIGHT.MD": "Operational doctrine for preflight data preparation, planning, and go/no-go gates.",
-        "dev/tools/clean_postflight_remnants.py": "Dry-run-first cleanup tool for transient astrometry solver products in SeeVar data directories.",
+        "dev/tools/ops/clean_postflight_remnants.py": "Dry-run-first cleanup tool for transient astrometry solver products in SeeVar data directories.",
         "dev/logic/SEEVAR_DICT.PSV": "Pipe-separated data dictionary for SeeVar runtime files, fields, owners, and lifecycle notes.",
     }
     if rel in known:

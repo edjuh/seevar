@@ -649,6 +649,38 @@ TimeoutStopSec=10s
 WantedBy=default.target
 SVCEOF
 
+  cat > "$SYSTEMD_DIR/seevar-raid-watchdog.service" <<SVCEOF
+[Unit]
+Description=SeeVar RAID Watchdog
+After=local-fs.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=${SEEVAR_DIR}
+Environment=PYTHONPATH=${SEEVAR_DIR}
+Environment=PYTHONUNBUFFERED=1
+ExecStart=${PYBIN} dev/utils/raid_watchdog.py --array /dev/md0 --mountpoint /mnt/raid1 --state ${SEEVAR_DIR}/logs/raid_state.json --stop-services
+StandardOutput=append:${SEEVAR_DIR}/logs/raid_watchdog.log
+StandardError=append:${SEEVAR_DIR}/logs/raid_watchdog.log
+
+TimeoutStartSec=20s
+TimeoutStopSec=5s
+SVCEOF
+
+  cat > "$SYSTEMD_DIR/seevar-raid-watchdog.timer" <<SVCEOF
+[Unit]
+Description=Run SeeVar RAID Watchdog Every 5 Minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=seevar-raid-watchdog.service
+
+[Install]
+WantedBy=timers.target
+SVCEOF
+
   chmod 644 "$SYSTEMD_DIR"/*.service "$SYSTEMD_DIR"/*.timer
 
   sudo loginctl enable-linger "$(whoami)"
@@ -660,6 +692,8 @@ SVCEOF
   done
   systemctl --user enable seevar-planner.timer
   info "Enabled seevar-planner.timer"
+  systemctl --user enable seevar-raid-watchdog.timer
+  info "Enabled seevar-raid-watchdog.timer"
 
   section "Starting services"
   for service in seevar-weather seevar-orchestrator seevar-dashboard seevar-gps; do
@@ -673,6 +707,9 @@ SVCEOF
   systemctl --user start seevar-planner.timer \
     && info "Started seevar-planner.timer" \
     || warn "seevar-planner.timer did not start cleanly — check: systemctl --user status seevar-planner.timer"
+  systemctl --user start seevar-raid-watchdog.timer \
+    && info "Started seevar-raid-watchdog.timer" \
+    || warn "seevar-raid-watchdog.timer did not start cleanly — check: systemctl --user status seevar-raid-watchdog.timer"
 
   info "User services running."
 }

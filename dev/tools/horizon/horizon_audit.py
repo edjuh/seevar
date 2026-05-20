@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/horizon_audit.py
+Filename: dev/tools/horizon/horizon_audit.py
 Version: 1.0.1
 Objective: Audit tonights_plan.json against the real camera-scanned horizon
            mask. Shows how many targets are observable tonight and when.

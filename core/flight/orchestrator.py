@@ -11,13 +11,14 @@ dark acquisition followed by postflight accounting.
 import json
 import logging
 import math
+import shutil
 import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Optional
+from typing import Any, Callable, Optional
 
 import numpy as np
 from astropy import units as u
@@ -47,6 +48,12 @@ from core.preflight.vsx_catalog import get_target_mag
 from core.flight.fsm import SovereignFSM
 import core.ledger_manager as ledger_manager
 from core.hardware.live_battery import poll_battery_snapshot
+
+try:
+    from core.preflight.horizon import required_altitude
+except Exception:
+    def required_altitude(az: float, clearance_margin_deg: float = 0.0) -> float:
+        return 15.0 + max(0.0, float(clearance_margin_deg))
 
 LOG_DIR = PROJECT_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -80,19 +87,21 @@ WEATHER_FILE = DATA_DIR / "weather_state.json"
 MISSION_FILE = DATA_DIR / "tonights_plan.json"
 FLEET_PLAN_DIR = DATA_DIR / "fleet_plans"
 COMMAND_FILE = DATA_DIR / "operator_command.json"
+CATALOG_DIR = PROJECT_ROOT / "catalogs"
 
 
-def _safe_load_json(path: Path, default):
+def _safe_load_json(path: Path, default: Any) -> Any:
     if not path.exists():
         return default
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except Exception as exc:
+        log.warning("Failed to load JSON from %s: %s", path, exc)
         return default
 
 
-def _parse_plan_dt(value):
+def _parse_plan_dt(value: Any) -> datetime | None:
     if not value:
         return None
     try:
@@ -108,6 +117,7 @@ class PipelineState:
     IDLE, PREFLIGHT, PLANNING, FLIGHT, WAITING, POSTFLIGHT, ABORTED, PARKED = (
         "IDLE", "PREFLIGHT", "PLANNING", "FLIGHT", "WAITING", "POSTFLIGHT", "ABORTED", "PARKED"
     )
+    ALL = {IDLE, PREFLIGHT, PLANNING, FLIGHT, WAITING, POSTFLIGHT, ABORTED, PARKED}
 
 
 class MockDiamondSequence:
@@ -215,11 +225,21 @@ class MockDiamondSequence:
         with open(cache_path, "w") as f:
             json.dump(payload, f, indent=2)
 
-    def acquire(self, target: AcquisitionTarget, status_cb=None, telemetry: Optional[TelemetryBlock] = None, skip_pointing=False) -> FrameResult:
+    def acquire(
+        self,
+        target: AcquisitionTarget,
+        status_cb=None,
+        telemetry: Optional[TelemetryBlock] = None,
+        skip_pointing=False,
+        abort_callback=None,
+    ) -> FrameResult:
         def step(tag, msg):
             log.info("  [%s] SIM %s", tag, msg)
             if status_cb:
                 status_cb(f"[{tag}] {msg}")
+
+        def abort_requested() -> bool:
+            return bool(abort_callback and abort_callback())
 
         width, height = 2160, 3840
         array = np.random.normal(300.0, 12.0, (height, width)).astype(np.float64)
@@ -234,15 +254,23 @@ class MockDiamondSequence:
 
         step("A4", f"Slew command to {target.name}")
         time.sleep(0.2)
+        if abort_requested():
+            return FrameResult(success=False, error="operator_abort")
 
         step("A5", "Slew verify complete")
         time.sleep(0.2)
+        if abort_requested():
+            return FrameResult(success=False, error="operator_abort")
 
         step("A6", "Settle complete")
         time.sleep(0.2)
+        if abort_requested():
+            return FrameResult(success=False, error="operator_abort")
 
         step("A7", "Pointing verify placeholder")
         time.sleep(0.2)
+        if abort_requested():
+            return FrameResult(success=False, error="operator_abort")
 
         ra_deg = target.ra_hours * 15.0
         dec_deg = target.dec_deg
@@ -287,6 +315,8 @@ class MockDiamondSequence:
 class Orchestrator:
     SUN_LIMIT_DEG = -18.0
     LOOP_SLEEP_SEC = 30
+    COMMAND_MAX_AGE_SEC = 300
+    SUN_CACHE_TTL_SEC = 20.0
 
     def __init__(self):
         cfg = load_config()
@@ -339,6 +369,9 @@ class Orchestrator:
         self._last_command_utc = ""
         self._battery_park_pct = int(self._cfg.get("power", {}).get("battery_park_pct", VETO_BATTERY))
         self._sun_limit_deg = self._configured_sun_limit_deg()
+        self._sun_cache_alt = 0.0
+        self._sun_cache_monotonic = 0.0
+        self._prealign_done = False
 
         self.simulation_mode = "--simulate" in sys.argv
 
@@ -349,6 +382,46 @@ class Orchestrator:
             self.fsm.sequence = MockDiamondSequence()
             self.LOOP_SLEEP_SEC = 0
             log.info("🚀 SIMULATION MODE ENGAGED - Hardware checks disabled.")
+
+        self._state_handlers: dict[str, Callable[[], None]] = {
+            PipelineState.IDLE: self._run_idle,
+            PipelineState.PREFLIGHT: self._run_preflight,
+            PipelineState.PLANNING: self._run_planning,
+            PipelineState.FLIGHT: self._run_flight,
+            PipelineState.WAITING: self._run_flight,
+            PipelineState.POSTFLIGHT: self._run_postflight,
+            PipelineState.PARKED: self._run_parked,
+            PipelineState.ABORTED: self._run_aborted,
+        }
+
+    def _reload_runtime_config(self) -> None:
+        """Refresh config.toml-backed runtime settings before night gates."""
+        cfg = load_config()
+        old_host = self._scope_host
+        self._cfg = cfg
+        self._fleet_mode = effective_fleet_mode(cfg)
+        self._scope = selected_scope(cfg, self._scope_id)
+        self._scope_name = self._scope.get("scope_name") or self._scope.get("name") or self._scope_id or "primary"
+        self._scope_host = str(self._scope.get("host") or self._scope.get("ip") or SEESTAR_HOST).strip() or SEESTAR_HOST
+        self._battery_park_pct = int(self._cfg.get("power", {}).get("battery_park_pct", VETO_BATTERY))
+        self._sun_limit_deg = self._configured_sun_limit_deg()
+
+        loc = self._cfg.get("location", {})
+        self._obs.update({
+            "lat": loc.get("lat", self._obs["lat"]),
+            "lon": loc.get("lon", self._obs["lon"]),
+            "elevation": loc.get("elevation", self._obs["elevation"]),
+        })
+        self._location = EarthLocation(
+            lat=self._obs["lat"] * u.deg,
+            lon=self._obs["lon"] * u.deg,
+            height=self._obs["elevation"] * u.m,
+        )
+
+        if old_host != self._scope_host and not self.simulation_mode:
+            self._dark_library = DarkLibrary(host=self._scope_host)
+            self.fsm.sequence = DiamondSequence(host=self._scope_host)
+            self._log_flight(f"Runtime config reloaded: scope endpoint {old_host} -> {self._scope_host}")
 
     def run(self):
         log.info(
@@ -384,22 +457,11 @@ class Orchestrator:
             if self._enforce_battery_guard():
                 return
 
-        if self._state == PipelineState.IDLE:
-            self._run_idle()
-        elif self._state == PipelineState.PREFLIGHT:
-            self._run_preflight()
-        elif self._state == PipelineState.PLANNING:
-            self._run_planning()
-        elif self._state == PipelineState.FLIGHT:
-            self._run_flight()
-        elif self._state == PipelineState.WAITING:
-            self._run_flight()
-        elif self._state == PipelineState.POSTFLIGHT:
-            self._run_postflight()
-        elif self._state == PipelineState.PARKED:
-            self._run_parked()
-        elif self._state == PipelineState.ABORTED:
-            self._run_aborted()
+        handler = self._state_handlers.get(self._state)
+        if handler is None:
+            self._transition(PipelineState.ABORTED, msg=f"Invalid orchestrator state: {self._state}")
+            return
+        handler()
 
     def _check_weather_veto(self) -> tuple[bool, str]:
         hard_abort = {"RAIN", "FOGGY", "WINDY", "THUNDER"}
@@ -414,15 +476,26 @@ class Orchestrator:
             status = w.get("status", "UNKNOWN")
             icon = w.get("icon", "")
             age_s = time.time() - w.get("last_update", 0)
+            safe_to_open = w.get("safe_to_open", w.get("imaging_go"))
 
             if age_s > 21600:
                 log.warning("Weather data is %.0fh old — proceeding with caution", age_s / 3600)
+
+            if safe_to_open is False:
+                reason = (
+                    f"Weather veto: {status} {icon} — "
+                    f"{w.get('current_reason') or 'conditions outside configured limits'} "
+                    f"KNMI oktas:{w.get('knmi_oktas','?')} "
+                    f"clouds:{w.get('clouds_pct','?')}% "
+                    f"window:{w.get('imaging_window_start','none')}→{w.get('imaging_window_end','none')}"
+                )
+                return False, reason
 
             if status in hard_abort:
                 reason = (
                     f"Weather veto: {status} {icon} — "
                     f"KNMI oktas:{w.get('knmi_oktas','?')} "
-                    f"CO_low:{w.get('low_cloud','?')}% "
+                    f"clouds:{w.get('clouds_pct','?')}% "
                     f"window:{w.get('dark_start','?')}→{w.get('dark_end','?')}"
                 )
                 return False, reason
@@ -435,6 +508,7 @@ class Orchestrator:
             return True, "WEATHER_CHECK_ERROR"
 
     def _run_idle(self):
+        self._reload_runtime_config()
         sun_alt = self._sun_altitude()
         msg = f"Sun at {sun_alt:.1f}°. Waiting for night (<{self._sun_limit_deg}°)."
         self._write_state(sub="Standing by", msg=msg)
@@ -458,8 +532,9 @@ class Orchestrator:
         payload = _safe_load_json(self._mission_file, {})
         if not payload or self._plan_is_stale(payload, now_utc):
             why = "missing" if not payload else "stale"
-            self._log_flight(f"♻️ Nightly plan {why} before hardware init — refreshing")
-            self._refresh_mission_plan()
+            self._log_flight(f"🛑 Nightly plan {why} before hardware init — planner timer must refresh it")
+            self._transition(PipelineState.ABORTED, msg=f"Nightly plan {why}; run seevar-planner.service")
+            return
 
         if not self.simulation_mode:
             self._log_flight("[A2] Safety gate — securing zero-state")
@@ -484,7 +559,100 @@ class Orchestrator:
             self._transition(PipelineState.ABORTED, msg=f"Preflight veto: {reason}")
             return
 
+        if not self.simulation_mode and not self._run_prealign_if_configured():
+            return
+
         self._transition(PipelineState.PLANNING, msg="Preflight complete.")
+
+    def _run_prealign_if_configured(self) -> bool:
+        flight_cfg = self._cfg.get("flight", {}) if isinstance(self._cfg, dict) else {}
+        if not bool(flight_cfg.get("prealign_before_flight", False)):
+            return True
+        if self._prealign_done:
+            return True
+
+        points = int(flight_cfg.get("prealign_points", 3))
+        exposure_sec = float(flight_cfg.get("prealign_exposure_sec", 5.0))
+        timeout_sec = int(flight_cfg.get("prealign_timeout_sec", 600))
+        required = bool(flight_cfg.get("prealign_required", True))
+        allow_partial = bool(flight_cfg.get("prealign_allow_partial", False))
+        wide_fallback = bool(flight_cfg.get("prealign_wide_fallback", True))
+
+        cmd = [
+            sys.executable,
+            str(PROJECT_ROOT / "dev/tools/telescope/prealign_pointing.py"),
+            "--points",
+            str(points),
+            "--exposure-sec",
+            str(exposure_sec),
+            "--min-alt",
+            str(float(flight_cfg.get("prealign_min_alt", 35.0))),
+            "--max-alt",
+            str(float(flight_cfg.get("prealign_max_alt", 82.0))),
+            "--solve-radius-deg",
+            str(float(flight_cfg.get("prealign_solve_radius_deg", 20.0))),
+            "--solve-timeout-sec",
+            str(int(flight_cfg.get("prealign_solve_timeout_sec", 90))),
+            "--solve-downsample",
+            str(int(flight_cfg.get("prealign_solve_downsample", 2))),
+            "--wide-exposure-sec",
+            str(float(flight_cfg.get("prealign_wide_exposure_sec", exposure_sec))),
+            "--wide-gain",
+            str(int(flight_cfg.get("prealign_wide_gain", 0))),
+            "--wide-solve-radius-deg",
+            str(float(flight_cfg.get("prealign_wide_solve_radius_deg", 60.0))),
+            "--ip",
+            self._scope_host,
+            "--state-file",
+            str(self._state_file),
+        ]
+        if allow_partial:
+            cmd.append("--allow-partial")
+        if not wide_fallback:
+            cmd.append("--no-wide-fallback")
+
+        wide_text = "wide fallback on" if wide_fallback else "wide fallback off"
+        self._log_flight(f"[A3] Pre-align start — {points} point(s), {exposure_sec:.1f}s, {wide_text}")
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=str(PROJECT_ROOT),
+                text=True,
+                capture_output=True,
+                timeout=timeout_sec,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            msg = f"Pre-align timeout after {timeout_sec}s"
+            self._log_flight(f"[A3] ⚠️ {msg}")
+            if required:
+                self._transition(
+                    PipelineState.ABORTED,
+                    sub="ALIGNMENT FAILED",
+                    msg=f"{msg}; science run blocked.",
+                )
+                return False
+            return True
+
+        output = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
+        for line in output.splitlines()[-8:]:
+            self._log_flight(f"[A3] prealign: {line}")
+
+        if result.returncode != 0:
+            msg = f"Pre-align failed rc={result.returncode}"
+            self._log_flight(f"[A3] ⚠️ {msg}")
+            if required:
+                self._transition(
+                    PipelineState.ABORTED,
+                    sub="ALIGNMENT FAILED",
+                    msg=f"{msg}; science run blocked.",
+                )
+                return False
+            return True
+
+        self._prealign_done = True
+        self._log_flight("[A3] ✅ Pre-align model ready")
+        return True
 
     def _run_planning(self):
         def _order_and_filter(mission, now_utc):
@@ -522,14 +690,12 @@ class Orchestrator:
         self._log_flight("📋 Loading mission targets...")
         now_utc = datetime.now(timezone.utc)
         payload = _safe_load_json(self._mission_file, {})
-        refreshed = False
 
         if not payload or self._plan_is_stale(payload, now_utc):
             why = "missing" if not payload else "stale"
-            self._log_flight(f"♻️ Nightly plan {why} — attempting refresh")
-            refreshed = self._refresh_mission_plan()
-            if refreshed:
-                payload = _safe_load_json(self._mission_file, {})
+            self._log_flight(f"🛑 Nightly plan {why} — refusing in-session refresh")
+            self._transition(PipelineState.ABORTED, msg=f"Nightly plan {why}; run seevar-planner.service")
+            return
 
         mission = self._extract_targets(payload)
         if not mission:
@@ -547,14 +713,6 @@ class Orchestrator:
         if max_targets > 0 and len(final) > max_targets:
             self._log_flight(f"✂️ Mission cap active — limiting tonight to first {max_targets} target(s)")
             final = final[:max_targets]
-
-        if not final and not refreshed:
-            self._log_flight("♻️ All current target windows expired — refreshing nightly plan once")
-            if self._refresh_mission_plan():
-                payload = _safe_load_json(self._mission_file, {})
-                mission = self._extract_targets(payload)
-                now_utc = datetime.now(timezone.utc)
-                final, expired = _order_and_filter(mission, now_utc)
 
         if not final:
             reason = "All planned target windows have expired." if expired else "No executable mission targets."
@@ -672,7 +830,15 @@ class Orchestrator:
         self._log_flight(f"Executing target via FSM: {name} RA={acq_target.ra_hours:.2f}h")
 
         ledger_manager.record_attempt(name)
-        success = self.fsm.execute_target(acq_target, telemetry=self._last_telemetry)
+        success = self.fsm.execute_target(
+            acq_target,
+            telemetry=self._last_telemetry,
+            abort_cb=self._operator_abort_pending,
+        )
+
+        if self._operator_abort_pending():
+            self._handle_operator_command()
+            return
 
         if self.fsm.telemetry:
             self._last_telemetry = self.fsm.telemetry
@@ -734,6 +900,161 @@ class Orchestrator:
                 self._log_flight(f"  dark-sequence scan skipped {path.name}: invalid exp/gain ({e})")
 
         return sequences
+
+    def _enabled_secondary_catalogs(self) -> list[str]:
+        planner_cfg = self._cfg.get("planner", {}) if isinstance(self._cfg, dict) else {}
+        value = planner_cfg.get("secondary_catalogs", [])
+        if isinstance(value, str):
+            value = [part.strip() for part in value.split(",")]
+        if not isinstance(value, list):
+            return []
+        return [str(item).strip().lower() for item in value if str(item).strip()]
+
+    def _secondary_output_dir(self) -> Path:
+        planner_cfg = self._cfg.get("planner", {}) if isinstance(self._cfg, dict) else {}
+        storage_cfg = self._cfg.get("storage", {}) if isinstance(self._cfg, dict) else {}
+        configured = str(planner_cfg.get("secondary_output_dir") or "").strip()
+        if configured:
+            return Path(configured).expanduser()
+        primary = Path(str(storage_cfg.get("primary_dir") or DATA_DIR / "archive")).expanduser()
+        return primary / "secondary_catalogs"
+
+    def _load_secondary_imaging_targets(self) -> list[dict]:
+        planner_cfg = self._cfg.get("planner", {}) if isinstance(self._cfg, dict) else {}
+        max_targets = int(planner_cfg.get("secondary_max_targets", 0) or 0)
+        default_duration = int(planner_cfg.get("secondary_duration_sec", 900) or 900)
+        targets: list[dict] = []
+
+        for catalog in self._enabled_secondary_catalogs():
+            path = CATALOG_DIR / f"{catalog}.json"
+            if not path.exists():
+                self._log_flight(f"🌌 Secondary catalog missing: {path.name}")
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                rows = payload.get("targets", []) if isinstance(payload, dict) else payload
+            except Exception as e:
+                self._log_flight(f"🌌 Secondary catalog skipped {catalog}: {e}")
+                continue
+
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                item = dict(row)
+                item["catalog"] = catalog
+                item["secondary_target"] = True
+                item.setdefault("duration", default_duration)
+                targets.append(item)
+                if max_targets > 0 and len(targets) >= max_targets:
+                    return targets
+
+        return targets
+
+    def _target_altaz_deg(self, ra_deg: float, dec_deg: float) -> tuple[float, float] | None:
+        try:
+            now = Time.now()
+            coord = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame="icrs")
+            altaz = coord.transform_to(AltAz(obstime=now, location=self._location))
+            return float(altaz.alt.deg), float(altaz.az.deg)
+        except Exception:
+            return None
+
+    def _secondary_target_visible(self, target: dict) -> bool:
+        try:
+            ra = target.get("ra")
+            dec = target.get("dec")
+            ra_deg = float(ra) if isinstance(ra, (int, float)) else float(SkyCoord(ra=ra, dec=dec, unit=(u.hourangle, u.deg)).ra.deg)
+            dec_deg = float(dec) if isinstance(dec, (int, float)) else float(SkyCoord(ra=ra, dec=dec, unit=(u.hourangle, u.deg)).dec.deg)
+            altaz = self._target_altaz_deg(ra_deg, dec_deg)
+            if not altaz:
+                return False
+            alt_deg, az_deg = altaz
+            return alt_deg >= required_altitude(az_deg, clearance_margin_deg=5.0)
+        except Exception:
+            return False
+
+    def _mirror_secondary_frames(self, catalog: str, name: str, paths: list[Path]) -> int:
+        if not paths:
+            return 0
+        safe_catalog = str(catalog or "secondary").replace("/", "-")
+        safe_name = str(name or "UNKNOWN").replace("/", "-").replace(" ", "_")
+        dest = self._secondary_output_dir() / safe_catalog / safe_name
+        dest.mkdir(parents=True, exist_ok=True)
+        copied = 0
+        for src in paths:
+            try:
+                if not src.exists():
+                    continue
+                shutil.move(str(src), str(dest / src.name))
+                copied += 1
+            except Exception as e:
+                self._log_flight(f"🌌 Secondary frame custody failed for {src.name}: {e}")
+        return copied
+
+    def _run_secondary_imaging(self) -> None:
+        planner_cfg = self._cfg.get("planner", {}) if isinstance(self._cfg, dict) else {}
+        if not bool(planner_cfg.get("secondary_after_photometry", False)):
+            return
+
+        targets = self._load_secondary_imaging_targets()
+        if not targets:
+            return
+
+        self._log_flight(f"🌌 Secondary imaging queue ready: {len(targets)} target(s)")
+        for target in targets:
+            if self._operator_abort_pending():
+                self._handle_operator_command()
+                return
+            if self._sun_altitude() >= self._sun_limit_deg:
+                self._log_flight("🌌 Secondary imaging stopped: daylight limit reached")
+                return
+            go, reason = self._check_weather_veto()
+            if not go:
+                self._log_flight(f"🌌 Secondary imaging stopped: {reason}")
+                return
+            if self._enforce_battery_guard():
+                return
+            if not self._secondary_target_visible(target):
+                continue
+
+            name = target.get("name", "UNKNOWN")
+            catalog = target.get("catalog", "secondary")
+            try:
+                ra = target.get("ra")
+                dec = target.get("dec")
+                ra_deg = float(ra) if isinstance(ra, (int, float)) else float(SkyCoord(ra=ra, dec=dec, unit=(u.hourangle, u.deg)).ra.deg)
+                dec_deg = float(dec) if isinstance(dec, (int, float)) else float(SkyCoord(ra=ra, dec=dec, unit=(u.hourangle, u.deg)).dec.deg)
+                duration = max(1, int(float(target.get("duration", planner_cfg.get("secondary_duration_sec", 900)))))
+                exp_ms = max(1000, int(target.get("exp_ms", 30000)))
+                n_frames = max(1, int(round(duration / (exp_ms / 1000.0))))
+            except Exception as e:
+                self._log_flight(f"🌌 Secondary target skipped {name}: {e}")
+                continue
+
+            acq_target = AcquisitionTarget(
+                name=name,
+                ra_hours=ra_deg / 15.0,
+                dec_deg=dec_deg,
+                exp_ms=exp_ms,
+                observer_code=self._obs["observer_id"],
+                n_frames=n_frames,
+                integration_sec=duration,
+            )
+            self._current_target = {"name": name, "ra": round(ra_deg, 4), "dec": round(dec_deg, 4), "type": catalog}
+            self._write_state(state="SECONDARY", sub=name, msg=f"Secondary imaging: {catalog}")
+            self._log_flight(f"🌌 Secondary target — {catalog}:{name} exp_ms={exp_ms} n={n_frames}")
+
+            ok = self.fsm.execute_target(
+                acq_target,
+                telemetry=self._last_telemetry,
+                abort_cb=self._operator_abort_pending,
+            )
+            paths = list(getattr(self.fsm, "last_frame_paths", []))
+            copied = self._mirror_secondary_frames(catalog, name, paths)
+            if ok:
+                self._log_flight(f"🌌 Secondary complete — {name}, moved={copied}")
+            else:
+                self._log_flight(f"🌌 Secondary failed — {name}, moved={copied}")
 
     # Close the flight by acquiring matching darks and handing frames to the accountant.
     def _run_postflight(self):
@@ -815,12 +1136,77 @@ class Orchestrator:
         else:
             self._log_flight("  [simulation] accountant skipped")
 
-        if dark_ok > 0 and dark_fail == 0:
-            final_msg = "Mission complete. Hardware park not confirmed by this state alone."
-        elif dark_fail == 0 and dark_frames == 0:
-            final_msg = "Mission complete. No usable darks captured. Hardware park not confirmed by this state alone."
+        if not self.simulation_mode:
+            try:
+                from core.postflight.report_pipeline import run_postflight_report_pipeline
+
+                report_result = run_postflight_report_pipeline()
+                outputs = report_result.get("outputs") or []
+                mirrored = report_result.get("mirrored") or []
+                if report_result.get("staged"):
+                    self._log_flight(f"📨 Reports staged: {len(outputs)} file(s), mirrored={len(mirrored)}")
+                else:
+                    self._log_flight(f"📨 Reports not staged: {report_result.get('skipped', 'already handled')}")
+
+                submit = report_result.get("aavso_submit") or {}
+                if submit.get("accepted"):
+                    self._log_flight(f"📨 AAVSO auto-submit accepted: {Path(report_result.get('aavso_report', '')).name}")
+                elif submit.get("skipped"):
+                    self._log_flight(f"📨 AAVSO auto-submit skipped: {submit.get('skipped')}")
+                elif submit:
+                    reason = submit.get("error") or submit.get("error_lines") or "not accepted"
+                    self._log_flight(f"⚠️ AAVSO auto-submit not accepted: {reason}")
+            except Exception as e:
+                self._log_flight(f"⚠️ Report staging/submission error: {e}")
         else:
-            final_msg = f"Mission complete with partial dark failures ({dark_fail}). Hardware park not confirmed by this state alone."
+            self._log_flight("  [simulation] report staging/submission skipped")
+
+        if not self.simulation_mode:
+            self._run_secondary_imaging()
+        else:
+            self._log_flight("  [simulation] secondary imaging skipped")
+
+        postflight_cfg = self._cfg.get("postflight", {}) if isinstance(self._cfg, dict) else {}
+        auto_park = bool(postflight_cfg.get("auto_park", True))
+        auto_shutdown = bool(postflight_cfg.get("auto_shutdown_scope", False))
+
+        hardware_park_msg = "Hardware park not requested by postflight."
+        if not self.simulation_mode and auto_park:
+            try:
+                self._log_flight("🅿️ Postflight requesting telescope park.")
+                self._call_with_retries("postflight park request", self.fsm.sequence.park)
+                deadline = time.monotonic() + 30.0
+                while time.monotonic() < deadline:
+                    try:
+                        if self.fsm.sequence.at_park():
+                            break
+                    except Exception:
+                        break
+                    time.sleep(2.0)
+                hardware_park_msg = "Hardware park requested after postflight."
+                self._log_flight("🅿️ Postflight telescope park requested.")
+            except Exception as e:
+                hardware_park_msg = f"Hardware park request failed: {e}"
+                self._log_flight(f"⚠️ Postflight park request failed: {e}")
+        elif not self.simulation_mode:
+            self._log_flight("🅿️ Postflight telescope park skipped by config.")
+
+        if not self.simulation_mode and auto_shutdown:
+            try:
+                self._log_flight("🔌 Postflight requesting Seestar shutdown.")
+                self._call_with_retries("postflight shutdown request", self.fsm.sequence.shutdown_scope)
+                hardware_park_msg += " Scope shutdown requested."
+                self._log_flight("🔌 Postflight Seestar shutdown requested.")
+            except Exception as e:
+                hardware_park_msg += f" Scope shutdown request failed: {e}"
+                self._log_flight(f"⚠️ Postflight shutdown request failed: {e}")
+
+        if dark_ok > 0 and dark_fail == 0:
+            final_msg = f"Mission complete. {hardware_park_msg}"
+        elif dark_fail == 0 and dark_frames == 0:
+            final_msg = f"Mission complete. No usable darks captured. {hardware_park_msg}"
+        else:
+            final_msg = f"Mission complete with partial dark failures ({dark_fail}). {hardware_park_msg}"
         self._transition(PipelineState.PARKED, msg=final_msg)
 
     def _run_parked(self):
@@ -881,6 +1267,24 @@ class Orchestrator:
             payload = {}
         return payload if isinstance(payload, dict) else {}
 
+    def _operator_abort_pending(self) -> bool:
+        payload = self._read_operator_command()
+        command = str(payload.get("command", "")).strip().lower()
+        if command != "abort":
+            return False
+
+        requested_utc = str(payload.get("requested_utc", "")).strip()
+        if requested_utc and requested_utc == self._last_command_utc:
+            return False
+
+        requested_dt = _parse_plan_dt(requested_utc) if requested_utc else None
+        if requested_dt is not None:
+            age_s = (datetime.now(timezone.utc) - requested_dt).total_seconds()
+            if age_s > self.COMMAND_MAX_AGE_SEC:
+                return False
+
+        return True
+
     def _handle_operator_command(self) -> bool:
         payload = self._read_operator_command()
         command = str(payload.get("command", "")).strip().lower()
@@ -893,7 +1297,7 @@ class Orchestrator:
             return False
         if requested_dt is not None:
             age_s = (datetime.now(timezone.utc) - requested_dt).total_seconds()
-            if age_s > 300:
+            if age_s > self.COMMAND_MAX_AGE_SEC:
                 self._last_command_utc = requested_utc
                 return False
         if requested_utc:
@@ -904,11 +1308,11 @@ class Orchestrator:
             self._targets = []
             self._current_target = None
             try:
-                self.fsm.sequence.park()
+                self._call_with_retries("abort park request", self.fsm.sequence.park)
                 self._log_flight("🛑 Abort requested telescope park.")
             except Exception as e:
                 self._log_flight(f"⚠️ Abort park request failed: {e}")
-            self._transition(PipelineState.ABORTED, msg="Operator abort requested.")
+            self._transition(PipelineState.ABORTED, sub="OPERATOR ABORT", msg="Operator abort requested.")
             return True
 
         if command == "reset":
@@ -923,16 +1327,43 @@ class Orchestrator:
         return False
 
     def _sun_altitude(self) -> float:
+        now_mono = time.monotonic()
+        if now_mono - self._sun_cache_monotonic <= self.SUN_CACHE_TTL_SEC:
+            return self._sun_cache_alt
         try:
             now = Time.now()
             sun = get_body("sun", now)
-            return float(sun.transform_to(AltAz(obstime=now, location=self._location)).alt.deg)
+            alt = float(sun.transform_to(AltAz(obstime=now, location=self._location)).alt.deg)
+            self._sun_cache_alt = alt
+            self._sun_cache_monotonic = now_mono
+            return alt
         except Exception:
             return 0.0
 
     def _load_mission_targets(self) -> list:
         data = _safe_load_json(self._mission_file, [])
         return data if isinstance(data, list) else data.get("targets", [])
+
+    def _call_with_retries(
+        self,
+        label: str,
+        action: Callable[[], Any],
+        *,
+        attempts: int = 2,
+        delay_sec: float = 2.0,
+    ) -> Any:
+        last_error: Exception | None = None
+        for attempt in range(1, max(1, attempts) + 1):
+            try:
+                return action()
+            except Exception as exc:
+                last_error = exc
+                self._log_flight(f"⚠️ {label} failed attempt {attempt}/{attempts}: {exc}")
+                if attempt < attempts and not self.simulation_mode:
+                    time.sleep(delay_sec)
+        if last_error is not None:
+            raise last_error
+        return None
 
     def _refresh_mission_plan(self) -> bool:
         planner = PROJECT_ROOT / "core/preflight/nightly_planner.py"
@@ -989,7 +1420,7 @@ class Orchestrator:
         charger_status = snapshot.get("charger_status") or ("Charging" if snapshot.get("charge_online") else "Discharging")
         self._log_flight(f"🔋 Battery guard triggered at {battery_pct}% ({charger_status})")
         try:
-            self.fsm.sequence.park()
+            self._call_with_retries("battery guard park request", self.fsm.sequence.park)
             self._log_flight("🔋 Battery guard requested telescope park")
         except Exception as e:
             self._log_flight(f"⚠️ Battery guard park request failed: {e}")
@@ -1050,7 +1481,11 @@ class Orchestrator:
             },
             "targets": targets,
         }
-        self._plan_file.write_text(json.dumps(payload, indent=2))
+        self._write_json(self._plan_file, payload)
+
+    def _write_json(self, path: Path, payload: Any) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     def _write_state(self, state=None, sub="", msg=""):
         now_utc = datetime.now(timezone.utc).isoformat()
@@ -1073,9 +1508,11 @@ class Orchestrator:
             "remaining_count": remaining,
             "planned_count": planned,
         })
-        self._state_file.write_text(json.dumps(payload, indent=2))
+        self._write_json(self._state_file, payload)
 
-    def _transition(self, new_state, sub="", msg=""):
+    def _transition(self, new_state: str, sub: str = "", msg: str = ""):
+        if new_state not in PipelineState.ALL:
+            raise ValueError(f"Invalid pipeline state: {new_state}")
         self._state = new_state
         self._write_state(state=new_state, sub=sub, msg=msg)
         log.info("STATE -> %s | %s", new_state, msg)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/session_triage.py
+Filename: dev/tools/ops/session_triage.py
 Objective: Summarise the last SeeVar observing session from logs, ledger, plan,
            and data buffers without touching telescope state.
 """

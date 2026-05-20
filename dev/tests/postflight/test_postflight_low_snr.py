@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/test_postflight_low_snr.py
+Filename: dev/tests/postflight/test_postflight_low_snr.py
 Version: 1.0.0
 Objective: Verify postflight rejects a dark-calibrated frame when photometric SNR is too low.
 """

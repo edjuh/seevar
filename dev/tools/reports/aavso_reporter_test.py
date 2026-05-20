@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/aavso_reporter_test.py
+Filename: dev/tools/reports/aavso_reporter_test.py
 Version: 1.0.0
 Objective: Generate a small dummy AAVSO Extended Format report for WebObs
            preview testing, or the BAA-modified AAVSO Extended variant for

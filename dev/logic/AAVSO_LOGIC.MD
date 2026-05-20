@@ -69,8 +69,8 @@ Extraction: array[0::2, 0::2] and array[1::2, 1::2], averaged.
 - Output: `*_Green.fits` — single-channel float32, sky-subtracted
 
 **Acquisition** is via `DiamondSequence.acquire()` in `core/flight/pilot.py`
-over direct TCP to port 4801. `start_exposure` is not a confirmed method
-and is never used. See `API_PROTOCOL.MD`.
+under the current Alpaca-era flight chain. See `API_PROTOCOL.MD` and
+`ALPACA_BRIDGE.MD` for the active transport details.
 
 Sub-exposure range: 30s – 60s single RAW frames per target visit.
 

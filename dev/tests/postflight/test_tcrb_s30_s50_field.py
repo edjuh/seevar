@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/test_tcrb_s30_s50_field.py
+Filename: dev/tests/postflight/test_tcrb_s30_s50_field.py
 Version: 1.0.0
 Objective: Rehearse postflight on T CrB-inspired synthetic S30 and S50 fields.
 

@@ -136,7 +136,7 @@ def _classify_response_lines(lines: list[str]) -> tuple[list[str], list[str], li
         low = line.lower()
         if any(re.search(pattern, low) for pattern in success_patterns):
             success.append(line)
-        if any(token in low for token in ("warning", "out of limit", "out-of-limit", "outside limit", "outside limits", "outside range", "duplicate", "non-fatal")):
+        if any(token in low for token in ("warning", "out of limit", "out-of-limit", "outside limit", "outside limits", "outside range", "outside of expected range", "duplicate", "non-fatal")):
             warnings.append(line)
         if any(token in low for token in ("error", "failed", "invalid", "rejected", "must", "required", "unable")):
             errors.append(line)
@@ -250,8 +250,12 @@ class AAVSOWebObsSubmitter:
 
         lines = _html_lines(response.text)
         success_lines, warning_lines, error_lines = _classify_response_lines(lines)
-        accepted = bool(success_lines) and not any("login session" in line.lower() for line in error_lines)
         out_of_limit = [line for line in warning_lines if "limit" in line.lower() or "range" in line.lower()]
+        accepted = (
+            bool(success_lines)
+            and not out_of_limit
+            and not any("login session" in line.lower() for line in error_lines)
+        )
 
         result = {
             "submitted_utc": datetime.now(timezone.utc).isoformat(),

@@ -34,7 +34,7 @@ def _load_scope_ip() -> str | None:
         return None
 
 
-def _rpc_call(ip: str, method: str, params: list[Any] | None = None, port: int = 4701, timeout: float = 3.0) -> dict:
+def _rpc_call(ip: str, method: str, params: list[Any] | None = None, port: int = 4701, timeout: float = 0.15) -> dict:
     payload = {"id": 1, "method": method, "params": params or []}
 
     with socket.create_connection((ip, port), timeout=timeout) as sock:

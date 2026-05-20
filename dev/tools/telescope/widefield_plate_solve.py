@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/tools/widefield_plate_solve.py
+Filename: dev/tools/telescope/widefield_plate_solve.py
 Version: 1.0.0
 Objective: Capture a wide-camera frame from a Seestar, solve it with the known
            wide-camera plate scale, and report the true field center versus the

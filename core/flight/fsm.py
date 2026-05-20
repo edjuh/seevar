@@ -44,6 +44,7 @@ class SovereignFSM:
         self.state = "IDLE"
         self.telemetry: Optional[TelemetryBlock] = None
         self.last_prepared_target: Optional[AcquisitionTarget] = None
+        self.last_frame_paths: list[Path] = []
         self.sequence = DiamondSequence()
         logger.info("🧠 FSM Initialized in state: %s", self.state)
 
@@ -88,7 +89,13 @@ class SovereignFSM:
         except Exception as e:
             logger.debug("State bridge write skipped: %s", e)
 
-    def execute_target(self, target: AcquisitionTarget, status_cb: Optional[Callable[[str], None]] = None, telemetry: Optional[TelemetryBlock] = None) -> bool:
+    def execute_target(
+        self,
+        target: AcquisitionTarget,
+        status_cb: Optional[Callable[[str], None]] = None,
+        telemetry: Optional[TelemetryBlock] = None,
+        abort_cb: Optional[Callable[[], bool]] = None,
+    ) -> bool:
         """
         Run the per-target sovereign sequence.
 
@@ -97,6 +104,7 @@ class SovereignFSM:
         """
         self.update("WORKING")
         self.last_prepared_target = None
+        self.last_frame_paths = []
 
         def bridge(*parts):
             if len(parts) == 1:
@@ -112,7 +120,19 @@ class SovereignFSM:
             if status_cb:
                 status_cb(msg)
 
+        def abort_requested() -> bool:
+            try:
+                return bool(abort_cb and abort_cb())
+            except Exception as e:
+                logger.warning("Abort callback failed: %s", e)
+                return False
+
         try:
+            if abort_requested():
+                self._write_state_bridge("ABORTED", "Operator abort before target execution")
+                self.update("ERROR")
+                return False
+
             if telemetry and telemetry.is_safe():
                 self.telemetry = telemetry
                 logger.info("[A3] Reusing validated session telemetry for %s", target.name)
@@ -139,6 +159,11 @@ class SovereignFSM:
             successful_frames = 0
             failed_frames = 0
             for i in range(target.n_frames):
+                if abort_requested():
+                    self._write_state_bridge("ABORTED", f"Operator abort during {target.name}")
+                    self.update("ERROR")
+                    return False
+
                 logger.info("[A10] Executing frame %d/%d", i + 1, target.n_frames)
                 frame_ok = False
                 last_error = ""
@@ -155,11 +180,19 @@ class SovereignFSM:
                         status_cb=bridge,
                         telemetry=self.telemetry,
                         skip_pointing=(successful_frames > 0),
+                        abort_callback=abort_requested,
                     )
+
+                    if result.error == "operator_abort":
+                        self._write_state_bridge("ABORTED", f"Operator abort during {target.name}")
+                        self.update("ERROR")
+                        return False
 
                     if result.success:
                         logger.info("[A11] Frame %d accepted: %s", i + 1, result.path)
                         self._write_state_bridge("TRACKING", f"[A11] Frame {i + 1} accepted: {result.path}")
+                        if result.path:
+                            self.last_frame_paths.append(Path(result.path))
                         successful_frames += 1
                         frame_ok = True
                         break

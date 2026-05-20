@@ -1,0 +1,14 @@
+[Unit]
+Description=SeeVar Log Maintenance
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/seevar
+Environment=PYTHONPATH=%h/seevar
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/seevar/.venv/bin/python3 dev/utils/log_maintenance.py --log-dir %h/seevar/logs --max-mb 10 --keep 14
+StandardOutput=append:%h/seevar/logs/log_maintenance.log
+StandardError=append:%h/seevar/logs/log_maintenance.log
+
+TimeoutStartSec=30s
+TimeoutStopSec=5s

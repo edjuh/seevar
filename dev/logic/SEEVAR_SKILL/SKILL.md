@@ -4,7 +4,7 @@ description: >
   Use this skill for ALL work on the SeeVar autonomous variable star
   observatory project. Trigger on any mention of: SeeVar, pilot.py,
   orchestrator.py, DiamondSequence, S30-Pro telescope, AAVSO photometry,
-  Seestar, port 4700, port 4801, scope_goto, iscope_start_view, Wilhelmina,
+  Seestar, Alpaca, seestar_alp, scope_goto, iscope_start_view, Wilhelmina,
   REDA observer code, or any request to write heredoc deploy scripts for
   the Pi. This skill contains the complete architectural law, confirmed
   hardware constants, wire protocol, and session rules. Never write a
@@ -25,7 +25,7 @@ description: >
 1. No vibe-coding — all logic maps to logic/ documents
 2. Deploy via heredoc .sh scripts — idempotent, Garmt header standard
 3. Garmt header: Filename, Version, Objective in every .py file
-4. Sovereignty Principle: all hardware via direct TCP port 4700 (JSON-RPC)
+4. Hardware control follows the current Alpaca-era SeeVar flight path unless a diagnostic tool explicitly states otherwise.
 5. AAVSO API throttle: **188.4s** — Pi was blocked at 3.14s on 2026-03-13
 6. Read logic/ documents BEFORE writing code — always request them first
 7. Never invent key names, port numbers, method names, response shapes
@@ -39,24 +39,23 @@ description: >
 - Verify anchor strings against actual file before writing patches
 - If anchor not found: show file content, fix anchor, never guess
 
-## Port architecture
-| Port | Host | Purpose |
-|------|------|---------|
-| 4700 | `<telescope_ip>` | JSON-RPC sovereign control — ALL hardware |
-| 4801 | `<telescope_ip>` | Binary frame stream — science capture only |
-| 5432 | 127.0.0.1 | Alpaca bridge health-check ONLY |
+## Transport architecture
+Current production flight control is Alpaca-era SeeVar control through
+`core/flight/pilot.py`, `core/flight/fsm.py`, and `core/flight/orchestrator.py`.
 
-`<telescope_ip>` from config.toml `[[seestars]] ip` — never hardcoded.
-Port 5555 does not exist. Port 4720 does not exist. Never use either.
+`seestar_alp` and direct JSON-RPC are diagnostic/integration paths unless a
+specific SeeVar tool marks a call as production-safe.
 
-## JSON-RPC wire format (port 4700)
+`<telescope_ip>` comes from config.toml `[[seestars]] ip` — never hardcoded.
+
+## Historical/diagnostic JSON-RPC wire format (port 4700)
 ```python
 msg  = {"id": <int>, "method": "<method>", "params": <value>}
 wire = (json.dumps(msg) + "\r\n").encode("utf-8")
 ```
 `id` starts at 10000, increments per session. `params` omitted if not needed.
 
-## Confirmed methods — port 4700
+## Historical/diagnostic methods — port 4700
 ### Session
 - `get_device_state` — health probe, parse TelemetryBlock
 - `iscope_stop_view` — abort all active operations (always first)
@@ -94,7 +93,14 @@ S6: scope_set_track_state [true] — explicit unpark
 S7: scope_get_ra_dec          — confirm mount live
 ```
 
-## Per-target Diamond Sequence T1–T7
+## Historical direct-TCP Diamond Sequence
+
+This section is retained only to interpret old logs and early design notes.
+Current production flight uses Alpaca-era control through
+`core/flight/orchestrator.py`, `core/flight/fsm.py`, and
+`core/flight/pilot.py`.
+
+## Historical per-target TCP sequence T1–T7
 ```
 T1: set_setting exp_ms        — from exposure_planner
 T2: scope_goto [ra_h, dec_d]  — slew + sleep 8s settle
@@ -105,7 +111,7 @@ T6: iscope_stop_view          — close + get_device_state veto check
 T7: write_fits sovereign_stamp — RAID1 local_buffer
 ```
 
-## Binary frame protocol (port 4801)
+## Historical binary frame protocol (port 4801)
 ```
 Header: 80 bytes, fmt ">HHHIHHBBHH", first 20 bytes used
 frame_id 21 = RAW uint16 Bayer GRBG (science)

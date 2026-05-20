@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Filename: dev/test_calibration_assets.py
+Filename: dev/tests/postflight/test_calibration_assets.py
 Version: 1.0.0
 Objective: Smoke-test calibration asset requirement summaries without FITS dependencies.
 """

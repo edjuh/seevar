@@ -39,6 +39,8 @@ postflight, oversight, and science rules.
 | `BAA_LOGIC.MD` | BAA VSS export conventions and Seestar-specific reporting defaults |
 | `API_PROTOCOL.MD` | Confirmed hardware/API behavior and protocol detail |
 | `ALPACA_BRIDGE.MD` | Alpaca role, device map, and transport notes |
+| `SEESTAR_SSH_ACCESS.MD` | Optional owned-scope SSH diagnostics, file paths, and safety rules |
+| `SEESTAR_ALP_API.MD` | seestar_alp Bruno API workbench, PEM warning, and tested endpoint notes |
 | `SIMULATORLOGIC.MD` | Simulation obligations and flight mirroring rules |
 | `WORKFLOW.MD` | Narrative system walkthrough — currently due for rewrite |
 | `FILE_MANIFEST.md` | Generated manifest — do not edit manually |
