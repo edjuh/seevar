@@ -52,7 +52,13 @@ jobs:
 
       - name: Run regression tests
         run: |
-          for t in dev/test_*.py; do
+          shopt -s nullglob
+          tests=(dev/test_*.py)
+          if [ "${#tests[@]}" -eq 0 ]; then
+            echo "No legacy dev/test_*.py regression tests found."
+            exit 0
+          fi
+          for t in "${tests[@]}"; do
             echo "Running $t"
             python "$t"
           done
