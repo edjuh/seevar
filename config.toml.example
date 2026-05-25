@@ -135,6 +135,7 @@ pointing_edge_margin_px            = 250
 verify_retention_sets             = 40
 pointing_model_enabled             = true
 pointing_model_max_age_hours       = 12.0
+pointing_reverify_interval_frames  = 5
 frame_retry_limit                  = 0
 prealign_before_flight             = false
 prealign_points                    = 3
@@ -199,6 +200,7 @@ plate_solve_timeout_sec    = 90
 plate_solve_cpulimit_sec   = 75
 auto_stage_reports         = true
 report_mirror_dir          = "/mnt/astronas/reports"
+accepted_products_dir      = ""
 auto_park                  = true
 auto_shutdown_scope        = false
 

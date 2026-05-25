@@ -6,6 +6,8 @@ Version: 1.3.0
 Objective: Finite State Machine governing A1-A12 target execution and failure handling for Sovereign flight operations, with live bridge-state updates back into system_state.json.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import sys
@@ -24,11 +26,13 @@ logger = logging.getLogger("seevar.fsm")
 STATE_FILE = DATA_DIR / "system_state.json"
 
 
+# Function: _flight_cfg
 def _flight_cfg() -> dict:
     cfg = load_config()
     return cfg.get("flight", {}) if isinstance(cfg, dict) else {}
 
 
+# Function: _cfg_int
 def _cfg_int(key: str, default: int) -> int:
     try:
         return int(round(float(_flight_cfg().get(key, default))))
@@ -37,38 +41,52 @@ def _cfg_int(key: str, default: int) -> int:
 
 
 FRAME_RETRY_LIMIT = max(0, _cfg_int("frame_retry_limit", 0))
+POINTING_REVERIFY_INTERVAL_FRAMES = max(1, _cfg_int("pointing_reverify_interval_frames", 5))
+TAG_STATE = {
+    "[A4]": "SLEWING",
+    "[A5]": "SLEWING",
+    "[A6]": "SLEWING",
+    "[A7]": "EXPOSING",
+    "[A8]": "TRACKING",
+    "[A10]": "EXPOSING",
+    "[A11]": "TRACKING",
+}
 
 
 class SovereignFSM:
+    # Function: SovereignFSM.__init__
     def __init__(self):
         self.state = "IDLE"
         self.telemetry: Optional[TelemetryBlock] = None
         self.last_prepared_target: Optional[AcquisitionTarget] = None
         self.last_frame_paths: list[Path] = []
+        self.frame_retry_limit = FRAME_RETRY_LIMIT
+        self.pointing_reverify_interval_frames = POINTING_REVERIFY_INTERVAL_FRAMES
         self.sequence = DiamondSequence()
         logger.info("🧠 FSM Initialized in state: %s", self.state)
 
+    # Function: SovereignFSM.update
     def update(self, new_state: str):
         self.state = new_state
         logger.info("🔄 FSM State updated to: %s", self.state)
 
+    # Function: SovereignFSM.get_status
     def get_status(self) -> str:
         return self.state
 
+    # Function: SovereignFSM._bridge_ui_state
     def _bridge_ui_state(self, msg: str) -> str | None:
-        if msg.startswith("[A4]") or msg.startswith("[A5]") or msg.startswith("[A6]") or msg.startswith("[A7]") or msg.startswith("[A8]"):
-            return "SLEWING"
-        if msg.startswith("[A10]"):
-            return "EXPOSING"
-        if msg.startswith("[A11]"):
-            return "TRACKING"
+        for tag, state in TAG_STATE.items():
+            if msg.startswith(tag):
+                return state
         return None
 
+    # Function: SovereignFSM._write_state_bridge
     def _write_state_bridge(self, state: str | None, msg: str):
         try:
             payload = {}
             if STATE_FILE.exists():
-                payload = json.loads(STATE_FILE.read_text())
+                payload = json.loads(STATE_FILE.read_text(encoding="utf-8"))
                 if not isinstance(payload, dict):
                     payload = {}
 
@@ -85,10 +103,13 @@ class SovereignFSM:
             payload["updated"] = now_utc
             payload["updated_utc"] = now_utc
 
-            STATE_FILE.write_text(json.dumps(payload, indent=2))
+            tmp_path = STATE_FILE.with_suffix(f"{STATE_FILE.suffix}.tmp")
+            tmp_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            tmp_path.replace(STATE_FILE)
         except Exception as e:
             logger.debug("State bridge write skipped: %s", e)
 
+    # Function: SovereignFSM.execute_target
     def execute_target(
         self,
         target: AcquisitionTarget,
@@ -105,7 +126,13 @@ class SovereignFSM:
         self.update("WORKING")
         self.last_prepared_target = None
         self.last_frame_paths = []
+        self.frame_retry_limit = max(0, _cfg_int("frame_retry_limit", self.frame_retry_limit))
+        self.pointing_reverify_interval_frames = max(
+            1,
+            _cfg_int("pointing_reverify_interval_frames", self.pointing_reverify_interval_frames),
+        )
 
+        # Function: SovereignFSM.execute_target.bridge
         def bridge(*parts):
             if len(parts) == 1:
                 msg = parts[0]
@@ -120,6 +147,7 @@ class SovereignFSM:
             if status_cb:
                 status_cb(msg)
 
+        # Function: SovereignFSM.execute_target.abort_requested
         def abort_requested() -> bool:
             try:
                 return bool(abort_cb and abort_cb())
@@ -153,6 +181,8 @@ class SovereignFSM:
                 return False
 
             target = self.sequence.prepare_target(target, telemetry=self.telemetry, notify=bridge)
+            if target is None:
+                raise RuntimeError("prepare_target returned None")
             self.last_prepared_target = target
             logger.info("[A10] Acquire %d frame(s) for %s", target.n_frames, target.name)
 
@@ -168,18 +198,22 @@ class SovereignFSM:
                 frame_ok = False
                 last_error = ""
 
-                for attempt in range(FRAME_RETRY_LIMIT + 1):
+                for attempt in range(self.frame_retry_limit + 1):
                     if attempt == 0:
-                        self._write_state_bridge("SLEWING", f"[A4] Executing frame {i + 1}/{target.n_frames} for {target.name}")
+                        self._write_state_bridge("EXPOSING", f"[A10] Executing frame {i + 1}/{target.n_frames} for {target.name}")
                     else:
-                        logger.warning("[A10] Retrying frame %d/%d for %s (%d/%d)", i + 1, target.n_frames, target.name, attempt, FRAME_RETRY_LIMIT)
-                        self._write_state_bridge("SLEWING", f"[A10] Retrying frame {i + 1}/{target.n_frames} for {target.name} ({attempt}/{FRAME_RETRY_LIMIT})")
+                        logger.warning("[A10] Retrying frame %d/%d for %s (%d/%d)", i + 1, target.n_frames, target.name, attempt, self.frame_retry_limit)
+                        self._write_state_bridge("EXPOSING", f"[A10] Retrying frame {i + 1}/{target.n_frames} for {target.name} ({attempt}/{self.frame_retry_limit})")
 
+                    reverify_due = (
+                        successful_frames == 0
+                        or successful_frames % self.pointing_reverify_interval_frames == 0
+                    )
                     result = self.sequence.acquire(
                         target=target,
                         status_cb=bridge,
                         telemetry=self.telemetry,
-                        skip_pointing=(successful_frames > 0),
+                        skip_pointing=not reverify_due,
                         abort_callback=abort_requested,
                     )
 

@@ -11,6 +11,7 @@ This version avoids early singleton initialization by:
 """
 
 import json
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,7 +19,7 @@ import numpy as np
 from astropy.io import fits
 
 import sys
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.utils.env_loader import DATA_DIR
@@ -32,6 +33,7 @@ PROCESS_DIR = DATA_DIR / "process"
 LEDGER_FILE = DATA_DIR / "ledger.json"
 
 
+# Function: reset_test_artifacts
 def reset_test_artifacts():
     for path in (LOCAL_BUFFER, ARCHIVE_DIR, DARK_DIR, CAL_DIR, PROCESS_DIR):
         path.mkdir(parents=True, exist_ok=True)
@@ -40,11 +42,14 @@ def reset_test_artifacts():
         for p in directory.iterdir():
             if p.is_file():
                 p.unlink()
+            elif p.is_dir():
+                shutil.rmtree(p)
 
     if LEDGER_FILE.exists():
         LEDGER_FILE.unlink()
 
 
+# Function: make_master_dark
 def make_master_dark(exp_ms=5000, gain=80, temp_bin=20):
     dark_key = f"dark_tb{temp_bin:+d}_e{exp_ms}_g{gain}"
     dark_path = DARK_DIR / f"{dark_key}_master.fits"
@@ -79,6 +84,7 @@ def make_master_dark(exp_ms=5000, gain=80, temp_bin=20):
     return dark_path
 
 
+# Function: draw_star
 def draw_star(img, x, y, amp=8000.0, sigma=2.5):
     h, w = img.shape
     x0 = int(round(x))
@@ -93,6 +99,7 @@ def draw_star(img, x, y, amp=8000.0, sigma=2.5):
     img[np.ix_(ys, xs)] += spot
 
 
+# Function: make_science_frame
 def make_science_frame(name="TEST_VAR", exp_ms=5000, gain=80, ccd_temp=21.3):
     h, w = 3840, 2160
     img = np.random.normal(500.0, 18.0, (h, w)).astype(np.float32)
@@ -140,8 +147,11 @@ def make_science_frame(name="TEST_VAR", exp_ms=5000, gain=80, ccd_temp=21.3):
     return fits_path
 
 
+# Function: inspect_results
 def inspect_results():
     ledger_ok = False
+    accepted_product_ok = False
+    accepted_preview_ok = False
     cal_files = sorted(CAL_DIR.glob("*_cal.fit")) + sorted(CAL_DIR.glob("*_cal.fits"))
     archived = sorted(ARCHIVE_DIR.glob("*.fit")) + sorted(ARCHIVE_DIR.glob("*.fits"))
     stacks = sorted(PROCESS_DIR.glob("*.fit")) + sorted(PROCESS_DIR.glob("*.fits"))
@@ -150,24 +160,30 @@ def inspect_results():
     if LEDGER_FILE.exists():
         data = json.loads(LEDGER_FILE.read_text())
         entries = data.get("entries", {})
-        if entries.get("TEST_VAR", {}).get("status") == "OBSERVED":
+        entry = entries.get("TEST_VAR", {})
+        if entry.get("status") == "OBSERVED":
             ledger_ok = True
+        accepted_product_ok = bool(entry.get("last_accepted_product") and Path(entry["last_accepted_product"]).exists())
+        accepted_preview_ok = bool(entry.get("last_accepted_preview") and Path(entry["last_accepted_preview"]).exists())
 
     print("")
     print("Smoke test results")
     print(f"  Ledger stamped : {'YES' if ledger_ok else 'NO'}")
     print(f"  Calibrated FITS: {len(cal_files)}")
     print(f"  Archived raw   : {len(archived)}")
+    print(f"  Accepted FITS  : {'YES' if accepted_product_ok else 'NO'}")
+    print(f"  Accepted JPEG  : {'YES' if accepted_preview_ok else 'NO'}")
     print(f"  Stack FITS     : {len(stacks)}")
     print(f"  Raw remaining  : {len(remaining_raw)}")
 
-    if not ledger_ok or cal_files or archived or stacks or remaining_raw:
+    if not ledger_ok or cal_files or archived or not accepted_product_ok or not accepted_preview_ok or stacks or remaining_raw:
         raise SystemExit(1)
 
     print("")
     print("PASS: dark calibration + accountant closure path exercised successfully.")
 
 
+# Function: main
 def main():
     print("Preparing dark-postflight smoke test...")
     reset_test_artifacts()
@@ -178,7 +194,9 @@ def main():
     from core.postflight.dark_calibrator import DarkCalibrator
 
     accountant.dark_calibrator = DarkCalibrator()
+    accountant._accepted_products_dir = lambda session_started_utc: ARCHIVE_DIR / "accepted_solved"
 
+    # Function: main.fake_solve_frame
     def fake_solve_frame(path):
         p = Path(path)
         return {
@@ -190,6 +208,7 @@ def main():
             "fov_deg": 0.9,
         }
 
+    # Function: main.fake_calibrate
     def fake_calibrate(fits_path, ra_deg, dec_deg, target_name, target_mag=None, wcs_path=None, solve_result=None):
         return {
             "status": "ok",
@@ -210,6 +229,11 @@ def main():
 
     accountant.process_buffer()
     inspect_results()
+
+
+# Function: test_dark_postflight_smoke
+def test_dark_postflight_smoke():
+    main()
 
 
 if __name__ == "__main__":
