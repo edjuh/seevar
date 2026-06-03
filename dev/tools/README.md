@@ -13,3 +13,8 @@ Seestar app view-plan export:
 `python dev/tools/telescope/build_seestar_view_plan.py --payload data/ssc_payload.json --output /tmp/view_plan.json`
 
 The confirmed firmware file is `/home/pi/.ZWO/view_plan.json`; it is current/history state for Seestar app Plan mode. Firmware logs also reference `/home/pi/.ZWO/plan.json`, but no ground-truth sample has been captured yet. The exporter defaults to JNOW coordinates because ASIAIR/Seestar plan execution appears to operate in current epoch, while SeeVar/AAVSO inputs are J2000.
+
+seestarpy plan export:
+`python dev/tools/telescope/build_seestarpy_plan.py --input data/tonights_plan.json --output data/seestarpy_plan.json --name SeeVar`
+
+This produces the documented `seestarpy.plan.set_view_plan()` dictionary. Add `--submit` only from an environment where `seestarpy` is configured and connected.
