@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Filename: dev/tests/test_flight_step_proofs.py
+Version: 1.0.0
+Objective: Verify flight proof-chain gates, strict target failure, and seestar_alp adapter behavior.
+"""
 
 import sys
 from pathlib import Path
