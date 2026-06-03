@@ -121,6 +121,22 @@ Next:
   - custody/state workflow
 - perform a helicopter-view audit of places where Astropy is the better answer
 
+#### 1.9.6 — seestarpy Continuity Adapter
+Future:
+- test `seestarpy` as the preferred telescope execution adapter
+- keep SeeVar responsible for target accounting, proof ledger, photometry, and AAVSO reporting
+- map SeeVar proof steps onto `seestarpy` primitives:
+  - connect/open
+  - goto target
+  - plate-solve result
+  - tracking state
+  - start/stop stack
+  - stack info
+  - file download
+- use `seestarpy` multi-Seestar support for Wilhelmina and Anna when stable
+- handle firmware `7.18+` authentication explicitly before making this production
+- prove one strict object chain before replacing the current Alpaca capture path
+
 #### 1.9.x also includes
 - rewrite `WORKFLOW.MD` to match current Alpaca-era reality
 - remove stale TCP-era doctrine from remaining docs
