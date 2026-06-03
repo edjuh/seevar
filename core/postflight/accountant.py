@@ -41,6 +41,7 @@ from core.postflight.master_analyst import MasterAnalyst
 from core.postflight.dark_calibrator import dark_calibrator
 from core.postflight.calibration_assets import ensure_calibration_dirs, save_missing_calibrations
 from core.utils.env_loader import load_config
+from core.flight.star_quality import StarShapeMetrics, measure_star_shape
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,7 +82,31 @@ def _cfg_int(key: str, default: int) -> int:
         return default
 
 
+# Function: _cfg_float
+def _cfg_float(key: str, default: float) -> float:
+    try:
+        return float(_postflight_cfg().get(key, default))
+    except Exception:
+        return default
+
+
+# Function: _cfg_bool
+def _cfg_bool(key: str, default: bool) -> bool:
+    value = _postflight_cfg().get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
 MAX_PLATE_SOLVE_CANDIDATES = max(1, _cfg_int("max_plate_solve_candidates", 3))
+STACK_SHAPE_QC_ENABLED = _cfg_bool("stack_shape_qc_enabled", True)
+PUBLISH_SINGLE_FRAME_PREVIEWS = _cfg_bool("publish_single_frame_previews", False)
+REQUIRE_STACKED_PRODUCTS = _cfg_bool("require_stacked_products", True)
+MIN_STAR_SHAPE_SOURCES = max(3, _cfg_int("min_star_shape_sources", 8))
+MAX_STAR_ELONGATION = max(1.5, _cfg_float("max_star_elongation", 6.0))
+MAX_STAR_TRAIL_PX = max(4.0, _cfg_float("max_star_trail_px", 18.0))
 
 _engine = CalibrationEngine()
 _analyst = MasterAnalyst()
@@ -510,6 +535,18 @@ def _copy_accepted_fits(source: Path, dest: Path, result: dict, row: dict) -> Pa
     return dest
 
 
+# Function: _is_stacked_product
+def _is_stacked_product(product_path: Path, row: dict) -> bool:
+    state = str(row.get("calibration_state") or "").upper()
+    if "STACK" in state or "STACK" in product_path.name.upper():
+        return True
+    try:
+        header = fits.getheader(product_path, 0)
+        return bool(header.get("STACKED") or int(header.get("NCOMBINE", 1)) > 1)
+    except Exception:
+        return False
+
+
 # Function: _scale_preview
 def _scale_preview(data: np.ndarray) -> np.ndarray:
     arr = np.asarray(data, dtype=np.float32)
@@ -566,7 +603,8 @@ def _publish_accepted_products(
 ) -> tuple[Path | None, Path | None]:
     dest_dir = _accepted_products_dir(session_started_utc)
     safe = _safe_name(target_name)
-    suffix = "stack" if "STACK" in product_path.name.upper() else "single"
+    is_stack = _is_stacked_product(product_path, row)
+    suffix = "stack" if is_stack else "single"
     stamp = _parse_iso_utc(row.get("last_obs_utc")) or datetime.now(timezone.utc)
     base = f"{safe}_{stamp.strftime('%Y%m%dT%H%M%S')}_accepted_solved_{suffix}"
     dest_fits = dest_dir / f"{base}.fits"
@@ -575,6 +613,9 @@ def _publish_accepted_products(
     try:
         copied_fits = _copy_accepted_fits(product_path, dest_fits, result, row)
         copied_wcs = _copy_wcs_sidecar(wcs_path, copied_fits)
+        if not is_stack and not PUBLISH_SINGLE_FRAME_PREVIEWS:
+            log.info("  accepted single-frame FITS written for %s; JPEG preview skipped", target_name)
+            return copied_fits, None
         label = f"{target_name} TG={float(result.get('mag', 0.0)):.3f} SNR={float(result.get('target_snr', 0.0)):.1f}"
         copied_jpg = _write_accepted_preview(copied_fits, dest_jpg, copied_wcs, ra_deg, dec_deg, label)
         log.info("  accepted products written for %s: %s / %s", target_name, copied_fits.name, copied_jpg.name)
@@ -722,6 +763,48 @@ def _source_centroids(data: np.ndarray, max_sources: int = 200) -> np.ndarray:
             break
 
     return np.array(centroids, dtype=np.float32)
+
+
+# Function: _shape_metrics_from_header
+def _shape_metrics_from_header(header) -> StarShapeMetrics | None:
+    try:
+        sources = int(header.get("STARSRC"))
+    except Exception:
+        return None
+    try:
+        median_elongation = header.get("STARELON")
+        median_major = header.get("STARMED")
+        p90_major = header.get("STARLEN")
+        return StarShapeMetrics(
+            sources=sources,
+            median_elongation=float(median_elongation) if median_elongation is not None else None,
+            median_major_axis_px=float(median_major) if median_major is not None else None,
+            p90_major_axis_px=float(p90_major) if p90_major is not None else None,
+            error=str(header.get("STARQERR", "")).strip(),
+        )
+    except Exception:
+        return None
+
+
+# Function: _shape_qc_failure
+def _shape_qc_failure(path: Path) -> str | None:
+    if not STACK_SHAPE_QC_ENABLED:
+        return None
+    try:
+        with fits.open(path, mode="update") as hdul:
+            header = hdul[0].header
+            metrics = _shape_metrics_from_header(header)
+            if metrics is None:
+                metrics = measure_star_shape(hdul[0].data)
+                metrics.write_header(header)
+                hdul.flush()
+            return metrics.acceptance_error(
+                max_elongation=MAX_STAR_ELONGATION,
+                max_major_axis_px=MAX_STAR_TRAIL_PX,
+                min_sources=MIN_STAR_SHAPE_SOURCES,
+            )
+    except Exception as exc:
+        return f"star_shape_qc_error:{exc}"
 
 
 # Estimate image shift from matched star centroids and reject noisy matches.
@@ -912,6 +995,8 @@ def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: dateti
         usable_exptimes = exptimes[:len(aligned)]
         header["TOTEXP"] = round(sum(usable_exptimes), 3)
         header["EXPTIME"] = round(sum(usable_exptimes), 3)
+    if STACK_SHAPE_QC_ENABLED:
+        measure_star_shape(stacked).write_header(header)
 
     out_path = _stack_output_path(target_name, obs_dt, len(aligned))
     fits.PrimaryHDU(data=stacked, header=header).writeto(out_path, overwrite=True)
@@ -1193,11 +1278,56 @@ def process_buffer():
                 processed += raw_count
                 continue
 
-            candidate_paths = []
+            raw_candidate_paths = []
             stack_path = _median_stack(calibrated_paths, key, ref["obs_dt"])
+            if REQUIRE_STACKED_PRODUCTS and len(calibrated_paths) >= 2 and not stack_path:
+                log.error("  %s rejected: stacked product required but stack creation failed", key)
+                if ledger[key].get("status") != "OBSERVED":
+                    ledger[key]["status"] = "FAILED_STACK_REQUIRED"
+                ledger[key]["last_calibration_state"] = "STACK_REQUIRED_FAILED"
+                _clear_unclosed_success(ledger[key])
+                row["failure_category"] = "STACK_REQUIRED"
+                row["failure_detail"] = "stacked product required but stack creation failed"
+                row["ledger_status"] = ledger[key].get("status")
+                row["calibration_state"] = ledger[key].get("last_calibration_state")
+                session_rows.append(row)
+                _archive_failed_group(items, calibrated_paths, stack_path)
+                save_ledger(ledger)
+                save_missing_calibrations(ledger)
+                processed += raw_count
+                continue
             if stack_path:
-                candidate_paths.append((stack_path, f"DARKSUB_STACK_{len(calibrated_paths)}"))
-            candidate_paths.extend((path, "DARKSUB_SINGLE") for path in reversed(calibrated_paths))
+                raw_candidate_paths.append((stack_path, f"DARKSUB_STACK_{len(calibrated_paths)}"))
+            if not REQUIRE_STACKED_PRODUCTS or len(calibrated_paths) < 2:
+                raw_candidate_paths.extend((path, "DARKSUB_SINGLE") for path in reversed(calibrated_paths))
+
+            candidate_paths = []
+            shape_rejects = []
+            for candidate_path, candidate_state in raw_candidate_paths:
+                shape_error = _shape_qc_failure(candidate_path)
+                if shape_error:
+                    shape_rejects.append(f"{candidate_path.name}:{shape_error}")
+                    log.warning("  %s shape QC rejected %s: %s", key, candidate_path.name, shape_error)
+                    continue
+                candidate_paths.append((candidate_path, candidate_state))
+
+            if not candidate_paths:
+                detail = "; ".join(shape_rejects[:4]) or "no shape-usable candidates"
+                log.error("  %s rejected: no untrailed stack/single candidates", key)
+                if ledger[key].get("status") != "OBSERVED":
+                    ledger[key]["status"] = "FAILED_QC_TRAILED"
+                ledger[key]["last_calibration_state"] = "FAILED_STAR_SHAPE_QC"
+                _clear_unclosed_success(ledger[key])
+                row["failure_category"] = "TRAILING"
+                row["failure_detail"] = detail
+                row["ledger_status"] = ledger[key].get("status")
+                row["calibration_state"] = ledger[key].get("last_calibration_state")
+                session_rows.append(row)
+                _archive_failed_group(items, calibrated_paths, stack_path)
+                save_ledger(ledger)
+                save_missing_calibrations(ledger)
+                processed += raw_count
+                continue
 
             total_solve_candidates = len(candidate_paths)
             if total_solve_candidates > MAX_PLATE_SOLVE_CANDIDATES:

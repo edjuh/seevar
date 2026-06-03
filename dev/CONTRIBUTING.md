@@ -15,13 +15,14 @@ Required fields:
 ## 2. Architectural Pillars
 All new logic must fall into one of these pillars:
 1. PREFLIGHT: data harvesting, vetting, horizon logic, scheduling
-2. FLIGHT: hardware orchestration and acquisition via Alpaca-native control
+2. FLIGHT: hardware orchestration, proof ledger, and acquisition via pilot adapters
 3. POSTFLIGHT: solved astrometry, dark-calibrated photometry, and reporting
 
 ## 3. Protocol Reality
 SeeVar’s current hardware control path is:
 
 - primary control: Alpaca HTTP on port `32323`
+- optional controlled adapter: `seestar_alp`, only when explicitly configured
 - discovery: Alpaca UDP beacon on port `32227`
 - legacy/event paths may still exist in old notes, but are not the primary control doctrine
 
@@ -32,9 +33,11 @@ Do not write new code against the old “TCP 4700 as main control path” assump
 - Current production photometry is raw Bayer-green, untransformed `TG`.
 - Production photometry should not depend on naive debayering.
 - If a frame is not proven by calibration/WCS/QC, it must not be accepted.
+- If a target proof fails during flight, the target must stop with a clear reason.
+- Multi-frame science targets must publish one stacked accepted product by default.
 
 ## 5. Pull Request Protocol
 Before merging:
 1. Verify the logic docs still reflect the real architecture.
-2. Run the regression tests in `dev/tests/postflight/test_*.py`.
+2. Run focused flight and postflight regression tests.
 3. Keep changes scoped and scientifically honest.

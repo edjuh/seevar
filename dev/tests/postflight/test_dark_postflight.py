@@ -111,6 +111,10 @@ def make_science_frame(name="TEST_VAR", exp_ms=5000, gain=80, ccd_temp=21.3):
         (w / 2 + 240, h / 2 - 160, 8500.0),
         (w / 2 - 320, h / 2 - 260, 7000.0),
         (w / 2 + 300, h / 2 + 280, 6500.0),
+        (w / 2 - 520, h / 2 + 340, 6200.0),
+        (w / 2 + 510, h / 2 - 430, 5900.0),
+        (w / 2 - 720, h / 2 - 480, 5600.0),
+        (w / 2 + 700, h / 2 + 460, 5300.0),
     ]
     for x, y, amp in stars:
         draw_star(img, x, y, amp=amp, sigma=2.4)
@@ -151,7 +155,7 @@ def make_science_frame(name="TEST_VAR", exp_ms=5000, gain=80, ccd_temp=21.3):
 def inspect_results():
     ledger_ok = False
     accepted_product_ok = False
-    accepted_preview_ok = False
+    accepted_preview_absent = True
     cal_files = sorted(CAL_DIR.glob("*_cal.fit")) + sorted(CAL_DIR.glob("*_cal.fits"))
     archived = sorted(ARCHIVE_DIR.glob("*.fit")) + sorted(ARCHIVE_DIR.glob("*.fits"))
     stacks = sorted(PROCESS_DIR.glob("*.fit")) + sorted(PROCESS_DIR.glob("*.fits"))
@@ -164,7 +168,7 @@ def inspect_results():
         if entry.get("status") == "OBSERVED":
             ledger_ok = True
         accepted_product_ok = bool(entry.get("last_accepted_product") and Path(entry["last_accepted_product"]).exists())
-        accepted_preview_ok = bool(entry.get("last_accepted_preview") and Path(entry["last_accepted_preview"]).exists())
+        accepted_preview_absent = not bool(entry.get("last_accepted_preview"))
 
     print("")
     print("Smoke test results")
@@ -172,11 +176,11 @@ def inspect_results():
     print(f"  Calibrated FITS: {len(cal_files)}")
     print(f"  Archived raw   : {len(archived)}")
     print(f"  Accepted FITS  : {'YES' if accepted_product_ok else 'NO'}")
-    print(f"  Accepted JPEG  : {'YES' if accepted_preview_ok else 'NO'}")
+    print(f"  Single JPEG    : {'NO' if accepted_preview_absent else 'YES'}")
     print(f"  Stack FITS     : {len(stacks)}")
     print(f"  Raw remaining  : {len(remaining_raw)}")
 
-    if not ledger_ok or cal_files or archived or not accepted_product_ok or not accepted_preview_ok or stacks or remaining_raw:
+    if not ledger_ok or cal_files or archived or not accepted_product_ok or not accepted_preview_absent or stacks or remaining_raw:
         raise SystemExit(1)
 
     print("")

@@ -80,6 +80,10 @@ It is making the science chain defensible end-to-end.
 - postflight doctrine frozen around `P1-P8`
 - photometry doctrine rewritten around Bayer-aware measurement rather than naive debayering
 - docs now reflect that flight and postflight have separate responsibilities
+- per-target proof ledger started in `data/flight_runs/`
+- partial target success disabled by default
+- multi-frame postflight requires one stacked accepted product by default
+- dormant `seestar_alp` controlled adapter added behind the pilot interface
 
 #### 1.9.0 — Doctrine Freeze
 - freeze sovereign `A1-A12`
@@ -107,6 +111,7 @@ Next:
 - wire accepted postflight TG results into AAVSO report staging
 - make report generation a true `P8` output
 - stop treating the reporter as a side utility
+- enforce no AAVSO upload without stack, WCS, photometry, and report proof
 
 #### 1.9.5 — Astropy Review Pass
 - replace custom code with `astropy` components where that improves correctness and maintainability

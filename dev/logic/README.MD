@@ -88,12 +88,14 @@ Postflight now follows the sovereign `P1-P8` chain:
 ### Scientific boundary
 
 Flight proves:
-- a trustworthy raw frame was captured
+- the target chain reached a trustworthy raw capture
 
 Postflight proves:
-- that the frame supports trustworthy science
+- that the target stack supports trustworthy science
 
 That boundary must remain clean.
+Target proof rows are written to `data/flight_runs/`. Multi-frame targets must
+produce one stacked accepted product unless explicitly configured otherwise.
 
 ---
 

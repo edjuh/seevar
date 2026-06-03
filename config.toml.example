@@ -133,10 +133,19 @@ pointing_gross_max_retries         = 1
 pointing_accept_target_in_frame    = true
 pointing_edge_margin_px            = 250
 verify_retention_sets             = 40
+strict_tracking_required           = true
+strict_camera_idle_required        = true
+mount_idle_verify_timeout_sec      = 5.0
+tracking_verify_timeout_sec        = 10.0
+tracking_verify_interval_sec       = 0.5
+camera_idle_timeout_sec            = 8.0
+pointing_proof_max_age_sec         = 900.0
 pointing_model_enabled             = true
 pointing_model_max_age_hours       = 12.0
 pointing_reverify_interval_frames  = 5
 frame_retry_limit                  = 0
+allow_partial_target_success       = false
+strict_target_proof_chain          = true
 prealign_before_flight             = false
 prealign_points                    = 3
 prealign_exposure_sec              = 5.0
@@ -158,6 +167,7 @@ prealign_wide_solve_radius_deg     = 60.0
 [seestar_alp]
 enabled = false
 base_url = "http://127.0.0.1:5555"
+port = 5555
 mode = "diagnostic" # diagnostic | controlled
 
 # -----------------------------------------------------------------------------
@@ -201,6 +211,8 @@ plate_solve_cpulimit_sec   = 75
 auto_stage_reports         = true
 report_mirror_dir          = "/mnt/astronas/reports"
 accepted_products_dir      = ""
+publish_single_frame_previews = false
+require_stacked_products      = true
 auto_park                  = true
 auto_shutdown_scope        = false
 

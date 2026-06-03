@@ -61,6 +61,15 @@ Flight captures raw FITS custody into:
 data/local_buffer/{TARGET}_{TS}_Raw.fits
 ```
 
+Flight also writes target proof rows into:
+
+```text
+data/flight_runs/*.jsonl
+```
+
+Only a fully proven target can reset cadence. Partial target success is disabled
+by default.
+
 The active transport is described in `ALPACA_BRIDGE.MD` and `API_PROTOCOL.MD`.
 Older direct-TCP examples are historical and must not override current flight
 law.

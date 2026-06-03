@@ -7,8 +7,9 @@
 
 Implementation:
 - `core/flight/orchestrator.py` — mission order, vetoes, commit
-- `core/flight/fsm.py` — state transitions and per-target control
+- `core/flight/fsm.py` — state transitions, per-target control, proof ledger
 - `core/flight/pilot.py` — hardware execution
+- `core/flight/seestar_alp_adapter.py` — optional controlled adapter
 - `core/flight/exposure_planner.py` — exposure logic
 
 Alpaca device map: `ALPACA_BRIDGE.MD`.
@@ -21,6 +22,8 @@ The telescope executes one deterministic per-target sequence.
 The orchestrator owns mission order and veto logic.
 The pilot owns hardware execution.
 The FSM owns state transitions and failure handling.
+Every target writes proof rows to `data/flight_runs/`. If any required proof
+fails, the target stops and records the reason.
 
 ### A1 — Target Lock
 **Owner:** `core/flight/orchestrator.py`  
@@ -122,7 +125,8 @@ Minimum checks:
 - array shape valid
 - pixel stats sane
 - no gross transport failure
-- optional fast solve or centroid sanity
+- star-shape/trail sanity when enabled
+- no partial target success unless explicitly configured
 
 ### A12 — Commit
 **Owner:** `core/flight/orchestrator.py`

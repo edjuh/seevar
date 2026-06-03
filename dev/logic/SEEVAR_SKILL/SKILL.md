@@ -43,8 +43,11 @@ description: >
 Current production flight control is Alpaca-era SeeVar control through
 `core/flight/pilot.py`, `core/flight/fsm.py`, and `core/flight/orchestrator.py`.
 
-`seestar_alp` and direct JSON-RPC are diagnostic/integration paths unless a
-specific SeeVar tool marks a call as production-safe.
+`seestar_alp` is diagnostic unless `[seestar_alp].enabled = true` and
+`mode = "controlled"`. Direct JSON-RPC remains diagnostic/historical.
+
+Every science target must prove the chain in `data/flight_runs/`. Do not accept
+partial target success unless config explicitly allows it.
 
 `<telescope_ip>` comes from config.toml `[[seestars]] ip` — never hardcoded.
 
@@ -99,6 +102,7 @@ This section is retained only to interpret old logs and early design notes.
 Current production flight uses Alpaca-era control through
 `core/flight/orchestrator.py`, `core/flight/fsm.py`, and
 `core/flight/pilot.py`.
+Optional controlled `seestar_alp` flight uses `core/flight/seestar_alp_adapter.py`.
 
 ## Historical per-target TCP sequence T1–T7
 ```
