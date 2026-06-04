@@ -137,6 +137,14 @@ Future:
 - handle firmware `7.18+` authentication explicitly before making this production
 - prove one strict object chain before replacing the current Alpaca capture path
 
+#### 1.9.7 — SeeVar Lite Reducer
+Future:
+- make Lite the preferred development path
+- submit a generated seestarpy/seestar_alp plan instead of steering frames directly
+- monitor plan state into `system_state_lite.json` and `flight_runs/lite_*.jsonl`
+- download one accepted stack per target
+- keep the old Alpaca loop as fallback until Lite proves one full science target
+
 #### 1.9.x also includes
 - rewrite `WORKFLOW.MD` to match current Alpaca-era reality
 - remove stale TCP-era doctrine from remaining docs

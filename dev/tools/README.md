@@ -18,3 +18,8 @@ seestarpy plan export:
 `python dev/tools/telescope/build_seestarpy_plan.py --input data/tonights_plan.json --output data/seestarpy_plan.json --name SeeVar`
 
 This produces the documented `seestarpy.plan.set_view_plan()` dictionary. Add `--submit` only from an environment where `seestarpy` is configured and connected.
+
+SeeVar Lite run/monitor:
+`python dev/tools/telescope/run_seevar_lite.py --plan data/seestarpy_plan.json --submit --monitor`
+
+The Lite monitor writes `data/system_state_lite.json` plus a JSONL proof file in `data/flight_runs/`.

@@ -115,6 +115,33 @@ Flight outputs raw custody:
 - logs and telemetry
 - ledger attempt/capture status
 
+## SeeVar Lite Flight Path
+
+SeeVar Lite is the reducer path for current development.
+
+It keeps SeeVar responsible for planning, monitoring, proof artifacts,
+postflight, photometry, and AAVSO reporting. It delegates telescope execution
+to `seestarpy` or `seestar_alp` plan execution.
+
+Lite chain:
+
+```text
+tonights_plan.json
+-> seestarpy plan dictionary
+-> plan submit
+-> plan monitor
+-> stack/product download
+-> postflight
+```
+
+The default Lite monitor writes:
+
+- `data/system_state_lite.json`
+- `data/flight_runs/lite_*.jsonl`
+
+The old Alpaca frame loop remains a fallback until one Lite target proves
+`plan -> solve -> track -> stack -> download -> photometry -> report`.
+
 ## Phase 5: POSTFLIGHT
 
 Postflight owns scientific truth.
