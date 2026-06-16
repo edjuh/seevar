@@ -23,8 +23,8 @@ Postflight decides whether the frame is scientifically usable.
 
 ## The Sovereign Postflight Sequence (P1-P8)
 
-Each science frame must pass one deterministic postflight chain.
-A frame may fail without invalidating the rest of the night.
+Each target group must pass one deterministic postflight chain.
+A target may fail without invalidating the rest of the night.
 
 ### P1 — Ingest
 
@@ -95,7 +95,7 @@ This is where detector truth begins.
 
 ### P4 — Astrometric Solve
 
-Produce a real solved WCS for the frame.
+Produce a real solved WCS for the stacked product when multiple frames exist.
 
 This must be an actual astrometric solution.
 Header guesses such as `CRVAL`, `CRPIX`, and `CDELT` are not by themselves sufficient scientific truth.
@@ -174,6 +174,8 @@ Apply scientific acceptance gates and assign the final frame verdict.
 Minimum gates:
 - readable FITS
 - calibration state known
+- stacked product present for multi-frame targets
+- star-shape/trail QC pass
 - real solved WCS present
 - target not saturated
 - target flux positive
@@ -202,6 +204,7 @@ This includes:
 - move or copy final custody products into archive
 - write QC/report artifacts
 - stage AAVSO output products
+- publish exactly one accepted stacked FITS/JPEG/report per successful object
 
 Only at this step is a frame considered postflight-complete.
 
@@ -232,6 +235,8 @@ The following are not enough on their own:
 - unsolved header coordinates
 - raw CRVAL-based pixel estimates
 - uncalibrated detector data
+- single-frame fallback for multi-frame targets
+- trailed stacks or accepted previews
 - weighted comp-star ensembles without outlier rejection
 
 ---
@@ -246,6 +251,8 @@ The following are not enough on their own:
 - weighted zero-point ensemble
 - ledger stamping and archive movement
 - AAVSO report formatter
+- stack-first target products with required stack for multi-frame targets
+- star-shape/trail QC on stack candidates
 
 ### Under scientific upgrade
 - real solved WCS as a hard postflight dependency
@@ -295,6 +302,7 @@ Future:
 | `data/ledger.json` | authoritative observation ledger |
 | `data/archive/*.fits` | archived processed custody |
 | `data/reports/*.txt` | AAVSO-ready report outputs |
+| `data/accepted_products/` | one accepted FITS/JPEG per successful object |
 
 ---
 

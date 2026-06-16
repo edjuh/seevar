@@ -19,7 +19,9 @@ from contextlib import contextmanager
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
+from astropy.wcs import WCS
 import numpy as np
+from PIL import Image, ImageDraw
 from scipy import ndimage
 from scipy.ndimage import shift as ndi_shift
 from scipy.spatial import cKDTree
@@ -39,6 +41,7 @@ from core.postflight.master_analyst import MasterAnalyst
 from core.postflight.dark_calibrator import dark_calibrator
 from core.postflight.calibration_assets import ensure_calibration_dirs, save_missing_calibrations
 from core.utils.env_loader import load_config
+from core.flight.star_quality import StarShapeMetrics, measure_star_shape
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,11 +68,13 @@ STACK_GROUP_GAP_SEC = 900
 MAX_STACK_FRAMES = 24
 
 
+# Function: _postflight_cfg
 def _postflight_cfg() -> dict:
     cfg = load_config()
     return cfg.get("postflight", {}) if isinstance(cfg, dict) else {}
 
 
+# Function: _cfg_int
 def _cfg_int(key: str, default: int) -> int:
     try:
         return int(round(float(_postflight_cfg().get(key, default))))
@@ -77,12 +82,37 @@ def _cfg_int(key: str, default: int) -> int:
         return default
 
 
+# Function: _cfg_float
+def _cfg_float(key: str, default: float) -> float:
+    try:
+        return float(_postflight_cfg().get(key, default))
+    except Exception:
+        return default
+
+
+# Function: _cfg_bool
+def _cfg_bool(key: str, default: bool) -> bool:
+    value = _postflight_cfg().get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
 MAX_PLATE_SOLVE_CANDIDATES = max(1, _cfg_int("max_plate_solve_candidates", 3))
+STACK_SHAPE_QC_ENABLED = _cfg_bool("stack_shape_qc_enabled", True)
+PUBLISH_SINGLE_FRAME_PREVIEWS = _cfg_bool("publish_single_frame_previews", False)
+REQUIRE_STACKED_PRODUCTS = _cfg_bool("require_stacked_products", True)
+MIN_STAR_SHAPE_SOURCES = max(3, _cfg_int("min_star_shape_sources", 8))
+MAX_STAR_ELONGATION = max(1.5, _cfg_float("max_star_elongation", 6.0))
+MAX_STAR_TRAIL_PX = max(4.0, _cfg_float("max_star_trail_px", 18.0))
 
 _engine = CalibrationEngine()
 _analyst = MasterAnalyst()
 
 
+# Function: _install_accountant_log_handler
 def _install_accountant_log_handler():
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     log_path = LOG_DIR / "accountant.log"
@@ -114,6 +144,7 @@ _install_accountant_log_handler()
 
 
 # Collapse low-level calibration errors into stable morning-triage categories.
+# Function: _classify_failure
 def _classify_failure(error: str) -> str:
     err_l = str(error or "").lower()
     if "snr_too_low" in err_l:
@@ -140,6 +171,7 @@ def _classify_failure(error: str) -> str:
 
 
 # Render a compact text report and matching JSON artifact for morning triage.
+# Function: _write_postflight_report
 def _write_postflight_report(
     session_started_utc: str,
     processed: int,
@@ -240,6 +272,7 @@ def _write_postflight_report(
 
 
 @contextmanager
+# Function: _process_lock
 def _process_lock():
     ACCOUNTANT_LOCK.parent.mkdir(parents=True, exist_ok=True)
     with open(ACCOUNTANT_LOCK, "w") as lock_handle:
@@ -257,6 +290,7 @@ def _process_lock():
             fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
 
 
+# Function: load_ledger
 def load_ledger() -> dict:
     if LEDGER_FILE.exists():
         try:
@@ -268,6 +302,7 @@ def load_ledger() -> dict:
     return {}
 
 
+# Function: save_ledger
 def save_ledger(entries: dict):
     output = {
         "#objective": "Master Observational Register and Status Ledger",
@@ -283,6 +318,7 @@ def save_ledger(entries: dict):
 
 
 
+# Function: _temp_bin_for_requirement
 def _temp_bin_for_requirement(temp_c):
     if temp_c in (None, "", "UNKNOWN"):
         return None
@@ -292,6 +328,7 @@ def _temp_bin_for_requirement(temp_c):
         return None
 
 
+# Function: save_missing_darks
 def save_missing_darks(entries: dict):
     requirements = {}
 
@@ -346,6 +383,7 @@ def save_missing_darks(entries: dict):
         json.dump(payload, f, indent=4)
 
 
+# Function: _blank_entry
 def _blank_entry() -> dict:
     return {
         "status": "PENDING",
@@ -383,9 +421,12 @@ def _blank_entry() -> dict:
         "last_scope_id": None,
         "last_scope_name": None,
         "last_calibration_state": None,
+        "last_accepted_product": None,
+        "last_accepted_preview": None,
     }
 
 
+# Function: _parse_header
 def _parse_header(fpath: Path, header: dict) -> tuple:
     target_name = header.get("OBJECT", "")
     if not str(target_name).strip():
@@ -429,10 +470,12 @@ def _parse_header(fpath: Path, header: dict) -> tuple:
     return target_name, date_obs, ra_deg, dec_deg
 
 
+# Function: _archive_frame
 def _archive_frame(fpath: Path):
     _archive_paths([fpath])
 
 
+# Function: _parse_iso_utc
 def _parse_iso_utc(value: str | None):
     if not value:
         return None
@@ -445,10 +488,144 @@ def _parse_iso_utc(value: str | None):
         return None
 
 
+# Function: _safe_name
 def _safe_name(name: str) -> str:
     return str(name or "UNKNOWN").replace(" ", "_").replace("/", "-")
 
 
+# Function: _accepted_products_dir
+def _accepted_products_dir(session_started_utc: str) -> Path:
+    cfg = load_config()
+    postflight_cfg = cfg.get("postflight", {}) if isinstance(cfg, dict) else {}
+    configured = str(postflight_cfg.get("accepted_products_dir") or "").strip()
+    if configured:
+        return Path(configured).expanduser()
+
+    storage_cfg = cfg.get("storage", {}) if isinstance(cfg, dict) else {}
+    primary = str(storage_cfg.get("primary_dir") or "").strip()
+    if primary:
+        root = Path(primary).expanduser()
+        return root / "Astrophoto" / "Variables" / f"SeeVar_{session_started_utc[:10].replace('-', '')}_accepted_solved"
+
+    return ARCHIVE_DIR / "accepted_solved"
+
+
+# Function: _copy_wcs_sidecar
+def _copy_wcs_sidecar(source_wcs: Path | None, product_path: Path) -> Path | None:
+    if not source_wcs or not Path(source_wcs).exists():
+        return None
+    dest_wcs = product_path.with_suffix(".wcs")
+    if Path(source_wcs) != dest_wcs:
+        shutil.copy2(source_wcs, dest_wcs)
+    return dest_wcs
+
+
+# Function: _copy_accepted_fits
+def _copy_accepted_fits(source: Path, dest: Path, result: dict, row: dict) -> Path:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with fits.open(source) as hdul:
+        header = hdul[0].header
+        header["ACCEPTED"] = (True, "SeeVar postflight accepted")
+        header["ACCMAG"] = (float(result.get("mag", 0.0)), "Accepted TG magnitude")
+        header["ACCERR"] = (float(result.get("err", 0.0)), "Accepted TG uncertainty")
+        header["ACCSNR"] = (float(result.get("target_snr", 0.0)), "Accepted target SNR")
+        header["ACCSTATE"] = (str(row.get("calibration_state", ""))[:68], "Accepted product state")
+        header["ACCUTC"] = (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "Acceptance UTC")
+        hdul.writeto(dest, overwrite=True)
+    return dest
+
+
+# Function: _is_stacked_product
+def _is_stacked_product(product_path: Path, row: dict) -> bool:
+    state = str(row.get("calibration_state") or "").upper()
+    if "STACK" in state or "STACK" in product_path.name.upper():
+        return True
+    try:
+        header = fits.getheader(product_path, 0)
+        return bool(header.get("STACKED") or int(header.get("NCOMBINE", 1)) > 1)
+    except Exception:
+        return False
+
+
+# Function: _scale_preview
+def _scale_preview(data: np.ndarray) -> np.ndarray:
+    arr = np.asarray(data, dtype=np.float32)
+    if arr.ndim > 2:
+        arr = np.squeeze(arr)
+    if arr.ndim != 2:
+        raise ValueError("preview data is not 2-D")
+    finite = arr[np.isfinite(arr)]
+    if finite.size == 0:
+        raise ValueError("preview data has no finite pixels")
+    lo, hi = np.nanpercentile(finite, [5.0, 99.85])
+    if not np.isfinite(hi - lo) or hi <= lo:
+        lo, hi = float(np.nanmin(finite)), float(np.nanmax(finite))
+    scaled = np.clip((arr - lo) / max(1e-6, hi - lo), 0.0, 1.0)
+    scaled = np.arcsinh(scaled * 8.0) / np.arcsinh(8.0)
+    return (scaled * 255.0).astype(np.uint8)
+
+
+# Function: _write_accepted_preview
+def _write_accepted_preview(fits_path: Path, jpg_path: Path, wcs_path: Path | None, ra_deg: float, dec_deg: float, label: str) -> Path:
+    data = fits.getdata(fits_path)
+    gray = _scale_preview(data)
+    image = Image.fromarray(gray).convert("RGB")
+    draw = ImageDraw.Draw(image)
+
+    try:
+        if wcs_path and Path(wcs_path).exists():
+            wcs = WCS(fits.getheader(wcs_path, 0))
+            x, y = [float(v) for v in wcs.all_world2pix([[ra_deg, dec_deg]], 0)[0]]
+            if 0 <= x < image.width and 0 <= y < image.height:
+                r = 22
+                draw.line((x - r, y, x + r, y), fill=(255, 210, 80), width=2)
+                draw.line((x, y - r, x, y + r), fill=(255, 210, 80), width=2)
+                draw.ellipse((x - 5, y - 5, x + 5, y + 5), outline=(255, 210, 80), width=2)
+    except Exception as e:
+        log.debug("  accepted preview WCS overlay skipped for %s: %s", fits_path.name, e)
+
+    draw.text((18, 18), label, fill=(255, 255, 255))
+    jpg_path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(jpg_path, quality=92)
+    return jpg_path
+
+
+# Function: _publish_accepted_products
+def _publish_accepted_products(
+    product_path: Path,
+    wcs_path: Path | None,
+    target_name: str,
+    ra_deg: float,
+    dec_deg: float,
+    result: dict,
+    row: dict,
+    session_started_utc: str,
+) -> tuple[Path | None, Path | None]:
+    dest_dir = _accepted_products_dir(session_started_utc)
+    safe = _safe_name(target_name)
+    is_stack = _is_stacked_product(product_path, row)
+    suffix = "stack" if is_stack else "single"
+    stamp = _parse_iso_utc(row.get("last_obs_utc")) or datetime.now(timezone.utc)
+    base = f"{safe}_{stamp.strftime('%Y%m%dT%H%M%S')}_accepted_solved_{suffix}"
+    dest_fits = dest_dir / f"{base}.fits"
+    dest_jpg = dest_dir / f"{base}.jpg"
+
+    try:
+        copied_fits = _copy_accepted_fits(product_path, dest_fits, result, row)
+        copied_wcs = _copy_wcs_sidecar(wcs_path, copied_fits)
+        if not is_stack and not PUBLISH_SINGLE_FRAME_PREVIEWS:
+            log.info("  accepted single-frame FITS written for %s; JPEG preview skipped", target_name)
+            return copied_fits, None
+        label = f"{target_name} TG={float(result.get('mag', 0.0)):.3f} SNR={float(result.get('target_snr', 0.0)):.1f}"
+        copied_jpg = _write_accepted_preview(copied_fits, dest_jpg, copied_wcs, ra_deg, dec_deg, label)
+        log.info("  accepted products written for %s: %s / %s", target_name, copied_fits.name, copied_jpg.name)
+        return copied_fits, copied_jpg
+    except Exception as e:
+        log.warning("  accepted product publish failed for %s: %s", target_name, e)
+        return None, None
+
+
+# Function: _load_frame_meta
 def _load_frame_meta(fpath: Path) -> dict | None:
     try:
         header = fits.getheader(fpath, 0)
@@ -475,6 +652,7 @@ def _load_frame_meta(fpath: Path) -> dict | None:
     }
 
 
+# Function: _build_target_groups
 def _build_target_groups(fits_files: list[Path]) -> list[dict]:
     metas = []
     for fpath in sorted(fits_files):
@@ -505,6 +683,7 @@ def _build_target_groups(fits_files: list[Path]) -> list[dict]:
     return groups
 
 
+# Function: _stack_output_path
 def _stack_output_path(target_name: str, obs_dt: datetime, n_frames: int) -> Path:
     PROCESS_DIR.mkdir(parents=True, exist_ok=True)
     stamp = obs_dt.strftime("%Y%m%dT%H%M%S")
@@ -512,6 +691,7 @@ def _stack_output_path(target_name: str, obs_dt: datetime, n_frames: int) -> Pat
     return PROCESS_DIR / f"{safe_name}_{stamp}_STACK_{n_frames}x.fits"
 
 
+# Function: _stack_subset
 def _stack_subset(paths: list[Path], limit: int = MAX_STACK_FRAMES) -> list[Path]:
     if len(paths) <= limit:
         return list(paths)
@@ -532,6 +712,7 @@ def _stack_subset(paths: list[Path], limit: int = MAX_STACK_FRAMES) -> list[Path
 
 
 # Estimate a robust background level and sigma from finite image pixels.
+# Function: _background_stats
 def _background_stats(data: np.ndarray) -> tuple[float, float]:
     finite = np.isfinite(data)
     vals = data[finite]
@@ -544,6 +725,7 @@ def _background_stats(data: np.ndarray) -> tuple[float, float]:
 
 
 # Detect compact bright-source centroids for stack alignment.
+# Function: _source_centroids
 def _source_centroids(data: np.ndarray, max_sources: int = 200) -> np.ndarray:
     med, sigma = _background_stats(data)
     finite = np.isfinite(data)
@@ -583,7 +765,50 @@ def _source_centroids(data: np.ndarray, max_sources: int = 200) -> np.ndarray:
     return np.array(centroids, dtype=np.float32)
 
 
+# Function: _shape_metrics_from_header
+def _shape_metrics_from_header(header) -> StarShapeMetrics | None:
+    try:
+        sources = int(header.get("STARSRC"))
+    except Exception:
+        return None
+    try:
+        median_elongation = header.get("STARELON")
+        median_major = header.get("STARMED")
+        p90_major = header.get("STARLEN")
+        return StarShapeMetrics(
+            sources=sources,
+            median_elongation=float(median_elongation) if median_elongation is not None else None,
+            median_major_axis_px=float(median_major) if median_major is not None else None,
+            p90_major_axis_px=float(p90_major) if p90_major is not None else None,
+            error=str(header.get("STARQERR", "")).strip(),
+        )
+    except Exception:
+        return None
+
+
+# Function: _shape_qc_failure
+def _shape_qc_failure(path: Path) -> str | None:
+    if not STACK_SHAPE_QC_ENABLED:
+        return None
+    try:
+        with fits.open(path, mode="update") as hdul:
+            header = hdul[0].header
+            metrics = _shape_metrics_from_header(header)
+            if metrics is None:
+                metrics = measure_star_shape(hdul[0].data)
+                metrics.write_header(header)
+                hdul.flush()
+            return metrics.acceptance_error(
+                max_elongation=MAX_STAR_ELONGATION,
+                max_major_axis_px=MAX_STAR_TRAIL_PX,
+                min_sources=MIN_STAR_SHAPE_SOURCES,
+            )
+    except Exception as exc:
+        return f"star_shape_qc_error:{exc}"
+
+
 # Estimate image shift from matched star centroids and reject noisy matches.
+# Function: _star_shift
 def _star_shift(reference: np.ndarray, moving: np.ndarray, max_shift_px: float = 250.0) -> tuple[float, float] | None:
     ref_points = _source_centroids(reference)
     mov_points = _source_centroids(moving)
@@ -610,6 +835,7 @@ def _star_shift(reference: np.ndarray, moving: np.ndarray, max_shift_px: float =
 
 
 # Use astroalign's asterism matching when translational shift alignment is not enough.
+# Function: _astroalign_frame
 def _astroalign_frame(reference: np.ndarray, moving: np.ndarray) -> tuple[np.ndarray, dict] | None:
     if astroalign is None:
         return None
@@ -639,6 +865,7 @@ def _astroalign_frame(reference: np.ndarray, moving: np.ndarray) -> tuple[np.nda
 
 
 # Prefer cheap shift alignment, but fall back to astroalign for rotated/doubled fields.
+# Function: _align_stack_frame
 def _align_stack_frame(
     reference: np.ndarray,
     ref_work: np.ndarray,
@@ -692,6 +919,7 @@ def _align_stack_frame(
     return aligned_arr.astype(np.float32), (shift_y, shift_x), "SHIFT"
 
 
+# Function: _median_stack
 def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: datetime) -> Path | None:
     if len(calibrated_paths) < 2:
         return None
@@ -767,6 +995,8 @@ def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: dateti
         usable_exptimes = exptimes[:len(aligned)]
         header["TOTEXP"] = round(sum(usable_exptimes), 3)
         header["EXPTIME"] = round(sum(usable_exptimes), 3)
+    if STACK_SHAPE_QC_ENABLED:
+        measure_star_shape(stacked).write_header(header)
 
     out_path = _stack_output_path(target_name, obs_dt, len(aligned))
     fits.PrimaryHDU(data=stacked, header=header).writeto(out_path, overwrite=True)
@@ -774,11 +1004,13 @@ def _median_stack(calibrated_paths: list[Path], target_name: str, obs_dt: dateti
     median_abs_shift = float(np.median([max(abs(dy), abs(dx)) for dy, dx in shifts])) if shifts else 0.0
     log.info("  aligned stack for %s: %d/%d frame(s) kept, median |shift|=%.2f px -> %s", target_name, len(aligned), len(kept), median_abs_shift, out_path.name)
     return out_path
+# Function: _archive_group
 def _archive_group(group_items: list[dict]):
     for item in group_items:
         _archive_frame(item["path"])
 
 
+# Function: _related_products
 def _related_products(path: Path) -> list[Path]:
     path = Path(path)
     stem = path.stem
@@ -796,6 +1028,7 @@ def _related_products(path: Path) -> list[Path]:
     return products
 
 
+# Function: _archive_paths
 def _archive_paths(paths: list[Path]):
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
     seen = set()
@@ -814,6 +1047,7 @@ def _archive_paths(paths: list[Path]):
                 log.warning("  Archive failed for %s: %s", candidate.name, e)
 
 
+# Function: _archive_failed_group
 def _archive_failed_group(group_items: list[dict], calibrated_paths: list[Path], stack_path: Path | None):
     raw_paths = [item["path"] for item in group_items]
     transient_paths = raw_paths + list(calibrated_paths)
@@ -822,6 +1056,7 @@ def _archive_failed_group(group_items: list[dict], calibrated_paths: list[Path],
     _archive_paths(transient_paths)
 
 
+# Function: _purge_paths
 def _purge_paths(paths: list[Path]):
     seen = set()
     for path in paths:
@@ -840,6 +1075,7 @@ def _purge_paths(paths: list[Path]):
                 log.warning("  Cleanup failed for %s: %s", candidate.name, e)
 
 
+# Function: _cleanup_completed_group
 def _cleanup_completed_group(group_items: list[dict], calibrated_paths: list[Path], stack_path: Path | None):
     raw_paths = [item["path"] for item in group_items]
     transient_paths = raw_paths + list(calibrated_paths)
@@ -848,6 +1084,7 @@ def _cleanup_completed_group(group_items: list[dict], calibrated_paths: list[Pat
     _purge_paths(transient_paths)
 
 
+# Function: _cleanup_intermediates
 def _cleanup_intermediates(calibrated_paths: list[Path], stack_path: Path | None):
     transient_paths = list(calibrated_paths)
     if stack_path:
@@ -855,11 +1092,13 @@ def _cleanup_intermediates(calibrated_paths: list[Path], stack_path: Path | None
     _purge_paths(transient_paths)
 
 
+# Function: _clear_unclosed_success
 def _clear_unclosed_success(entry: dict):
     if not entry.get("last_obs_utc"):
         entry["last_success"] = None
 
 
+# Function: process_buffer
 def process_buffer():
     with _process_lock() as lock_acquired:
         if not lock_acquired:
@@ -1039,11 +1278,56 @@ def process_buffer():
                 processed += raw_count
                 continue
 
-            candidate_paths = []
+            raw_candidate_paths = []
             stack_path = _median_stack(calibrated_paths, key, ref["obs_dt"])
+            if REQUIRE_STACKED_PRODUCTS and len(calibrated_paths) >= 2 and not stack_path:
+                log.error("  %s rejected: stacked product required but stack creation failed", key)
+                if ledger[key].get("status") != "OBSERVED":
+                    ledger[key]["status"] = "FAILED_STACK_REQUIRED"
+                ledger[key]["last_calibration_state"] = "STACK_REQUIRED_FAILED"
+                _clear_unclosed_success(ledger[key])
+                row["failure_category"] = "STACK_REQUIRED"
+                row["failure_detail"] = "stacked product required but stack creation failed"
+                row["ledger_status"] = ledger[key].get("status")
+                row["calibration_state"] = ledger[key].get("last_calibration_state")
+                session_rows.append(row)
+                _archive_failed_group(items, calibrated_paths, stack_path)
+                save_ledger(ledger)
+                save_missing_calibrations(ledger)
+                processed += raw_count
+                continue
             if stack_path:
-                candidate_paths.append((stack_path, f"DARKSUB_STACK_{len(calibrated_paths)}"))
-            candidate_paths.extend((path, "DARKSUB_SINGLE") for path in reversed(calibrated_paths))
+                raw_candidate_paths.append((stack_path, f"DARKSUB_STACK_{len(calibrated_paths)}"))
+            if not REQUIRE_STACKED_PRODUCTS or len(calibrated_paths) < 2:
+                raw_candidate_paths.extend((path, "DARKSUB_SINGLE") for path in reversed(calibrated_paths))
+
+            candidate_paths = []
+            shape_rejects = []
+            for candidate_path, candidate_state in raw_candidate_paths:
+                shape_error = _shape_qc_failure(candidate_path)
+                if shape_error:
+                    shape_rejects.append(f"{candidate_path.name}:{shape_error}")
+                    log.warning("  %s shape QC rejected %s: %s", key, candidate_path.name, shape_error)
+                    continue
+                candidate_paths.append((candidate_path, candidate_state))
+
+            if not candidate_paths:
+                detail = "; ".join(shape_rejects[:4]) or "no shape-usable candidates"
+                log.error("  %s rejected: no untrailed stack/single candidates", key)
+                if ledger[key].get("status") != "OBSERVED":
+                    ledger[key]["status"] = "FAILED_QC_TRAILED"
+                ledger[key]["last_calibration_state"] = "FAILED_STAR_SHAPE_QC"
+                _clear_unclosed_success(ledger[key])
+                row["failure_category"] = "TRAILING"
+                row["failure_detail"] = detail
+                row["ledger_status"] = ledger[key].get("status")
+                row["calibration_state"] = ledger[key].get("last_calibration_state")
+                session_rows.append(row)
+                _archive_failed_group(items, calibrated_paths, stack_path)
+                save_ledger(ledger)
+                save_missing_calibrations(ledger)
+                processed += raw_count
+                continue
 
             total_solve_candidates = len(candidate_paths)
             if total_solve_candidates > MAX_PLATE_SOLVE_CANDIDATES:
@@ -1101,7 +1385,10 @@ def process_buffer():
                     solve_path.name,
                     stack_path.name,
                 )
+                copied_wcs = _copy_wcs_sidecar(solve_wcs_path, stack_path)
                 solve_path = stack_path
+                if copied_wcs:
+                    solve_wcs_path = copied_wcs
                 cal_state = f"{cal_state}+STACK_WCS_FALLBACK"
 
             target_mag = mag_lookup.get(key)
@@ -1187,6 +1474,22 @@ def process_buffer():
                         "solved_ra_deg": result.get("solved_ra_deg"),
                         "solved_dec_deg": result.get("solved_dec_deg"),
                     })
+                    accepted_fits, accepted_jpg = _publish_accepted_products(
+                        Path(solve_path),
+                        solve_wcs_path,
+                        key,
+                        ra_deg,
+                        dec_deg,
+                        result,
+                        row,
+                        session_started_utc,
+                    )
+                    if accepted_fits:
+                        ledger[key]["last_accepted_product"] = str(accepted_fits)
+                        row["accepted_product"] = str(accepted_fits)
+                    if accepted_jpg:
+                        ledger[key]["last_accepted_preview"] = str(accepted_jpg)
+                        row["accepted_preview"] = str(accepted_jpg)
                 else:
                     log.warning("  %s poor SNR=%.1f (min %.1f)", key, snr, MIN_SNR)
                     if ledger[key].get("status") != "OBSERVED":

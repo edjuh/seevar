@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Rotate SeeVar application logs without relying on root logrotate."""
+# -*- coding: utf-8 -*-
+"""
+Filename: dev/utils/log_maintenance.py
+Version: 1.0.0
+Objective: Rotate SeeVar application logs without relying on root logrotate.
+"""
 
 from __future__ import annotations
 

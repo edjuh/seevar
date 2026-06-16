@@ -303,6 +303,9 @@ The ensemble should later support:
 
 ### 1.9.4 — Deterministic reporting
 - accept only `P7`-passed frames into report staging
+- require stacked accepted products for multi-frame targets by default
+- publish one accepted FITS/JPEG/report per successful object
+- block AAVSO upload unless stack, WCS, photometry, and report all pass
 - wire accepted results into AAVSO output products
 
 ### Later

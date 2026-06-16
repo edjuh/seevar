@@ -35,6 +35,7 @@ No state may silently replace another state's responsibility.
 | `data/tonights_plan.json` | Preflight | Canonical nightly mission plan |
 | `data/ssc_payload.json` | Schedule compiler | Executable Seestar/SSC-style payload |
 | `data/system_state*.json` | Orchestrator/dashboard | Live mission state |
+| `data/flight_runs/*.jsonl` | FSM | Per-target proof chain |
 | `data/local_buffer/*.fits` | Flight | Raw frame custody |
 | `data/calibrated_buffer/*` | Postflight | Working calibrated products |
 | `data/archive/*` | Postflight | Durable observation custody |
@@ -101,13 +102,45 @@ Each target follows the canonical `A1-A12` chain:
 | `A12` | Commit | Stamp custody and ledger attempt state |
 
 A target can pass flight and still fail postflight.
+A target cannot pass flight partially by default: connect, prepare, pointing,
+tracking, exposure, frame acceptance, and target completion must all be proven.
+Fresh pointing proof is required before the first science frame and then at the
+configured frame interval.
 
 Flight outputs raw custody:
 
 - FITS files in `data/local_buffer/`
+- proof rows in `data/flight_runs/`
 - live state in `data/system_state*.json`
 - logs and telemetry
 - ledger attempt/capture status
+
+## SeeVar Lite Flight Path
+
+SeeVar Lite is the reducer path for current development.
+
+It keeps SeeVar responsible for planning, monitoring, proof artifacts,
+postflight, photometry, and AAVSO reporting. It delegates telescope execution
+to `seestarpy` or `seestar_alp` plan execution.
+
+Lite chain:
+
+```text
+tonights_plan.json
+-> seestarpy plan dictionary
+-> plan submit
+-> plan monitor
+-> stack/product download
+-> postflight
+```
+
+The default Lite monitor writes:
+
+- `data/system_state_lite.json`
+- `data/flight_runs/lite_*.jsonl`
+
+The old Alpaca frame loop remains a fallback until one Lite target proves
+`plan -> solve -> track -> stack -> download -> photometry -> report`.
 
 ## Phase 5: POSTFLIGHT
 
@@ -126,7 +159,8 @@ It follows `P1-P8`:
 | `P7` | Quality Verdict | Apply saturation, SNR, comp, fit, residual gates |
 | `P8` | Commit And Report | Archive, ledger, report, and cleanup |
 
-Postflight must fail honestly. No report is produced from an unproven observation.
+Postflight must fail honestly. No report is produced from an unproven
+observation. Multi-frame targets require one stacked accepted product by default.
 
 ## Optional Secondary Imaging
 
@@ -158,7 +192,9 @@ Abort does not automatically invalidate already captured frames. Postflight may 
 
 Current production control is Alpaca-era SeeVar control through `core/flight/pilot.py`, `core/flight/fsm.py`, and `core/flight/orchestrator.py`.
 
-`seestar_alp` is an API workbench/integration candidate, especially for scheduler, mosaic, solve, heater level, and diagnostics. It is documented in `SEESTAR_ALP_API.MD`.
+`seestar_alp` is diagnostics by default and can be enabled as a controlled
+adapter only with `[seestar_alp].enabled = true` and `mode = "controlled"`.
+It is documented in `SEESTAR_ALP_API.MD`.
 
 Native Seestar SSH access is diagnostic and file-oriented only. It is documented in `SEESTAR_SSH_ACCESS.MD`.
 

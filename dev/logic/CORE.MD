@@ -23,10 +23,11 @@ Fleet naming and founding principles: `PICKERING_PROTOCOL.MD`.
 5. **The Gate** — `core/flight/orchestrator.py` runs Go/No-Go checks:
    storage, hardware (Alpaca management API on port 32323), GPS clock, weather, fog.
 6. **The Scoring** — Orchestrator scores observable targets by meridian-aware priority.
-7. **The Acquisition** — `core/flight/pilot.py` v3.0.0 `DiamondSequence.acquire()` executes
-   per target via Alpaca REST:
+7. **The Acquisition** — `core/flight/fsm.py` drives a proof-required target
+   chain through `core/flight/pilot.py` by default:
    - SlewToCoordinatesAsync → settle → SetGain → StartExposure → poll imageready
    - Download imagearray (2160×3840 int32) → sovereign_stamp() → write_fits()
+   - Reject failed connect/solve/track/expose/accept proofs immediately
    - Output: `data/local_buffer/{TARGET}_{TS}_Raw.fits`
 8. **The Handoff** — On success, orchestrator updates ledger and triggers postflight.
 
@@ -39,7 +40,9 @@ Fleet naming and founding principles: `PICKERING_PROTOCOL.MD`.
 
 *Do not live in the moment. Plan for the astronomical night.*
 
-*The Alpaca REST API on port 32323 is the sole control path for all science acquisition.*
+*Firmware Alpaca on port 32323 is the default control path for science acquisition.*
+
+*`seestar_alp` may be used only when explicitly enabled as a controlled adapter.*
 
 *Port 4700 is retained read-only for battery/charger telemetry via WilhelminaMonitor.*
 

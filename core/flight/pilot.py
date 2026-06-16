@@ -20,6 +20,8 @@ Interface contract:
   - sovereign_stamp(), write_fits() utility functions
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import math
@@ -50,6 +52,7 @@ from core.flight.pointing_model import apply_pointing_model, load_pointing_model
 _CONFIG_CACHE: dict[str, Any] | None = None
 
 
+# Function: _config
 def _config() -> dict[str, Any]:
     global _CONFIG_CACHE
     if _CONFIG_CACHE is None:
@@ -58,15 +61,24 @@ def _config() -> dict[str, Any]:
     return _CONFIG_CACHE
 
 
+# Function: clear_config_cache
+def clear_config_cache() -> None:
+    global _CONFIG_CACHE
+    _CONFIG_CACHE = None
+
+
+# Function: _resolve_seestar_host
 def _resolve_seestar_host() -> tuple[str, str]:
     return selected_scope_host(_config())
 
 
+# Function: _flight_cfg
 def _flight_cfg() -> dict:
     cfg = _config()
     return cfg.get("flight", {}) if isinstance(cfg, dict) else {}
 
 
+# Function: _cfg_float
 def _cfg_float(key: str, default: float) -> float:
     try:
         return float(_flight_cfg().get(key, default))
@@ -74,6 +86,7 @@ def _cfg_float(key: str, default: float) -> float:
         return default
 
 
+# Function: _cfg_int
 def _cfg_int(key: str, default: int) -> int:
     try:
         return int(round(float(_flight_cfg().get(key, default))))
@@ -82,6 +95,7 @@ def _cfg_int(key: str, default: int) -> int:
 
 
 # Read boolean flight settings without trusting TOML/string spelling.
+# Function: _cfg_bool
 def _cfg_bool(key: str, default: bool) -> bool:
     value = _flight_cfg().get(key, default)
     if isinstance(value, bool):
@@ -107,6 +121,7 @@ VERIFY_SUFFIXES = (
 
 # Map a verify artifact back to the shared stem that ties the FITS frame to
 # all astrometry sidecars generated from that solve attempt.
+# Function: _verify_root_name
 def _verify_root_name(path: Path) -> str | None:
     name = path.name
     for suffix in VERIFY_SUFFIXES:
@@ -183,6 +198,7 @@ logger = logging.getLogger("seevar.pilot")
 
 # Keep only the newest verification bundles so dashboard previews remain
 # available without letting solve-field sidecars accumulate indefinitely.
+# Function: _prune_verify_buffer
 def _prune_verify_buffer(keep_sets: int = VERIFY_RETENTION_SETS) -> None:
     if keep_sets < 1 or not VERIFY_BUFFER.exists():
         return
@@ -262,6 +278,7 @@ class TelemetryBlock:
     alpaca_version: Optional[str] = None
 
     @classmethod
+    # Function: TelemetryBlock.from_alpaca
     def from_alpaca(cls, telescope: "AlpacaTelescope", camera: "AlpacaCamera") -> "TelemetryBlock":
         try:
             temp = camera.safe_get("ccdtemperature")
@@ -289,6 +306,7 @@ class TelemetryBlock:
             return cls(parse_error=f"Alpaca telemetry read failed: {e}")
 
     @classmethod
+    # Function: TelemetryBlock.from_response
     def from_response(cls, response: Optional[dict]) -> "TelemetryBlock":
         if response is None:
             return cls(parse_error="No response received")
@@ -308,6 +326,7 @@ class TelemetryBlock:
         except Exception as e:
             return cls(parse_error=str(e), raw=response)
 
+    # Function: TelemetryBlock.veto_reason
     def veto_reason(self) -> Optional[str]:
         if self.parse_error:
             return f"Telemetry unavailable: {self.parse_error}"
@@ -319,9 +338,11 @@ class TelemetryBlock:
             return "Level veto: device not level (preflight check failed)"
         return None
 
+    # Function: TelemetryBlock.is_safe
     def is_safe(self) -> bool:
         return self.veto_reason() is None
 
+    # Function: TelemetryBlock.summary
     def summary(self) -> str:
         if self.parse_error:
             return f"TelemetryBlock parse error: {self.parse_error}"
@@ -346,14 +367,17 @@ class TelemetryBlock:
 # ---------------------------------------------------------------------------
 
 class AlpacaClient:
+    # Function: AlpacaClient.__init__
     def __init__(self, ip: str, port: int, device_type: str, device_number: int):
         self.base = f"http://{ip}:{port}/api/v1/{device_type}/{device_number}"
         self._txid = 0
 
+    # Function: AlpacaClient._next_tx
     def _next_tx(self) -> int:
         self._txid += 1
         return self._txid
 
+    # Function: AlpacaClient._get
     def _get(self, prop: str, timeout: float = 10.0):
         params = {
             "ClientID": CLIENT_ID,
@@ -372,6 +396,7 @@ class AlpacaClient:
             raise RuntimeError(f"Alpaca GET {prop}: error {err} — {data.get('ErrorMessage', '')}")
         return data.get("Value")
 
+    # Function: AlpacaClient._put
     def _put(self, method: str, timeout: float = 15.0, **kwargs):
         payload = {
             "ClientID": CLIENT_ID,
@@ -391,15 +416,18 @@ class AlpacaClient:
             raise RuntimeError(f"Alpaca PUT {method}: error {err} — {data.get('ErrorMessage', '')}")
         return data.get("Value")
 
+    # Function: AlpacaClient.safe_get
     def safe_get(self, prop: str, default: Any = None) -> Any:
         try:
             return self._get(prop)
         except RuntimeError:
             return default
 
+    # Function: AlpacaClient.connect
     def connect(self) -> None:
         self._put("connected", Connected="true")
 
+    # Function: AlpacaClient.disconnect
     def disconnect(self) -> None:
         try:
             self._put("connected", Connected="false")
@@ -407,24 +435,30 @@ class AlpacaClient:
             pass
 
     @property
+    # Function: AlpacaClient.connected
     def connected(self) -> bool:
         return self._get("connected")
 
 
 class AlpacaTelescope(AlpacaClient):
+    # Function: AlpacaTelescope.__init__
     def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = TELESCOPE_NUM):
         host, _ = selected_scope_host(_config()) if not ip else (ip, "explicit argument")
         super().__init__(host, port, "telescope", device_number)
 
+    # Function: AlpacaTelescope.unpark
     def unpark(self):
         self._put("unpark")
 
+    # Function: AlpacaTelescope.park
     def park(self):
         self._put("park")
 
+    # Function: AlpacaTelescope.set_tracking
     def set_tracking(self, on: bool):
         self._put("tracking", Tracking=str(on).lower())
 
+    # Function: AlpacaTelescope.slew_to_coordinates_async
     def slew_to_coordinates_async(self, ra_hours: float, dec_deg: float):
         self._put(
             "slewtocoordinatesasync",
@@ -433,9 +467,11 @@ class AlpacaTelescope(AlpacaClient):
             timeout=20.0,
         )
 
+    # Function: AlpacaTelescope.abort_slew
     def abort_slew(self):
         self._put("abortslew")
 
+    # Function: AlpacaTelescope.wait_for_slew
     def wait_for_slew(self, timeout: float = SLEW_TIMEOUT, abort_callback=None) -> bool:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
@@ -452,30 +488,37 @@ class AlpacaTelescope(AlpacaClient):
         return False
 
     @property
+    # Function: AlpacaTelescope.tracking
     def tracking(self) -> bool:
         return self._get("tracking")
 
     @property
+    # Function: AlpacaTelescope.at_park
     def at_park(self) -> bool:
         return self._get("atpark")
 
     @property
+    # Function: AlpacaTelescope.ra
     def ra(self) -> float:
         return self._get("rightascension")
 
     @property
+    # Function: AlpacaTelescope.dec
     def dec(self) -> float:
         return self._get("declination")
 
     @property
+    # Function: AlpacaTelescope.altitude
     def altitude(self) -> float:
         return self._get("altitude")
 
     @property
+    # Function: AlpacaTelescope.azimuth
     def azimuth(self) -> float:
         return self._get("azimuth")
 
     @property
+    # Function: AlpacaTelescope.sidereal_time
     def sidereal_time(self) -> float:
         return self._get("siderealtime")
 
@@ -497,19 +540,24 @@ class AlpacaCamera(AlpacaClient):
         5: "Error",
     }
 
+    # Function: AlpacaCamera.__init__
     def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = CAMERA_NUM):
         host, _ = selected_scope_host(_config()) if not ip else (ip, "explicit argument")
         super().__init__(host, port, "camera", device_number)
 
+    # Function: AlpacaCamera.set_gain
     def set_gain(self, gain: int):
         self._put("gain", Gain=str(gain))
 
+    # Function: AlpacaCamera.start_exposure
     def start_exposure(self, duration_sec: float, light: bool = True):
         self._put("startexposure", Duration=str(duration_sec), Light=str(light).lower())
 
+    # Function: AlpacaCamera.abort_exposure
     def abort_exposure(self):
         self._put("abortexposure")
 
+    # Function: AlpacaCamera.wait_for_image
     def wait_for_image(self, exposure_sec: float, timeout: float = EXPOSE_TIMEOUT, abort_callback=None) -> bool:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
@@ -527,6 +575,7 @@ class AlpacaCamera(AlpacaClient):
             time.sleep(1.0)
         return False
 
+    # Function: AlpacaCamera.download_image
     def download_image(self) -> np.ndarray:
         params = {
             "ClientID": CLIENT_ID,
@@ -551,30 +600,37 @@ class AlpacaCamera(AlpacaClient):
         return np.array(value, dtype=np.int32)
 
     @property
+    # Function: AlpacaCamera.camera_state
     def camera_state(self) -> int:
         return self._get("camerastate")
 
     @property
+    # Function: AlpacaCamera.image_ready
     def image_ready(self) -> bool:
         return self._get("imageready")
 
     @property
+    # Function: AlpacaCamera.gain
     def gain(self) -> int:
         return self._get("gain")
 
     @property
+    # Function: AlpacaCamera.temperature
     def temperature(self) -> Optional[float]:
         return self.safe_get("ccdtemperature")
 
     @property
+    # Function: AlpacaCamera.sensor_width
     def sensor_width(self) -> int:
         return self._get("cameraxsize")
 
     @property
+    # Function: AlpacaCamera.sensor_height
     def sensor_height(self) -> int:
         return self._get("cameraysize")
 
 
+# Function: _seestar_rpc_call
 def _seestar_rpc_call(host: str, method: str, params=None, port: int = SEESTAR_RPC_PORT, timeout: float = 6.0) -> dict:
     payload = {"id": int(time.time() * 1000) % 1_000_000, "method": method}
     if params is not None:
@@ -610,14 +666,17 @@ class AlpacaFilterWheel(AlpacaClient):
     IR = 1
     LP = 2
 
+    # Function: AlpacaFilterWheel.__init__
     def __init__(self, ip: str | None = None, port: int = ALPACA_PORT, device_number: int = FILTERWHEEL_NUM):
         host, _ = selected_scope_host(_config()) if not ip else (ip, "explicit argument")
         super().__init__(host, port, "filterwheel", device_number)
 
+    # Function: AlpacaFilterWheel.set_position
     def set_position(self, pos: int):
         self._put("position", Position=str(pos))
 
     @property
+    # Function: AlpacaFilterWheel.position
     def position(self) -> int:
         return self._get("position")
 
@@ -626,6 +685,7 @@ class AlpacaFilterWheel(AlpacaClient):
 # FITS construction
 # ---------------------------------------------------------------------------
 
+# Function: _read_gps_ram
 def _read_gps_ram() -> dict:
     try:
         data = json.loads(ENV_STATUS.read_text())
@@ -637,6 +697,7 @@ def _read_gps_ram() -> dict:
         return {"lat": 0.0, "lon": 0.0, "elevation": 0.0}
 
 
+# Function: sovereign_stamp
 def sovereign_stamp(
     target: AcquisitionTarget,
     utc_obs: datetime,
@@ -692,13 +753,18 @@ def sovereign_stamp(
         "CTYPE1": "RA---TAN",
         "CTYPE2": "DEC--TAN",
         "DATE-OBS": utc_obs.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3],
+        "IMAGETYP": "LIGHT",
+        "FRAME": "LIGHT",
         "EXPTIME": target.exp_ms / 1000.0,
         "EXPMS": int(target.exp_ms),
-        "INSTRUME": INSTRUMENT,
+        "INSTRUME": "Seestar S30 IMX585",
         "TELESCOP": TELESCOPE,
         "FILTER": FILTER_NAME,
         "BAYERPAT": BAYER_PATTERN,
         "GAIN": GAIN,
+        "OFFSET": PEDESTAL,
+        "XBINNING": 1,
+        "YBINNING": 1,
         "FOCALLEN": FOCALLEN,
         "APERTURE": APERTURE,
         "PIXSCALE": PIXSCALE,
@@ -711,7 +777,8 @@ def sovereign_stamp(
         "SWCREATE": SWCREATE,
     }
 
-    h["CCD-TEMP"] = ccd_temp if ccd_temp is not None else "UNKNOWN"
+    if ccd_temp is not None:
+        h["CCD-TEMP"] = float(ccd_temp)
     h["SCOPEID"] = str(ACTIVE_SCOPE.get("scope_id", ACTIVE_SCOPE_TAG))[:68]
     h["SCOPENAM"] = str(ACTIVE_SCOPE.get("scope_name", ACTIVE_SCOPE_TAG))[:68]
     if ACTIVE_SCOPE.get("ip"):
@@ -729,10 +796,11 @@ def sovereign_stamp(
     return h
 
 
-def write_fits(array: np.ndarray, header_dict: dict, output_path: Path) -> bool:
+# Function: write_fits
+def write_fits(array: np.ndarray, header_dict: dict | fits.Header, output_path: Path) -> bool:
     # Backward compatibility: older simulation code passed
     # write_fits(output_path, array, header_dict).
-    if isinstance(array, Path) and isinstance(header_dict, np.ndarray) and isinstance(output_path, fits.Header):
+    if isinstance(array, Path) and isinstance(header_dict, np.ndarray) and isinstance(output_path, (dict, fits.Header)):
         array, header_dict, output_path = header_dict, output_path, array
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -743,6 +811,7 @@ def write_fits(array: np.ndarray, header_dict: dict, output_path: Path) -> bool:
     if array_signed.dtype.byteorder not in (">",):
         array_signed = array_signed.byteswap().view(array_signed.dtype.newbyteorder(">"))
 
+    # Function: write_fits.card
     def card(key: str, value, comment: str = "") -> str:
         key = key.upper()[:8].ljust(8)
         if isinstance(value, bool):
@@ -794,6 +863,7 @@ class DiamondSequence:
       acquire(target, status_cb, telemetry) -> FrameResult
     """
 
+    # Function: DiamondSequence.__init__
     def __init__(self, host: str | None = None, port: int = ALPACA_PORT):
         resolved_host, resolved_source = selected_scope_host(_config()) if not host else (host, "explicit argument")
         self.host = resolved_host
@@ -807,6 +877,7 @@ class DiamondSequence:
         self._session_connects = 0
         self._last_session_error = ""
 
+    # Function: DiamondSequence._management_status
     def _management_status(self) -> tuple[bool, str]:
         try:
             r = requests.get(f"http://{self.host}:{self.port}/management/apiversions", timeout=5)
@@ -815,10 +886,12 @@ class DiamondSequence:
         except requests.RequestException as e:
             return False, f"Alpaca management unreachable: {e}"
 
+    # Function: DiamondSequence._is_reachable
     def _is_reachable(self) -> bool:
         ok, _ = self._management_status()
         return ok
 
+    # Function: DiamondSequence._require_connected
     def _require_connected(self, client: AlpacaClient, label: str):
         try:
             connected = bool(client.connected)
@@ -827,6 +900,7 @@ class DiamondSequence:
         if not connected:
             raise RuntimeError(f"{label} reports connected=false after connect()")
 
+    # Function: DiamondSequence._session_health
     def _session_health(self) -> tuple[bool, str]:
         ok, err = self._management_status()
         if not ok:
@@ -848,6 +922,7 @@ class DiamondSequence:
         except RuntimeError as e:
             return False, f"Alpaca backend reachable but telescope not operational: {e}"
 
+    # Function: DiamondSequence._read_operational_telemetry
     def _read_operational_telemetry(self, level_ok: bool) -> TelemetryBlock:
         telemetry = TelemetryBlock.from_alpaca(self._telescope, self._camera)
         telemetry.level_ok = level_ok
@@ -855,6 +930,51 @@ class DiamondSequence:
             telemetry.parse_error = f"Alpaca backend reachable but telemetry unavailable: {telemetry.parse_error}"
         return telemetry
 
+    # Function: DiamondSequence._camera_not_connected_error
+    def _camera_not_connected_error(self, error: Exception) -> bool:
+        text = str(error).lower()
+        return "error 1031" in text or "not connected" in text or "camera disconnected" in text
+
+    # Function: DiamondSequence._ensure_camera_connected
+    def _ensure_camera_connected(self, notify=None) -> None:
+        try:
+            if self._camera.connected:
+                return
+        except Exception as e:
+            logger.warning("Camera connection probe failed: %s", e)
+
+        self._session_ready = False
+        if notify:
+            notify("A10", "Camera disconnected; reconnecting")
+        self._camera.connect()
+        self._require_connected(self._camera, "Camera")
+        time.sleep(1.0)
+
+    # Function: DiamondSequence._start_camera_exposure
+    def _start_camera_exposure(self, exposure_sec: float, light: bool = True, notify=None) -> None:
+        last_error: Exception | None = None
+        for attempt in range(2):
+            try:
+                self._ensure_camera_connected(notify=notify)
+                try:
+                    self._camera.set_gain(GAIN)
+                except Exception as e:
+                    if self._camera_not_connected_error(e):
+                        raise
+                    logger.warning("Gain set during acquire: %s", e)
+                self._camera.start_exposure(exposure_sec, light=light)
+                return
+            except Exception as e:
+                last_error = e
+                if not self._camera_not_connected_error(e) or attempt:
+                    break
+                self._session_ready = False
+                if notify:
+                    notify("A10", "Camera reconnect retry before exposure")
+                time.sleep(2.0)
+        raise RuntimeError(f"Camera exposure start failed after reconnect: {last_error}")
+
+    # Function: DiamondSequence._site_latitude_deg
     def _site_latitude_deg(self) -> float | None:
         gps = _read_gps_ram()
         lat = gps.get("lat")
@@ -866,6 +986,7 @@ class DiamondSequence:
         except (TypeError, ValueError):
             return None
 
+    # Function: DiamondSequence._mount_mode
     def _mount_mode(self) -> str:
         try:
             scope = selected_scope(_config())
@@ -875,7 +996,9 @@ class DiamondSequence:
             pass
         return "altaz"
 
+    # Function: DiamondSequence.prepare_target
     def prepare_target(self, target: AcquisitionTarget, telemetry: Optional[TelemetryBlock] = None, notify=None) -> AcquisitionTarget:
+        # Function: DiamondSequence.prepare_target.emit
         def emit(msg: str):
             if notify:
                 notify("A9", msg)
@@ -927,10 +1050,18 @@ class DiamondSequence:
             integration_sec=planned_total_sec,
         )
 
-    def _capture_temp_frame(self, target: AcquisitionTarget, exposure_sec: float, suffix: str, ccd_temp=None) -> Path:
-        self._camera.start_exposure(exposure_sec, light=True)
+    # Function: DiamondSequence._capture_temp_frame
+    def _capture_temp_frame(
+        self,
+        target: AcquisitionTarget,
+        exposure_sec: float,
+        suffix: str,
+        ccd_temp=None,
+        abort_callback=None,
+    ) -> Path:
+        self._start_camera_exposure(exposure_sec, light=True)
         image_timeout = exposure_sec + EXPOSE_TIMEOUT
-        if not self._camera.wait_for_image(exposure_sec, timeout=image_timeout):
+        if not self._camera.wait_for_image(exposure_sec, timeout=image_timeout, abort_callback=abort_callback):
             raise RuntimeError(f"Verification image not ready after {image_timeout}s")
 
         img = self._camera.download_image()
@@ -949,6 +1080,7 @@ class DiamondSequence:
 
         return out_path
 
+    # Function: DiamondSequence._solve_verify_frame
     def _solve_verify_frame(
         self,
         fits_path: Path,
@@ -1041,7 +1173,7 @@ class DiamondSequence:
             frame_width = int(image_hdr.get("NAXIS1", 0))
             frame_height = int(image_hdr.get("NAXIS2", 0))
             if frame_width > 0 and frame_height > 0:
-                wcs = WCS(str(wcs_path))
+                wcs = WCS(hdr)
                 target_x, target_y = [float(v) for v in wcs.all_world2pix([[ra_deg, dec_deg]], 0)[0]]
                 max_margin = max(0, min(frame_width, frame_height) // 2 - 1)
                 margin_px = min(POINTING_EDGE_MARGIN_PX, max_margin)
@@ -1075,10 +1207,17 @@ class DiamondSequence:
             "edge_margin_px": margin_px,
         }
 
-    def _pointing_verify(self, target: AcquisitionTarget, notify, ccd_temp=None) -> dict:
+    # Function: DiamondSequence._pointing_verify
+    def _pointing_verify(self, target: AcquisitionTarget, notify, ccd_temp=None, abort_callback=None) -> dict:
         notify("A7", f"Pointing verify frame {VERIFY_EXPOSURE_SEC:.1f}s")
         try:
-            verify_fits = self._capture_temp_frame(target, VERIFY_EXPOSURE_SEC, "VERIFY", ccd_temp=ccd_temp)
+            verify_fits = self._capture_temp_frame(
+                target,
+                VERIFY_EXPOSURE_SEC,
+                "VERIFY",
+                ccd_temp=ccd_temp,
+                abort_callback=abort_callback,
+            )
         except Exception as e:
             notify("A7", f"Verify capture failed: {e}")
             return {
@@ -1113,6 +1252,7 @@ class DiamondSequence:
             _prune_verify_buffer()
 
     # Correct the command point from a solved frame while preserving the true target coordinates.
+    # Function: DiamondSequence._corrective_nudge
     def _corrective_nudge(
         self,
         command_ra_hours: float,
@@ -1134,6 +1274,7 @@ class DiamondSequence:
         corrected_dec_deg = max(-90.0, min(90.0, corrected_dec_deg))
         return corrected_ra_hours, corrected_dec_deg
 
+    # Function: DiamondSequence.init_session
     def init_session(self, level_ok: bool = True) -> TelemetryBlock:
         mgmt_ok, mgmt_error = self._management_status()
         if not mgmt_ok:
@@ -1204,6 +1345,7 @@ class DiamondSequence:
             t.level_ok = level_ok
             return t
 
+    # Function: DiamondSequence.acquire
     def acquire(
         self,
         target: AcquisitionTarget,
@@ -1214,11 +1356,13 @@ class DiamondSequence:
     ) -> FrameResult:
         """Execute A4-A11 for one target, or science-only when pointing is already established."""
 
+        # Function: DiamondSequence.acquire.notify
         def notify(step, msg):
             if status_cb:
                 status_cb(f"[{step}] {msg}")
             logger.info("[%s] %s", step, msg)
 
+        # Function: DiamondSequence.acquire.abort_requested
         def abort_requested() -> bool:
             try:
                 return bool(abort_callback and abort_callback())
@@ -1301,7 +1445,12 @@ class DiamondSequence:
                         integration_sec=target.integration_sec,
                     )
 
-                    solve = self._pointing_verify(verify_target, notify, ccd_temp=ccd_temp)
+                    solve = self._pointing_verify(
+                        verify_target,
+                        notify,
+                        ccd_temp=ccd_temp,
+                        abort_callback=abort_requested,
+                    )
                     if abort_requested():
                         return FrameResult(success=False, error="operator_abort")
 
@@ -1385,12 +1534,7 @@ class DiamondSequence:
             notify("A10", f"Set gain={GAIN} and start science exposure {exp_sec:.1f}s")
             if abort_requested():
                 return FrameResult(success=False, error="operator_abort")
-            try:
-                self._camera.set_gain(GAIN)
-            except Exception as e:
-                logger.warning("Gain set during acquire: %s", e)
-
-            self._camera.start_exposure(exp_sec, light=True)
+            self._start_camera_exposure(exp_sec, light=True, notify=notify)
 
             notify("A10", "Waiting for science exposure + readout")
             image_timeout = exp_sec + EXPOSE_TIMEOUT
@@ -1452,15 +1596,18 @@ class DiamondSequence:
             logger.exception("acquire() failed: %s", e)
             return FrameResult(success=False, error=f"Acquire exception: {e}", elapsed_s=elapsed)
 
+    # Function: DiamondSequence.park
     def park(self):
         try:
             self._telescope.park()
         except Exception as e:
             logger.warning("Park failed: %s", e)
 
+    # Function: DiamondSequence.at_park
     def at_park(self) -> bool:
         return bool(self._telescope.at_park)
 
+    # Function: DiamondSequence.shutdown_scope
     def shutdown_scope(self):
         try:
             self._telescope.set_tracking(False)
@@ -1468,6 +1615,7 @@ class DiamondSequence:
             logger.warning("Tracking stop before shutdown failed: %s", e)
         return _seestar_rpc_call(self.host, "pi_shutdown")
 
+    # Function: DiamondSequence.disconnect_all
     def disconnect_all(self):
         self._camera.disconnect()
         self._filter.disconnect()
@@ -1478,6 +1626,7 @@ class DiamondSequence:
 # Coordinate helpers
 # ---------------------------------------------------------------------------
 
+# Function: _hours_to_hms
 def _hours_to_hms(hours: float) -> str:
     h = int(hours)
     m = int((hours - h) * 60)
@@ -1485,6 +1634,7 @@ def _hours_to_hms(hours: float) -> str:
     return f"{h:02d}:{m:02d}:{s:05.2f}"
 
 
+# Function: _deg_to_dms
 def _deg_to_dms(deg: float) -> str:
     sign = "+" if deg >= 0 else "-"
     deg = abs(deg)

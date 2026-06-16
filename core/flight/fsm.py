@@ -6,6 +6,8 @@ Version: 1.3.0
 Objective: Finite State Machine governing A1-A12 target execution and failure handling for Sovereign flight operations, with live bridge-state updates back into system_state.json.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import sys
@@ -17,6 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.flight.pilot import AcquisitionTarget, DiamondSequence, TelemetryBlock
+from core.flight.proof import FlightProofRecorder
 from core.utils.env_loader import DATA_DIR, load_config
 
 logger = logging.getLogger("seevar.fsm")
@@ -24,11 +27,19 @@ logger = logging.getLogger("seevar.fsm")
 STATE_FILE = DATA_DIR / "system_state.json"
 
 
+# Function: _flight_cfg
 def _flight_cfg() -> dict:
     cfg = load_config()
     return cfg.get("flight", {}) if isinstance(cfg, dict) else {}
 
 
+# Function: _seestar_alp_cfg
+def _seestar_alp_cfg() -> dict:
+    cfg = load_config()
+    return cfg.get("seestar_alp", {}) if isinstance(cfg, dict) else {}
+
+
+# Function: _cfg_int
 def _cfg_int(key: str, default: int) -> int:
     try:
         return int(round(float(_flight_cfg().get(key, default))))
@@ -37,38 +48,122 @@ def _cfg_int(key: str, default: int) -> int:
 
 
 FRAME_RETRY_LIMIT = max(0, _cfg_int("frame_retry_limit", 0))
+POINTING_REVERIFY_INTERVAL_FRAMES = max(1, _cfg_int("pointing_reverify_interval_frames", 5))
+
+
+# Function: _cfg_bool
+def _cfg_bool(key: str, default: bool) -> bool:
+    value = _flight_cfg().get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
+# Function: _truthy
+def _truthy(value, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on", "controlled"}
+    if value is None:
+        return default
+    return bool(value)
+
+
+# Function: _seestar_alp_control_enabled
+def _seestar_alp_control_enabled() -> bool:
+    cfg = _seestar_alp_cfg()
+    return _truthy(cfg.get("enabled"), False) and str(cfg.get("mode", "diagnostic")).strip().lower() == "controlled"
+
+
+# Function: _build_sequence
+def _build_sequence():
+    if _seestar_alp_control_enabled():
+        from core.flight.seestar_alp_adapter import SeestarAlpSequence
+
+        return SeestarAlpSequence()
+    return DiamondSequence()
+
+
+ALLOW_PARTIAL_TARGET_SUCCESS = _cfg_bool("allow_partial_target_success", False)
+STRICT_TARGET_PROOF_CHAIN = _cfg_bool("strict_target_proof_chain", True)
+TAG_STATE = {
+    "[A4]": "SLEWING",
+    "[A5]": "SLEWING",
+    "[A6]": "SLEWING",
+    "[A7]": "EXPOSING",
+    "[A8]": "TRACKING",
+    "[A10]": "EXPOSING",
+    "[A11]": "TRACKING",
+}
+
+PROOF_PASS_PATTERNS = {
+    "solve": ("Pointing accepted", "Solve success"),
+    "track": ("Tracking proof accepted",),
+    "accept": ("Frame accepted",),
+}
+PROOF_FAIL_PATTERNS = {
+    "slew": ("Slew timeout", "Slew completion proof failed"),
+    "solve": ("Pointing verify failed", "Verify solve failed", "Pointing error", "Gross pointing error"),
+    "track": ("Tracking not ready", "Tracking unavailable", "Telescope is parked"),
+    "expose": ("Image not ready", "Camera not idle", "exposure start failed"),
+    "accept": ("Frame rejected", "Invalid image", "Flat image", "FITS write failed"),
+}
+
+
+# Function: _proof_step_from_message
+def _proof_step_from_message(msg: str) -> tuple[str | None, str | None]:
+    for step, patterns in PROOF_PASS_PATTERNS.items():
+        if any(pattern in msg for pattern in patterns):
+            return step, "pass"
+    for step, patterns in PROOF_FAIL_PATTERNS.items():
+        if any(pattern in msg for pattern in patterns):
+            return step, "fail"
+    if msg.startswith("[A4]"):
+        return "slew", "progress"
+    if msg.startswith("[A7]"):
+        return "solve", "progress"
+    if msg.startswith("[A10] Set gain") or "start science exposure" in msg:
+        return "expose", "progress"
+    return None, None
 
 
 class SovereignFSM:
+    # Function: SovereignFSM.__init__
     def __init__(self):
         self.state = "IDLE"
         self.telemetry: Optional[TelemetryBlock] = None
         self.last_prepared_target: Optional[AcquisitionTarget] = None
         self.last_frame_paths: list[Path] = []
-        self.sequence = DiamondSequence()
+        self.frame_retry_limit = FRAME_RETRY_LIMIT
+        self.pointing_reverify_interval_frames = POINTING_REVERIFY_INTERVAL_FRAMES
+        self.sequence = _build_sequence()
         logger.info("🧠 FSM Initialized in state: %s", self.state)
 
+    # Function: SovereignFSM.update
     def update(self, new_state: str):
         self.state = new_state
         logger.info("🔄 FSM State updated to: %s", self.state)
 
+    # Function: SovereignFSM.get_status
     def get_status(self) -> str:
         return self.state
 
+    # Function: SovereignFSM._bridge_ui_state
     def _bridge_ui_state(self, msg: str) -> str | None:
-        if msg.startswith("[A4]") or msg.startswith("[A5]") or msg.startswith("[A6]") or msg.startswith("[A7]") or msg.startswith("[A8]"):
-            return "SLEWING"
-        if msg.startswith("[A10]"):
-            return "EXPOSING"
-        if msg.startswith("[A11]"):
-            return "TRACKING"
+        for tag, state in TAG_STATE.items():
+            if msg.startswith(tag):
+                return state
         return None
 
+    # Function: SovereignFSM._write_state_bridge
     def _write_state_bridge(self, state: str | None, msg: str):
         try:
             payload = {}
             if STATE_FILE.exists():
-                payload = json.loads(STATE_FILE.read_text())
+                payload = json.loads(STATE_FILE.read_text(encoding="utf-8"))
                 if not isinstance(payload, dict):
                     payload = {}
 
@@ -85,10 +180,13 @@ class SovereignFSM:
             payload["updated"] = now_utc
             payload["updated_utc"] = now_utc
 
-            STATE_FILE.write_text(json.dumps(payload, indent=2))
+            tmp_path = STATE_FILE.with_suffix(f"{STATE_FILE.suffix}.tmp")
+            tmp_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            tmp_path.replace(STATE_FILE)
         except Exception as e:
             logger.debug("State bridge write skipped: %s", e)
 
+    # Function: SovereignFSM.execute_target
     def execute_target(
         self,
         target: AcquisitionTarget,
@@ -105,7 +203,15 @@ class SovereignFSM:
         self.update("WORKING")
         self.last_prepared_target = None
         self.last_frame_paths = []
+        proof = FlightProofRecorder(target.name)
+        proof.record("target", "start", detail=f"n_frames={target.n_frames}")
+        self.frame_retry_limit = max(0, _cfg_int("frame_retry_limit", self.frame_retry_limit))
+        self.pointing_reverify_interval_frames = max(
+            1,
+            _cfg_int("pointing_reverify_interval_frames", self.pointing_reverify_interval_frames),
+        )
 
+        # Function: SovereignFSM.execute_target.bridge
         def bridge(*parts):
             if len(parts) == 1:
                 msg = parts[0]
@@ -115,11 +221,15 @@ class SovereignFSM:
                 msg = " ".join(str(p) for p in parts)
 
             logger.info("Bridge: %s", msg)
+            proof_step, proof_status = _proof_step_from_message(msg)
+            if proof_step and proof_status:
+                proof.record(proof_step, proof_status, detail=msg)
             ui_state = self._bridge_ui_state(msg)
             self._write_state_bridge(ui_state, msg)
             if status_cb:
                 status_cb(msg)
 
+        # Function: SovereignFSM.execute_target.abort_requested
         def abort_requested() -> bool:
             try:
                 return bool(abort_cb and abort_cb())
@@ -130,15 +240,18 @@ class SovereignFSM:
         try:
             if abort_requested():
                 self._write_state_bridge("ABORTED", "Operator abort before target execution")
+                proof.record("target", "fail", detail="operator_abort before target execution")
                 self.update("ERROR")
                 return False
 
             if telemetry and telemetry.is_safe():
                 self.telemetry = telemetry
                 logger.info("[A3] Reusing validated session telemetry for %s", target.name)
+                proof.record("connect", "pass", detail="validated session telemetry reused")
                 self._write_state_bridge("PREFLIGHT", f"[A3] Reusing validated session telemetry for {target.name}")
             elif self.telemetry and self.telemetry.is_safe():
                 logger.info("[A3] Reusing cached session telemetry for %s", target.name)
+                proof.record("connect", "pass", detail="cached session telemetry reused")
                 self._write_state_bridge("PREFLIGHT", f"[A3] Reusing cached session telemetry for {target.name}")
             else:
                 logger.info("[A3] Session init for %s", target.name)
@@ -148,12 +261,17 @@ class SovereignFSM:
             if not self.telemetry or not self.telemetry.is_safe():
                 reason = self.telemetry.veto_reason() if self.telemetry else "Telemetry unavailable"
                 logger.error("[A3] Hardware veto: %s", reason)
+                proof.record("connect", "fail", detail=reason)
                 self._write_state_bridge("ABORTED", f"[A3] Hardware veto: {reason}")
                 self.update("ERROR")
                 return False
+            proof.record("connect", "pass", detail=self.telemetry.summary())
 
             target = self.sequence.prepare_target(target, telemetry=self.telemetry, notify=bridge)
+            if target is None:
+                raise RuntimeError("prepare_target returned None")
             self.last_prepared_target = target
+            proof.record("target_prepare", "pass", detail=f"exp_ms={target.exp_ms} n_frames={target.n_frames}")
             logger.info("[A10] Acquire %d frame(s) for %s", target.n_frames, target.name)
 
             successful_frames = 0
@@ -168,18 +286,22 @@ class SovereignFSM:
                 frame_ok = False
                 last_error = ""
 
-                for attempt in range(FRAME_RETRY_LIMIT + 1):
+                for attempt in range(self.frame_retry_limit + 1):
                     if attempt == 0:
-                        self._write_state_bridge("SLEWING", f"[A4] Executing frame {i + 1}/{target.n_frames} for {target.name}")
+                        self._write_state_bridge("EXPOSING", f"[A10] Executing frame {i + 1}/{target.n_frames} for {target.name}")
                     else:
-                        logger.warning("[A10] Retrying frame %d/%d for %s (%d/%d)", i + 1, target.n_frames, target.name, attempt, FRAME_RETRY_LIMIT)
-                        self._write_state_bridge("SLEWING", f"[A10] Retrying frame {i + 1}/{target.n_frames} for {target.name} ({attempt}/{FRAME_RETRY_LIMIT})")
+                        logger.warning("[A10] Retrying frame %d/%d for %s (%d/%d)", i + 1, target.n_frames, target.name, attempt, self.frame_retry_limit)
+                        self._write_state_bridge("EXPOSING", f"[A10] Retrying frame {i + 1}/{target.n_frames} for {target.name} ({attempt}/{self.frame_retry_limit})")
 
+                    reverify_due = (
+                        successful_frames == 0
+                        or successful_frames % self.pointing_reverify_interval_frames == 0
+                    )
                     result = self.sequence.acquire(
                         target=target,
                         status_cb=bridge,
                         telemetry=self.telemetry,
-                        skip_pointing=(successful_frames > 0),
+                        skip_pointing=not reverify_due,
                         abort_callback=abort_requested,
                     )
 
@@ -190,6 +312,7 @@ class SovereignFSM:
 
                     if result.success:
                         logger.info("[A11] Frame %d accepted: %s", i + 1, result.path)
+                        proof.record("accept", "pass", detail=f"frame {i + 1}/{target.n_frames}", evidence_path=result.path)
                         self._write_state_bridge("TRACKING", f"[A11] Frame {i + 1} accepted: {result.path}")
                         if result.path:
                             self.last_frame_paths.append(Path(result.path))
@@ -199,10 +322,12 @@ class SovereignFSM:
 
                     last_error = result.error
                     logger.error("[A11] Frame %d failed: %s", i + 1, result.error)
+                    proof.record("accept", "fail", detail=f"frame {i + 1}/{target.n_frames}: {result.error}")
 
                 if not frame_ok:
                     failed_frames += 1
-                    if target.n_frames == 1:
+                    if STRICT_TARGET_PROOF_CHAIN or target.n_frames == 1:
+                        proof.record("target", "fail", detail=f"first failed proof stopped target: {last_error}")
                         self._write_state_bridge("ABORTED", f"[A11] Frame {i + 1} failed after retries: {last_error}")
                         self.update("ERROR")
                         return False
@@ -212,22 +337,32 @@ class SovereignFSM:
 
             if successful_frames == target.n_frames:
                 logger.info("[A11] Acquisition complete for %s", target.name)
+                proof.record("target", "pass", detail=f"{successful_frames}/{target.n_frames} frame(s) accepted")
                 self._write_state_bridge("TRACKING", f"[A11] Acquisition complete for {target.name}")
                 self.update("SUCCESS")
                 return True
 
             if successful_frames > 0:
                 logger.warning("[A11] Acquisition partial for %s: %d/%d frame(s) accepted, %d failed", target.name, successful_frames, target.n_frames, failed_frames)
-                self._write_state_bridge("TRACKING", f"[A11] Acquisition partial for {target.name}: {successful_frames}/{target.n_frames} frame(s) accepted")
-                self.update("SUCCESS")
-                return True
+                if ALLOW_PARTIAL_TARGET_SUCCESS:
+                    proof.record("target", "pass", detail=f"partial accepted by config: {successful_frames}/{target.n_frames}")
+                    self._write_state_bridge("TRACKING", f"[A11] Acquisition partial for {target.name}: {successful_frames}/{target.n_frames} frame(s) accepted")
+                    self.update("SUCCESS")
+                    return True
 
+                proof.record("target", "fail", detail=f"incomplete: {successful_frames}/{target.n_frames} frame(s) accepted")
+                self._write_state_bridge("ABORTED", f"[A11] Acquisition incomplete for {target.name}: {successful_frames}/{target.n_frames} frame(s) accepted")
+                self.update("ERROR")
+                return False
+
+            proof.record("target", "fail", detail=f"0/{target.n_frames} frame(s) accepted")
             self._write_state_bridge("ABORTED", f"[A11] Acquisition failed for {target.name}: 0/{target.n_frames} frame(s) accepted")
             self.update("ERROR")
             return False
 
         except Exception as e:
             logger.exception("💥 FSM Critical Failure: %s", e)
+            proof.record("target", "fail", detail=f"FSM critical failure: {e}")
             self._write_state_bridge("ABORTED", f"FSM critical failure: {e}")
             self.update("ERROR")
             return False

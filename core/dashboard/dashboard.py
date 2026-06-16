@@ -1056,7 +1056,15 @@ def index():
         loc.get('elevation', 0.0),
         sun_limit,
     )
-    return render_template('index.html', target_data=target_data, flight_window=fw_text)
+    co_lat = f"{float(loc.get('lat', 51.4769)):.2f}"
+    co_lon = f"{float(loc.get('lon', 0.0)):.2f}"
+    return render_template(
+        'index.html',
+        target_data=target_data,
+        flight_window=fw_text,
+        clearoutside_url=f"https://clearoutside.com/forecast/{co_lat}/{co_lon}",
+        clearoutside_image=f"https://clearoutside.com/forecast_image_small/{co_lat}/{co_lon}/forecast.png",
+    )
 
 @app.route('/telemetry')
 def get_telemetry():

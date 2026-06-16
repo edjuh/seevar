@@ -80,6 +80,10 @@ It is making the science chain defensible end-to-end.
 - postflight doctrine frozen around `P1-P8`
 - photometry doctrine rewritten around Bayer-aware measurement rather than naive debayering
 - docs now reflect that flight and postflight have separate responsibilities
+- per-target proof ledger started in `data/flight_runs/`
+- partial target success disabled by default
+- multi-frame postflight requires one stacked accepted product by default
+- dormant `seestar_alp` controlled adapter added behind the pilot interface
 
 #### 1.9.0 — Doctrine Freeze
 - freeze sovereign `A1-A12`
@@ -107,6 +111,7 @@ Next:
 - wire accepted postflight TG results into AAVSO report staging
 - make report generation a true `P8` output
 - stop treating the reporter as a side utility
+- enforce no AAVSO upload without stack, WCS, photometry, and report proof
 
 #### 1.9.5 — Astropy Review Pass
 - replace custom code with `astropy` components where that improves correctness and maintainability
@@ -115,6 +120,30 @@ Next:
   - Seestar-specific hardware control
   - custody/state workflow
 - perform a helicopter-view audit of places where Astropy is the better answer
+
+#### 1.9.6 — seestarpy Continuity Adapter
+Future:
+- test `seestarpy` as the preferred telescope execution adapter
+- keep SeeVar responsible for target accounting, proof ledger, photometry, and AAVSO reporting
+- map SeeVar proof steps onto `seestarpy` primitives:
+  - connect/open
+  - goto target
+  - plate-solve result
+  - tracking state
+  - start/stop stack
+  - stack info
+  - file download
+- use `seestarpy` multi-Seestar support for Wilhelmina and Anna when stable
+- handle firmware `7.18+` authentication explicitly before making this production
+- prove one strict object chain before replacing the current Alpaca capture path
+
+#### 1.9.7 — SeeVar Lite Reducer
+Future:
+- make Lite the preferred development path
+- submit a generated seestarpy/seestar_alp plan instead of steering frames directly
+- monitor plan state into `system_state_lite.json` and `flight_runs/lite_*.jsonl`
+- download one accepted stack per target
+- keep the old Alpaca loop as fallback until Lite proves one full science target
 
 #### 1.9.x also includes
 - rewrite `WORKFLOW.MD` to match current Alpaca-era reality

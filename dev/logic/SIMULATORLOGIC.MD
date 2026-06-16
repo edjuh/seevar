@@ -62,11 +62,14 @@ At minimum, the simulator must model:
 - Simulation must not collapse the target sequence into a single fake exposure event if the goal is workflow verification.
 - Simulation logs must resemble real flight logs closely enough that step-by-step validation is possible.
 - The simulator should prove orchestration logic, not just FITS file creation.
+- Fake hardware should emit enough evidence to populate `data/flight_runs/`.
+- Strict mode should fail a simulated target on the first failed required proof.
 
 ## Minimum Acceptable Output
 
 For each simulated target, the log should show the A1-A12 chain explicitly,
-even if some steps are mocked.
+even if some steps are mocked. The dry-run proof ledger should show pass/fail
+rows for connect, prepare, solve, track, acquire, accept, and target completion.
 
 This ensures that:
 - the dashboard reflects real mission progress

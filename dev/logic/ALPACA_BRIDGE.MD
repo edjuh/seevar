@@ -5,12 +5,12 @@
 
 ## Role (Post-Alpaca Breakthrough, 2026-03-30)
 
-The ZWO official ASCOM Alpaca driver is the **primary and sole** control
-interface for all science acquisition. It runs inside the Seestar firmware
+The ZWO official ASCOM Alpaca driver is the **default primary** control
+interface for science acquisition. It runs inside the Seestar firmware
 on port 32323, exposed via standard HTTP REST.
 
 No phone app required. No session master lock. No JSON-RPC encryption.
-No seestar_alp middleware.
+No `seestar_alp` middleware is required for the default path.
 
 Confirmed working: slew, track, park, unpark, expose, gain control,
 filter wheel, image download — all without any ZWO cooperation or
@@ -40,9 +40,8 @@ which are not exposed via Alpaca. WilhelminaMonitor listens passively.
 No commands are sent to port 4700.
 
 Ports `4801` and `4800` are not production science-control paths.
-Ports `5432` and `5555` may exist on the DEV RPI when `seestar_alp` is
-running as a diagnostics/API workbench, but they are not the normal flight
-control path.
+Ports `5432` and `5555` may exist when `seestar_alp` is running. That path is
+diagnostic unless `[seestar_alp].enabled = true` and `mode = "controlled"`.
 
 ## Alpaca REST Conventions
 

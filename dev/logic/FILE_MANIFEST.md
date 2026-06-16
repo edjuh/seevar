@@ -19,12 +19,14 @@
 | core/flight/exposure_planner.py | 1.2.0 | Estimate safe science exposure parameters for a target using brightness, sky quality, and flight constraints. its mag... |
 | core/flight/field_rotation.py | 1.2.0 | Field rotation for Alt-Az telescopes (ZWO Seestar S30/S50). Now includes accurate integrated smear via numerical inte... |
 | core/flight/flat_library.py | 1.0.0 | Capture normalized master flat assets for a scope/filter pair and mark whether they are ready for science use. |
-| core/flight/fsm.py | 1.3.0 | Finite State Machine governing A1-A12 target execution and failure handling for Sovereign flight operations, with liv... |
+| core/flight/fsm.py | 1.3.0 | Finite State Machine governing A1-A12 target execution, proof recording, strict target failure, and live bridge updates. |
 | core/flight/mission_chronicle.py | 4.2.0 | Orchestrates the Preflight Funnel (Janitor -> Librarian -> Auditor -> Planner). |
 | core/flight/neutralizer.py | 2.1.0 | Hardware reset via Alpaca REST — parks telescope and verifies idle state before handing control to the pilot. |
 | core/flight/orchestrator.py | 1.8.3 | Autonomous night daemon consuming tonights_plan.json as the canonical mission order, logging A1-A12, executing target... |
 | core/flight/pilot.py | 3.1.0 | Sovereign Alpaca acquisition engine for the Seestar S30-Pro, owning A4-A11 including slew, pointing verification, cor... |
 | core/flight/pointing_model.py | 1.0.0 | Store and apply a short-lived constant pointing correction measured from solved pre-alignment fields. |
+| core/flight/proof.py | N/A | Append-only per-target proof ledger writer for data/flight_runs. |
+| core/flight/seestar_alp_adapter.py | N/A | Optional seestar_alp-backed control adapter behind the SeeVar pilot interface. |
 | core/flight/sim_runner.py | 1.0.0 | Execute a full realtime nightly simulation against tonights_plan.json with structured CLI output and live system_stat... |
 | core/flight/vault_manager.py | 1.4.1 | Secure metadata access with actual bi-directional tomli_w syncing. |
 | core/hardware/fleet_mapper.py | 2.0.0 | Read [[seestars]] from config.toml, load hardware constants from core/hardware/models/<model>.json, and produce data/... |

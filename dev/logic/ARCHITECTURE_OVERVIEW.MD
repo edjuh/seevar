@@ -12,14 +12,18 @@ For wire protocol detail see `API_PROTOCOL.MD`.
 ## 🛰️ 1. THE FLIGHT HANGAR (`core/flight/`)
 *The cockpit. Hardware meets command here.*
 
-- **`pilot.py`** — The sovereign acquisition engine over ASCOM Alpaca REST on port `32323`.
+- **`pilot.py`** — The default acquisition engine over ASCOM Alpaca REST on port `32323`.
   Owns target execution steps `A3-A10`: session init, slew, settle, exposure, image download, and FITS write.
 
 - **`orchestrator.py`** — The autonomous night daemon.
   Owns mission states `IDLE -> PREFLIGHT -> PLANNING -> FLIGHT -> POSTFLIGHT -> PARKED`.
   Consumes `data/tonights_plan.json` as the canonical nightly plan and must not re-score the sky independently.
 
-- **`fsm.py`** — State transition authority for per-target execution and failure handling.
+- **`fsm.py`** — State transition authority for per-target execution, proof rows, and failure handling.
+
+- **`proof.py`** — Append-only target proof ledger writer for `data/flight_runs/`.
+
+- **`seestar_alp_adapter.py`** — Optional controlled adapter behind the same pilot interface.
 
 - **`camera_control.py`** — Thin Alpaca reachability and safe-stop wrapper for hardware gating, not the science acquisition path.
 
@@ -34,6 +38,7 @@ For wire protocol detail see `API_PROTOCOL.MD`.
 - **`mission_chronicle.py`** — Preflight funnel launcher. It prepares the night but is not the per-target flight engine.
 
 The canonical per-target science chain is now the Sovereign Flight Sequence `A1-A12`.
+Each required proof must pass; partial target success is disabled by default.
 
 ---
 
@@ -58,6 +63,7 @@ Flight only needs an immediate operational quality gate (`A11`).
 | Location | Storage | Purpose |
 |----------|---------|---------|
 | `data/local_buffer/` | RAID1 USB | Transient raw + processed FITS |
+| `data/flight_runs/` | RAID1 USB | Per-target proof rows |
 | `data/ledger.json` | RAID1 USB | Persistent per-target observation history |
 | `data/system_state.json` | SD Card / runtime state | Volatile live pipeline telemetry |
 | `data/tonights_plan.json` | RAID1 USB | Canonical nightly target list |
@@ -94,3 +100,4 @@ Flight only needs an immediate operational quality gate (`A11`).
 - `tonights_plan.json` is the authoritative handoff.
 - Flight must not silently replace planner logic with local ad-hoc scoring.
 - The canonical per-target execution chain is `A1-A12`.
+- Multi-frame successful objects require one stacked postflight product by default.
